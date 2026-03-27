@@ -1,13 +1,28 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Grand Line</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple Hex Map</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <canvas id="map"></canvas>
-  <script src="/static/game.js"></script>
+  <div id="app">
+    <svg id="map" xmlns="http://www.w3.org/2000/svg" aria-label="hex map">
+      <!--
+        One SVG, several layers.
+        "Layer" here just means a <g> group inside this single SVG.
+      -->
+      <g id="viewport">
+        <g id="background-layer"></g>
+        <g id="ocean-grid-layer"></g>
+        <g id="land-fill-layer"></g>
+        <g id="land-grid-layer"></g>
+        <g id="outline-layer"></g>
+      </g>
+    </svg>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
