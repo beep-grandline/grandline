@@ -1,195 +1,333 @@
 const canvas = document.getElementById('map')
-const ctx    = canvas.getContext('2d')
-const SQRT3  = Math.sqrt(3)
+const ctx = canvas.getContext('2d')
+const infoBox = document.getElementById('tile-info')
 
-const COLS = 20   // hexes across — fits viewport width
-const ROWS = 50   // hexes tall — controls scroll length
+const SQRT3 = Math.sqrt(3)
 
-// Grand Line = vertical column band through the middle
+const COLS = 20
+const ROWS = 50
+
 const GL_COL_START = 8
-const GL_COL_END   = 11
-
-// Red Line = horizontal row band separating Paradise / New World
+const GL_COL_END = 11
 const RL_ROW = 24
 
-// SIZE is computed from window width so no horizontal scroll ever
-let SIZE = 1
-function computeSize() {
-  // flat-top hex: total width = SIZE * (1.5*(COLS-1) + 2)
-  SIZE = Math.floor(window.innerWidth / (1.5 * (COLS - 1) + 2))
-}
+const PAD_COLS = 3
+const PAD_ROWS = 3
+const HEX_SCALE = 0.94
 
-// ── flat-top hex math ────────────────────────────
-// q = column, r = row
-// odd columns are offset down by half a hex height
-function hexToPixel(q, r) {
-  return {
-    x: SIZE * (1 + 1.5 * q),
-    y: SIZE * SQRT3 * (r + (q % 2 === 1 ? 0.5 : 0)) + SIZE * SQRT3 / 2
-  }
-}
+const DRAW_Q_MIN = -PAD_COLS
+const DRAW_Q_MAX = COLS + PAD_COLS - 1
+const DRAW_R_MIN = -PAD_ROWS
+const DRAW_R_MAX = ROWS + PAD_ROWS - 1
 
-// flat-top corners: angles 0, 60, 120, 180, 240, 300
-function hexCorners(cx, cy) {
-  return Array.from({length:6}, (_, i) => {
-    const a = (Math.PI / 3) * i
-    return [cx + SIZE * Math.cos(a), cy + SIZE * Math.sin(a)]
-  })
-}
-
-// ── terrain colours ──────────────────────────────
 const TERRAIN = {
-  sea:       '#1a3f6b',
-  deep:      '#0d1f3c',
+  sea: '#1a3f6b',
+  deep: '#0d1f3c',
   grandline: '#162a52',
-  island:    '#c9943a',
-  forest:    '#2a6b3a',
-  snow:      '#8ab8cc',
-  desert:    '#c8a44a',
-  volcano:   '#8b2a10',
-  redline:   '#3a0808',
+  island: '#c9943a',
+  forest: '#2a6b3a',
+  snow: '#8ab8cc',
+  desert: '#c8a44a',
+  volcano: '#8b2a10',
+  redline: '#3a0808',
 }
-const PLAYER_COLORS = ['#f0d060','#f07060','#60f0a0','#f060c0','#60c0f0']
 
-// ── island definitions (q=col, r=row) ────────────
+const TERRITORY_COLORS = {
+  A: '#8b2020',
+  B: '#1a4a8b',
+  C: '#6b1a8b',
+}
+
+const PLAYER_COLORS = ['#f0d060', '#f07060', '#60f0a0', '#f060c0', '#60c0f0']
+
 const ISLANDS = [
-  // East Blue (left of GL)
-  {q:3,  r:3,  name:'Foosha',      terrain:'island'},
-  {q:1,  r:9,  name:'Shells Town', terrain:'island'},
-  {q:5,  r:14, name:'Baratie',     terrain:'island'},
-  {q:3,  r:19, name:'Arlong Park', terrain:'forest'},
-  // West Blue (right of GL)
-  {q:15, r:5,  name:'Syrup Village',terrain:'island'},
-  {q:17, r:12, name:'Orange Town', terrain:'forest'},
-  {q:14, r:18, name:'Loguetown',   terrain:'island'},
-  // Grand Line — Paradise (above Red Line)
-  {q:9,  r:1,  name:'Reverse Mtn', terrain:'island'},
-  {q:8,  r:5,  name:'Whiskey Peak',terrain:'desert'},
-  {q:10, r:8,  name:'Little Garden',terrain:'forest'},
-  {q:9,  r:12, name:'Drum Island', terrain:'snow'},
-  {q:8,  r:16, name:'Alabasta',    terrain:'desert'},
-  {q:10, r:20, name:'Jaya',         terrain:'forest'},
-  {q:9,  r:23, name:'Skypiea',      terrain:'island'},
-  // Grand Line — New World (below Red Line)
-  {q:9,  r:27, name:'Fishman Island',terrain:'island'},
-  {q:8,  r:31, name:'Punk Hazard', terrain:'volcano'},
-  {q:10, r:34, name:'Dressrosa',   terrain:'island'},
-  {q:9,  r:37, name:'Zou',          terrain:'forest'},
-  {q:8,  r:40, name:'Whole Cake',  terrain:'island'},
-  {q:10, r:44, name:'Wano',         terrain:'island'},
-  {q:9,  r:48, name:'Laugh Tale',  terrain:'island'},
+  { q: 3, r: 3, name: 'Foosha', terrain: 'island' },
+  { q: 1, r: 9, name: 'Shells Town', terrain: 'island' },
+  { q: 5, r: 14, name: 'Baratie', terrain: 'island' },
+  { q: 3, r: 19, name: 'Arlong Park', terrain: 'forest' },
+
+  { q: 15, r: 5, name: 'Syrup Village', terrain: 'island' },
+  { q: 17, r: 12, name: 'Orange Town', terrain: 'forest' },
+  { q: 14, r: 18, name: 'Loguetown', terrain: 'island' },
+
+  { q: 9, r: 1, name: 'Reverse MOUNT', terrain: 'island' },
+  { q: 8, r: 5, name: 'Whiskey Peak', terrain: 'desert' },
+  { q: 10, r: 8, name: 'Little Garden', terrain: 'forest' },
+  { q: 9, r: 12, name: 'Drum Island', terrain: 'snow' },
+  { q: 8, r: 16, name: 'Alabasta', terrain: 'desert' },
+  { q: 10, r: 20, name: 'Jaya', terrain: 'forest' },
+  { q: 9, r: 23, name: 'Skypiea', terrain: 'island' },
+
+  { q: 9, r: 27, name: 'Fishman Island', terrain: 'island' },
+  { q: 8, r: 31, name: 'Punk Hazard', terrain: 'volcano' },
+  { q: 10, r: 34, name: 'Dressrosa', terrain: 'island' },
+  { q: 9, r: 37, name: 'Zou', terrain: 'forest' },
+  { q: 8, r: 40, name: 'Whole Cake', terrain: 'island' },
+  { q: 10, r: 44, name: 'Wano', terrain: 'island' },
+  { q: 9, r: 48, name: 'Laugh Tale', terrain: 'island' },
 ]
 
-// ── build grid ───────────────────────────────────
-const grid = {}
-for (let q = 0; q < COLS; q++) {
-  for (let r = 0; r < ROWS; r++) {
-    let terrain = 'sea'
-    if (q < 2 || q > COLS - 3) terrain = 'deep'
-    if (q >= GL_COL_START && q <= GL_COL_END) terrain = 'grandline'
-    if (r >= RL_ROW && r <= RL_ROW + 1) terrain = 'redline'
-    grid[`${q},${r}`] = {q, r, terrain, name:null, territory:null}
-  }
-}
-ISLANDS.forEach(({q,r,name,terrain}) => {
-  if (grid[`${q},${r}`]) Object.assign(grid[`${q},${r}`], {name, terrain})
-})
-
+let SIZE = 1
 let players = []
+let hoveredTile = null
+let selectedTile = null
 
-// ── draw ─────────────────────────────────────────
-function draw() {
-  computeSize()
+const tiles = []
+const playableTiles = {}
 
-  // canvas width = exactly viewport width
-  // canvas height = bottom of last hex row
-  canvas.width  = window.innerWidth
-  const lastEven = hexToPixel(0, ROWS - 1)
-  const lastOdd  = hexToPixel(1, ROWS - 1)
-  canvas.height = Math.max(lastEven.y, lastOdd.y) + SIZE * SQRT3 / 2
+function key(q, r) {
+  return `${q},${r}`
+}
 
-  ctx.fillStyle = '#020a14'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
+function isPlayable(q, r) {
+  return q >= 0 && q < COLS && r >= 0 && r < ROWS
+}
 
-  Object.values(grid).forEach(hex => {
-    const {x, y} = hexToPixel(hex.q, hex.r)
-    const corners = hexCorners(x, y)
+function baseTerrain(q, r) {
+  if (!isPlayable(q, r)) return 'deep'
 
-    ctx.beginPath()
-    ctx.moveTo(corners[0][0], corners[0][1])
-    corners.forEach(([px, py]) => ctx.lineTo(px, py))
-    ctx.closePath()
+  let terrain = 'sea'
+  if (q < 2 || q > COLS - 3) terrain = 'deep'
+  if (q >= GL_COL_START && q <= GL_COL_END) terrain = 'grandline'
+  if (r >= RL_ROW && r <= RL_ROW + 1) terrain = 'redline'
+  return terrain
+}
 
-    if (hex.territory) {
-      const tc = {A:'#8b2020',B:'#1a4a8b',C:'#6b1a8b'}[hex.territory]
-      ctx.fillStyle = tc
-      ctx.fill()
-      ctx.beginPath()
-      ctx.moveTo(corners[0][0], corners[0][1])
-      corners.forEach(([px, py]) => ctx.lineTo(px, py))
-      ctx.closePath()
-      ctx.fillStyle = (TERRAIN[hex.terrain] || TERRAIN.sea) + 'bb'
-    } else {
-      ctx.fillStyle = TERRAIN[hex.terrain] || TERRAIN.sea
-    }
-    ctx.fill()
+function buildGrid() {
+  for (let q = DRAW_Q_MIN; q <= DRAW_Q_MAX; q++) {
+    for (let r = DRAW_R_MIN; r <= DRAW_R_MAX; r++) {
+      const tile = {
+        q,
+        r,
+        terrain: baseTerrain(q, r),
+        name: null,
+        territory: null,
+      }
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.05)'
-    ctx.lineWidth   = 0.8
-    ctx.stroke()
+      tiles.push(tile)
 
-    if (hex.name) {
-      const fs = Math.max(8, Math.round(SIZE * 0.24))
-      ctx.font         = `bold ${fs}px monospace`
-      ctx.fillStyle    = 'rgba(255,255,255,0.9)'
-      ctx.textAlign    = 'center'
-      ctx.textBaseline = 'middle'
-      const words = hex.name.split(' ')
-      if (words.length > 1) {
-        const mid = Math.ceil(words.length / 2)
-        ctx.fillText(words.slice(0, mid).join(' '), x, y - fs * 0.65)
-        ctx.fillText(words.slice(mid).join(' '),    x, y + fs * 0.65)
-      } else {
-        ctx.fillText(hex.name, x, y)
+      if (isPlayable(q, r)) {
+        playableTiles[key(q, r)] = tile
       }
     }
-  })
-
-  // player tokens
-  players.forEach((p, i) => {
-    const {x, y} = hexToPixel(p.q, p.r)
-    ctx.beginPath()
-    ctx.arc(x, y, SIZE * 0.3, 0, Math.PI * 2)
-    ctx.fillStyle   = PLAYER_COLORS[i % PLAYER_COLORS.length]
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(0,0,0,0.6)'
-    ctx.lineWidth   = 2
-    ctx.stroke()
-    const fs = Math.max(8, Math.round(SIZE * 0.22))
-    ctx.font         = `bold ${fs}px monospace`
-    ctx.fillStyle    = '#000'
-    ctx.textAlign    = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(p.id[0], x, y)
-  })
-}
-
-// ── websocket ────────────────────────────────────
-function connect() {
-  const ws = new WebSocket(`ws://${location.host}/ws`)
-  ws.onmessage = (e) => {
-    const state = JSON.parse(e.data)
-    if (state.players) players = state.players
-    if (state.territory) {
-      Object.entries(state.territory).forEach(([key, val]) => {
-        if (grid[key]) grid[key].territory = val
-      })
-    }
-    draw()
   }
-  ws.onclose = () => setTimeout(connect, 3000)
+
+  for (const island of ISLANDS) {
+    const tile = playableTiles[key(island.q, island.r)]
+    if (tile) {
+      tile.name = island.name
+      tile.terrain = island.terrain
+    }
+  }
 }
 
-window.addEventListener('resize', draw)
-draw()
+function computeSize() {
+  const viewportWidth = document.documentElement.clientWidth
+  const totalCols = COLS + PAD_COLS * 2
+  SIZE = Math.floor(viewportWidth / (1.5 * (totalCols - 1) + 2))
+}
+
+function toCanvas(q, r) {
+  const rq = q - DRAW_Q_MIN
+  const rr = r - DRAW_R_MIN
+
+  return {
+    x: SIZE * (1 + 1.5 * rq),
+    y: SIZE * SQRT3 * (rr + (rq % 2 === 1 ? 0.5 : 0)) + SIZE * SQRT3 / 2,
+  }
+}
+
+function hexPath(cx, cy, scale = HEX_SCALE) {
+  const path = new Path2D()
+  const radius = SIZE * scale
+
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 3) * i
+    const x = cx + radius * Math.cos(a)
+    const y = cy + radius * Math.sin(a)
+    if (i === 0) path.moveTo(x, y)
+    else path.lineTo(x, y)
+  }
+
+  path.closePath()
+  return path
+}
+
+function resizeCanvas() {
+  computeSize()
+
+  canvas.width = document.documentElement.clientWidth
+
+  let maxY = 0
+  for (let q = DRAW_Q_MIN; q <= DRAW_Q_MAX; q++) {
+    const { y } = toCanvas(q, DRAW_R_MAX)
+    if (y > maxY) maxY = y
+  }
+  canvas.height = maxY + SIZE * SQRT3 / 2
+}
+
+function drawLabel(tile, x, y) {
+  if (!tile.name) return
+
+  const fs = Math.max(8, Math.round(SIZE * 0.24))
+  ctx.font = `bold ${fs}px monospace`
+  ctx.fillStyle = 'rgba(255,255,255,0.92)'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+
+  const words = tile.name.split(' ')
+  if (words.length > 1) {
+    const mid = Math.ceil(words.length / 2)
+    ctx.fillText(words.slice(0, mid).join(' '), x, y - fs * 0.65)
+    ctx.fillText(words.slice(mid).join(' '), x, y + fs * 0.65)
+  } else {
+    ctx.fillText(tile.name, x, y)
+  }
+}
+
+function drawTile(tile) {
+  const { x, y } = toCanvas(tile.q, tile.r)
+  const path = hexPath(x, y)
+
+  ctx.fillStyle = TERRAIN[tile.terrain] || TERRAIN.sea
+  ctx.fill(path)
+
+  if (tile.territory && TERRITORY_COLORS[tile.territory]) {
+    ctx.save()
+    ctx.globalAlpha = 0.35
+    ctx.fillStyle = TERRITORY_COLORS[tile.territory]
+    ctx.fill(path)
+    ctx.restore()
+  }
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)'
+  ctx.lineWidth = 0.8
+  ctx.stroke(path)
+
+  if (hoveredTile === tile) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)'
+    ctx.lineWidth = 2
+    ctx.stroke(path)
+  }
+
+  if (selectedTile === tile) {
+    ctx.strokeStyle = '#ffd54a'
+    ctx.lineWidth = 3
+    ctx.stroke(path)
+  }
+
+  drawLabel(tile, x, y)
+}
+
+function drawPlayers() {
+  players.forEach((p, i) => {
+    const { x, y } = toCanvas(p.q, p.r)
+
+    ctx.beginPath()
+    ctx.arc(x, y, SIZE * 0.28, 0, Math.PI * 2)
+    ctx.fillStyle = PLAYER_COLORS[i % PLAYER_COLORS.length]
+    ctx.fill()
+
+    ctx.strokeStyle = 'rgba(0,0,0,0.65)'
+    ctx.lineWidth = 2
+    ctx.stroke()
+
+    const fs = Math.max(8, Math.round(SIZE * 0.22))
+    ctx.font = `bold ${fs}px monospace`
+    ctx.fillStyle = '#000'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText((p.id || '?')[0], x, y)
+  })
+}
+
+function render() {
+  resizeCanvas()
+
+  ctx.fillStyle = '#081626'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  for (const tile of tiles) drawTile(tile)
+  drawPlayers()
+}
+
+function findTileAt(mx, my) {
+  for (const tile of tiles) {
+    const { x, y } = toCanvas(tile.q, tile.r)
+    const path = hexPath(x, y)
+    if (ctx.isPointInPath(path, mx, my)) return tile
+  }
+  return null
+}
+
+function updateInfoBox(tile) {
+  if (!tile) {
+    infoBox.hidden = true
+    return
+  }
+
+  infoBox.hidden = false
+  infoBox.innerHTML = `
+    <div><strong>${tile.name || 'Open Sea'}</strong></div>
+    <div>Terrain: ${tile.terrain}</div>
+    <div>Coord: ${tile.q}, ${tile.r}</div>
+    <div>Territory: ${tile.territory || '-'}</div>
+  `
+}
+
+function handlePointerMove(e) {
+  const rect = canvas.getBoundingClientRect()
+  const mx = e.clientX - rect.left
+  const my = e.clientY - rect.top
+
+  const nextHovered = findTileAt(mx, my)
+  if (nextHovered !== hoveredTile) {
+    hoveredTile = nextHovered
+    render()
+  }
+}
+
+function handleClick() {
+  selectedTile = hoveredTile
+  updateInfoBox(selectedTile)
+  render()
+}
+
+function applyState(state) {
+  if (Array.isArray(state.players)) {
+    players = state.players
+  }
+
+  if (state.territory) {
+    for (const tile of Object.values(playableTiles)) {
+      tile.territory = null
+    }
+
+    for (const [k, v] of Object.entries(state.territory)) {
+      if (playableTiles[k]) playableTiles[k].territory = v
+    }
+  }
+
+  render()
+}
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+  const ws = new WebSocket(`${proto}://${location.host}/ws`)
+
+  ws.onmessage = (e) => {
+    applyState(JSON.parse(e.data))
+  }
+
+  ws.onclose = () => {
+    setTimeout(connect, 3000)
+  }
+}
+
+buildGrid()
+window.addEventListener('resize', render)
+canvas.addEventListener('mousemove', handlePointerMove)
+canvas.addEventListener('click', handleClick)
+
+render()
 connect()
