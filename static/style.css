@@ -1,1 +1,23 @@
-
+body {
+  margin: 0;
+  background: #060e1c;
+  color: #c8d8e8;
+  font-family: monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+.wrap { text-align: center; }
+h1 { font-size: 1.4rem; margin: 16px 0 8px; }
+p { margin: 4px 0; font-size: 0.9rem; }
+.muted { color: #4a6080; }
+.dot {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #444;
+  margin: 0 auto 8px;
+  transition: background 0.3s;
+}
+.dot.connected { background: #2a9d5c; }
+.dot.error { background: #8b2020; }
