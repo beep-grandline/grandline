@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 app = FastAPI()           # web server
-bot = discord.Client(intents=discord.Intents.default())  # discord bot
+# bot = discord.Client(intents=discord.Intents.default())  # discord bot
 
 # makes static/ available at http://YOUR_IP:8000/static/
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -21,7 +21,7 @@ async def main():
     server = uvicorn.Server(config)
     await asyncio.gather(
         server.serve(),                          # starts web server
-        bot.start(os.getenv("DISCORD_TOKEN"))   # starts discord bot
+        # bot.start(os.getenv("DISCORD_TOKEN"))   # starts discord bot
     )
 
 asyncio.run(main())
