@@ -1,333 +1,297 @@
-const canvas = document.getElementById('map')
-const ctx = canvas.getContext('2d')
-const infoBox = document.getElementById('tile-info')
+const svg = document.getElementById("map");
+const viewport = document.getElementById("viewport");
+const backgroundLayer = document.getElementById("background-layer");
+const oceanGridLayer = document.getElementById("ocean-grid-layer");
+const landFillLayer = document.getElementById("land-fill-layer");
+const landGridLayer = document.getElementById("land-grid-layer");
+const outlineLayer = document.getElementById("outline-layer");
 
-const SQRT3 = Math.sqrt(3)
+const SVG_NS = "http://www.w3.org/2000/svg";
+const HEX_SIZE = 26;
+const SQRT3 = Math.sqrt(3);
 
-const COLS = 20
-const ROWS = 50
+const state = {
+  x: window.innerWidth / 2,
+  y: window.innerHeight / 2,
+  scale: 0.65,
+  dragging: false,
+  lastX: 0,
+  lastY: 0,
+};
 
-const GL_COL_START = 8
-const GL_COL_END = 11
-const RL_ROW = 24
+const landHexes = buildIsland();
+const landSet = new Set(landHexes.map(keyFromHex));
 
-const PAD_COLS = 3
-const PAD_ROWS = 3
-const HEX_SCALE = 0.94
+buildScene();
+applyTransform();
+updateLayerVisibility();
 
-const DRAW_Q_MIN = -PAD_COLS
-const DRAW_Q_MAX = COLS + PAD_COLS - 1
-const DRAW_R_MIN = -PAD_ROWS
-const DRAW_R_MAX = ROWS + PAD_ROWS - 1
-
-const TERRAIN = {
-  sea: '#1a3f6b',
-  deep: '#0d1f3c',
-  grandline: '#162a52',
-  island: '#c9943a',
-  forest: '#2a6b3a',
-  snow: '#8ab8cc',
-  desert: '#c8a44a',
-  volcano: '#8b2a10',
-  redline: '#3a0808',
-}
-
-const TERRITORY_COLORS = {
-  A: '#8b2020',
-  B: '#1a4a8b',
-  C: '#6b1a8b',
-}
-
-const PLAYER_COLORS = ['#f0d060', '#f07060', '#60f0a0', '#f060c0', '#60c0f0']
-
-const ISLANDS = [
-  { q: 3, r: 3, name: 'Foosha', terrain: 'island' },
-  { q: 1, r: 9, name: 'Shells Town', terrain: 'island' },
-  { q: 5, r: 14, name: 'Baratie', terrain: 'island' },
-  { q: 3, r: 19, name: 'Arlong Park', terrain: 'forest' },
-
-  { q: 15, r: 5, name: 'Syrup Village', terrain: 'island' },
-  { q: 17, r: 12, name: 'Orange Town', terrain: 'forest' },
-  { q: 14, r: 18, name: 'Loguetown', terrain: 'island' },
-
-  { q: 9, r: 1, name: 'Reverse MOUNT', terrain: 'island' },
-  { q: 8, r: 5, name: 'Whiskey Peak', terrain: 'desert' },
-  { q: 10, r: 8, name: 'Little Garden', terrain: 'forest' },
-  { q: 9, r: 12, name: 'Drum Island', terrain: 'snow' },
-  { q: 8, r: 16, name: 'Alabasta', terrain: 'desert' },
-  { q: 10, r: 20, name: 'Jaya', terrain: 'forest' },
-  { q: 9, r: 23, name: 'Skypiea', terrain: 'island' },
-
-  { q: 9, r: 27, name: 'Fishman Island', terrain: 'island' },
-  { q: 8, r: 31, name: 'Punk Hazard', terrain: 'volcano' },
-  { q: 10, r: 34, name: 'Dressrosa', terrain: 'island' },
-  { q: 9, r: 37, name: 'Zou', terrain: 'forest' },
-  { q: 8, r: 40, name: 'Whole Cake', terrain: 'island' },
-  { q: 10, r: 44, name: 'Wano', terrain: 'island' },
-  { q: 9, r: 48, name: 'Laugh Tale', terrain: 'island' },
-]
-
-let SIZE = 1
-let players = []
-let hoveredTile = null
-let selectedTile = null
-
-const tiles = []
-const playableTiles = {}
-
-function key(q, r) {
-  return `${q},${r}`
-}
-
-function isPlayable(q, r) {
-  return q >= 0 && q < COLS && r >= 0 && r < ROWS
-}
-
-function baseTerrain(q, r) {
-  if (!isPlayable(q, r)) return 'deep'
-
-  let terrain = 'sea'
-  if (q < 2 || q > COLS - 3) terrain = 'deep'
-  if (q >= GL_COL_START && q <= GL_COL_END) terrain = 'grandline'
-  if (r >= RL_ROW && r <= RL_ROW + 1) terrain = 'redline'
-  return terrain
-}
-
-function buildGrid() {
-  for (let q = DRAW_Q_MIN; q <= DRAW_Q_MAX; q++) {
-    for (let r = DRAW_R_MIN; r <= DRAW_R_MAX; r++) {
-      const tile = {
-        q,
-        r,
-        terrain: baseTerrain(q, r),
-        name: null,
-        territory: null,
-      }
-
-      tiles.push(tile)
-
-      if (isPlayable(q, r)) {
-        playableTiles[key(q, r)] = tile
-      }
-    }
+window.addEventListener("resize", () => {
+  if (!state.dragging) {
+    state.x = window.innerWidth / 2;
+    state.y = window.innerHeight / 2;
   }
+  applyTransform();
+});
 
-  for (const island of ISLANDS) {
-    const tile = playableTiles[key(island.q, island.r)]
-    if (tile) {
-      tile.name = island.name
-      tile.terrain = island.terrain
+function buildScene() {
+  drawBackground();
+  drawOceanGrid();
+  drawLand();
+  drawIslandOutline();
+}
+
+function drawBackground() {
+  const rect = makeSvg("rect", {
+    x: -2400,
+    y: -1800,
+    width: 4800,
+    height: 3600,
+    class: "bg-rect",
+  });
+  backgroundLayer.appendChild(rect);
+}
+
+function drawOceanGrid() {
+  for (let q = -26; q <= 26; q++) {
+    for (let r = -22; r <= 22; r++) {
+      if (landSet.has(`${q},${r}`)) continue;
+
+      const { x, y } = axialToPixel(q, r);
+      const hex = makePolygon(hexPoints(x, y, HEX_SIZE), "ocean-hex");
+      oceanGridLayer.appendChild(hex);
     }
   }
 }
 
-function computeSize() {
-  const viewportWidth = document.documentElement.clientWidth
-  const totalCols = COLS + PAD_COLS * 2
-  SIZE = Math.floor(viewportWidth / (1.5 * (totalCols - 1) + 2))
+function drawLand() {
+  for (const hex of landHexes) {
+    const { x, y } = axialToPixel(hex.q, hex.r);
+
+    const fill = makePolygon(hexPoints(x, y, HEX_SIZE), "land-hex");
+    landFillLayer.appendChild(fill);
+
+    const grid = makePolygon(hexPoints(x, y, HEX_SIZE), "land-grid");
+    landGridLayer.appendChild(grid);
+  }
 }
 
-function toCanvas(q, r) {
-  const rq = q - DRAW_Q_MIN
-  const rr = r - DRAW_R_MIN
+/*
+  This creates the red island border.
+
+  Idea:
+  - Check all 6 sides of every land hex.
+  - If that side does NOT touch another land hex,
+    then that side is part of the outer coastline.
+  - Draw only those outer edges in red.
+
+  That gives you one outer outline without drawing red lines inside the island.
+*/
+function drawIslandOutline() {
+  for (const hex of landHexes) {
+    const center = axialToPixel(hex.q, hex.r);
+    const corners = hexCornerPoints(center.x, center.y, HEX_SIZE);
+
+    for (let side = 0; side < 6; side++) {
+      const neighbor = axialNeighbor(hex.q, hex.r, side);
+      if (landSet.has(keyFromHex(neighbor))) continue;
+
+      const p1 = corners[side];
+      const p2 = corners[(side + 1) % 6];
+      const line = makeSvg("line", {
+        x1: p1.x,
+        y1: p1.y,
+        x2: p2.x,
+        y2: p2.y,
+        class: "island-outline",
+      });
+      outlineLayer.appendChild(line);
+    }
+  }
+}
+
+/*
+  This builds a simple hard-coded island shape.
+
+  For now it stays in JS so the project stays easy to read.
+  Later, this is the part you'd move into a shared JSON file.
+*/
+function buildIsland() {
+  const hexes = [];
+  const seen = new Set();
+
+  const blobs = [
+    { q: -6, r: -1, radius: 4 },
+    { q: 3, r: -3, radius: 5 },
+    { q: -1, r: 5, radius: 5 },
+  ];
+
+  for (let q = -20; q <= 20; q++) {
+    for (let r = -20; r <= 20; r++) {
+      const insideBlob = blobs.some((blob) => hexDistance(q, r, blob.q, blob.r) <= blob.radius);
+      if (!insideBlob) continue;
+
+      const key = `${q},${r}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      hexes.push({ q, r });
+    }
+  }
+
+  const cutouts = [
+    [0, 2], [1, 2], [2, 2], [3, 1], [3, 2], [4, 0], [5, -1],
+    [-1, 0], [-2, 0], [-3, 1], [-4, 2], [-5, 2],
+    [-8, 4], [-7, 5], [6, -5], [6, -4]
+  ];
+
+  const cutSet = new Set(cutouts.map(([q, r]) => `${q},${r}`));
+  return hexes.filter((hex) => !cutSet.has(`${hex.q},${hex.r}`));
+}
+
+/*
+  Very simple pan:
+  - hold mouse down
+  - move mouse
+  - shift the whole SVG group
+*/
+svg.addEventListener("mousedown", (event) => {
+  state.dragging = true;
+  state.lastX = event.clientX;
+  state.lastY = event.clientY;
+  svg.classList.add("dragging");
+});
+
+window.addEventListener("mousemove", (event) => {
+  if (!state.dragging) return;
+
+  const dx = event.clientX - state.lastX;
+  const dy = event.clientY - state.lastY;
+
+  state.x += dx;
+  state.y += dy;
+  state.lastX = event.clientX;
+  state.lastY = event.clientY;
+
+  applyTransform();
+});
+
+window.addEventListener("mouseup", () => {
+  state.dragging = false;
+  svg.classList.remove("dragging");
+});
+
+/*
+  Very simple zoom:
+  - mouse wheel changes scale
+  - we keep it clamped so it can't get too tiny or too huge
+
+  Right now this zooms toward the center of the screen.
+  Later, if you want, you can upgrade this to zoom toward the mouse position.
+*/
+svg.addEventListener("wheel", (event) => {
+  event.preventDefault();
+
+  const zoomStep = event.deltaY < 0 ? 1.12 : 0.89;
+  state.scale *= zoomStep;
+  state.scale = clamp(state.scale, 0.35, 4.5);
+
+  applyTransform();
+  updateLayerVisibility();
+}, { passive: false });
+
+/*
+  This is the "layer reveal" part.
+
+  At far zoom:
+  - mostly plain ocean
+  - plain green island
+  - red island border
+
+  At closer zoom:
+  - hex grid fades in
+*/
+function updateLayerVisibility() {
+  const gridOpacity = clamp((state.scale - 0.9) / 1.1, 0, 1);
+  const oceanOpacity = clamp((state.scale - 1.05) / 1.15, 0, 0.9);
+
+  landGridLayer.style.opacity = gridOpacity;
+  oceanGridLayer.style.opacity = oceanOpacity;
+}
+
+function applyTransform() {
+  viewport.setAttribute("transform", `translate(${state.x} ${state.y}) scale(${state.scale})`);
+}
+
+function axialToPixel(q, r) {
+  return {
+    x: HEX_SIZE * SQRT3 * (q + r / 2),
+    y: HEX_SIZE * 1.5 * r,
+  };
+}
+
+function hexCornerPoints(cx, cy, size) {
+  const corners = [];
+  for (let i = 0; i < 6; i++) {
+    const angle = ((60 * i) - 30) * Math.PI / 180;
+    corners.push({
+      x: cx + size * Math.cos(angle),
+      y: cy + size * Math.sin(angle),
+    });
+  }
+  return corners;
+}
+
+function hexPoints(cx, cy, size) {
+  return hexCornerPoints(cx, cy, size)
+    .map((point) => `${point.x},${point.y}`)
+    .join(" ");
+}
+
+function axialNeighbor(q, r, side) {
+  const directions = [
+    { q: 1, r: 0 },
+    { q: 1, r: -1 },
+    { q: 0, r: -1 },
+    { q: -1, r: 0 },
+    { q: -1, r: 1 },
+    { q: 0, r: 1 },
+  ];
 
   return {
-    x: SIZE * (1 + 1.5 * rq),
-    y: SIZE * SQRT3 * (rr + (rq % 2 === 1 ? 0.5 : 0)) + SIZE * SQRT3 / 2,
-  }
+    q: q + directions[side].q,
+    r: r + directions[side].r,
+  };
 }
 
-function hexPath(cx, cy, scale = HEX_SCALE) {
-  const path = new Path2D()
-  const radius = SIZE * scale
-
-  for (let i = 0; i < 6; i++) {
-    const a = (Math.PI / 3) * i
-    const x = cx + radius * Math.cos(a)
-    const y = cy + radius * Math.sin(a)
-    if (i === 0) path.moveTo(x, y)
-    else path.lineTo(x, y)
-  }
-
-  path.closePath()
-  return path
+function hexDistance(q1, r1, q2, r2) {
+  const s1 = -q1 - r1;
+  const s2 = -q2 - r2;
+  return Math.max(
+    Math.abs(q1 - q2),
+    Math.abs(r1 - r2),
+    Math.abs(s1 - s2)
+  );
 }
 
-function resizeCanvas() {
-  computeSize()
-
-  canvas.width = document.documentElement.clientWidth
-
-  let maxY = 0
-  for (let q = DRAW_Q_MIN; q <= DRAW_Q_MAX; q++) {
-    const { y } = toCanvas(q, DRAW_R_MAX)
-    if (y > maxY) maxY = y
-  }
-  canvas.height = maxY + SIZE * SQRT3 / 2
+function keyFromHex(hex) {
+  return `${hex.q},${hex.r}`;
 }
 
-function drawLabel(tile, x, y) {
-  if (!tile.name) return
-
-  const fs = Math.max(8, Math.round(SIZE * 0.24))
-  ctx.font = `bold ${fs}px monospace`
-  ctx.fillStyle = 'rgba(255,255,255,0.92)'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-
-  const words = tile.name.split(' ')
-  if (words.length > 1) {
-    const mid = Math.ceil(words.length / 2)
-    ctx.fillText(words.slice(0, mid).join(' '), x, y - fs * 0.65)
-    ctx.fillText(words.slice(mid).join(' '), x, y + fs * 0.65)
-  } else {
-    ctx.fillText(tile.name, x, y)
-  }
+function makePolygon(points, className) {
+  return makeSvg("polygon", {
+    points,
+    class: className,
+  });
 }
 
-function drawTile(tile) {
-  const { x, y } = toCanvas(tile.q, tile.r)
-  const path = hexPath(x, y)
-
-  ctx.fillStyle = TERRAIN[tile.terrain] || TERRAIN.sea
-  ctx.fill(path)
-
-  if (tile.territory && TERRITORY_COLORS[tile.territory]) {
-    ctx.save()
-    ctx.globalAlpha = 0.35
-    ctx.fillStyle = TERRITORY_COLORS[tile.territory]
-    ctx.fill(path)
-    ctx.restore()
+function makeSvg(tag, attrs) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    el.setAttribute(key, value);
   }
-
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)'
-  ctx.lineWidth = 0.8
-  ctx.stroke(path)
-
-  if (hoveredTile === tile) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.85)'
-    ctx.lineWidth = 2
-    ctx.stroke(path)
-  }
-
-  if (selectedTile === tile) {
-    ctx.strokeStyle = '#ffd54a'
-    ctx.lineWidth = 3
-    ctx.stroke(path)
-  }
-
-  drawLabel(tile, x, y)
+  return el;
 }
 
-function drawPlayers() {
-  players.forEach((p, i) => {
-    const { x, y } = toCanvas(p.q, p.r)
-
-    ctx.beginPath()
-    ctx.arc(x, y, SIZE * 0.28, 0, Math.PI * 2)
-    ctx.fillStyle = PLAYER_COLORS[i % PLAYER_COLORS.length]
-    ctx.fill()
-
-    ctx.strokeStyle = 'rgba(0,0,0,0.65)'
-    ctx.lineWidth = 2
-    ctx.stroke()
-
-    const fs = Math.max(8, Math.round(SIZE * 0.22))
-    ctx.font = `bold ${fs}px monospace`
-    ctx.fillStyle = '#000'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText((p.id || '?')[0], x, y)
-  })
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
-
-function render() {
-  resizeCanvas()
-
-  ctx.fillStyle = '#081626'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-  for (const tile of tiles) drawTile(tile)
-  drawPlayers()
-}
-
-function findTileAt(mx, my) {
-  for (const tile of tiles) {
-    const { x, y } = toCanvas(tile.q, tile.r)
-    const path = hexPath(x, y)
-    if (ctx.isPointInPath(path, mx, my)) return tile
-  }
-  return null
-}
-
-function updateInfoBox(tile) {
-  if (!tile) {
-    infoBox.hidden = true
-    return
-  }
-
-  infoBox.hidden = false
-  infoBox.innerHTML = `
-    <div><strong>${tile.name || 'Open Sea'}</strong></div>
-    <div>Terrain: ${tile.terrain}</div>
-    <div>Coord: ${tile.q}, ${tile.r}</div>
-    <div>Territory: ${tile.territory || '-'}</div>
-  `
-}
-
-function handlePointerMove(e) {
-  const rect = canvas.getBoundingClientRect()
-  const mx = e.clientX - rect.left
-  const my = e.clientY - rect.top
-
-  const nextHovered = findTileAt(mx, my)
-  if (nextHovered !== hoveredTile) {
-    hoveredTile = nextHovered
-    render()
-  }
-}
-
-function handleClick() {
-  selectedTile = hoveredTile
-  updateInfoBox(selectedTile)
-  render()
-}
-
-function applyState(state) {
-  if (Array.isArray(state.players)) {
-    players = state.players
-  }
-
-  if (state.territory) {
-    for (const tile of Object.values(playableTiles)) {
-      tile.territory = null
-    }
-
-    for (const [k, v] of Object.entries(state.territory)) {
-      if (playableTiles[k]) playableTiles[k].territory = v
-    }
-  }
-
-  render()
-}
-
-function connect() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  const ws = new WebSocket(`${proto}://${location.host}/ws`)
-
-  ws.onmessage = (e) => {
-    applyState(JSON.parse(e.data))
-  }
-
-  ws.onclose = () => {
-    setTimeout(connect, 3000)
-  }
-}
-
-buildGrid()
-window.addEventListener('resize', render)
-canvas.addEventListener('mousemove', handlePointerMove)
-canvas.addEventListener('click', handleClick)
-
-render()
-connect()
