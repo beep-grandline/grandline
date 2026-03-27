@@ -2,15 +2,20 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Grand Line — Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grand Line</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <div class="wrap">
-    <div class="dot" id="dot"></div>
-    <h1>Server is running</h1>
-    <p id="status">Connecting to WebSocket...</p>
-    <p id="ping" class="muted"></p>
+  <div id="ui">
+    <div id="controls">
+      <button onclick="setMode('view')">View</button>
+      <button onclick="setMode('territory')">Paint territory</button>
+      <button onclick="setMode('place')">Move player</button>
+    </div>
+    <canvas id="map"></canvas>
+    <div id="info">Click a hex to inspect</div>
+    <div id="ws-status">WebSocket: connecting...</div>
   </div>
   <script src="/static/game.js"></script>
 </body>
