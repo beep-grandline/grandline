@@ -31,6 +31,7 @@ window.addEventListener("resize", () => {
     state.x = window.innerWidth / 2;
     state.y = window.innerHeight / 2;
   }
+  clampPan();
   applyTransform();
 });
 
@@ -178,7 +179,7 @@ window.addEventListener("mousemove", (event) => {
   state.y += dy;
   state.lastX = event.clientX;
   state.lastY = event.clientY;
-
+  clampPan();
   applyTransform();
 });
 
@@ -200,11 +201,28 @@ svg.addEventListener("wheel", (event) => {
 
   const zoomStep = event.deltaY < 0 ? 1.12 : 0.89;
   state.scale *= zoomStep;
-  state.scale = clamp(state.scale, 0.35, 4.5);
+  state.scale = clamp(state.scale, 0.08, 4.5);
 
   applyTransform();
   updateLayerVisibility();
 }, { passive: false });
+
+function clampPan() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const s = state.scale;
+
+  // world bounds
+  const minX = -2400, maxX = 2400;
+  const minY = -1800, maxY = 1800;
+
+  // convert: screen origin is at state.x/state.y
+  // so the left edge of the box in screen space is state.x + minX * s
+  // we don't want that to go past the right edge of the screen (w)
+  // and we don't want the right edge to go past the left (0)
+  state.x = clamp(state.x, w - maxX * s, -minX * s);
+  state.y = clamp(state.y, h - maxY * s, -minY * s);
+}
 
 /*
   This is the "layer reveal" part.
