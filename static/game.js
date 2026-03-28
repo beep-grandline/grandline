@@ -77,27 +77,33 @@ function drawLand() {
 }
 
 /*
-  This creates the red island border.
+  Outline fix:
 
-  Idea:
-  - Check all 6 sides of every land hex.
-  - If that side does NOT touch another land hex,
-    then that side is part of the outer coastline.
-  - Draw only those outer edges in red.
+  The neighbor direction order and the polygon edge order are different.
 
-  That gives you one outer outline without drawing red lines inside the island.
+  Neighbor order:
+  0 east, 1 northeast, 2 northwest, 3 west, 4 southwest, 5 southeast
+
+  Polygon edge order from hexCornerPoints():
+  0 east, 1 southeast, 2 southwest, 3 west, 4 northwest, 5 northeast
+
+  So we remap neighbor-direction index -> polygon-edge index.
 */
 function drawIslandOutline() {
+  const dirToEdge = [0, 5, 4, 3, 2, 1];
+
   for (const hex of landHexes) {
     const center = axialToPixel(hex.q, hex.r);
     const corners = hexCornerPoints(center.x, center.y, HEX_SIZE);
 
-    for (let side = 0; side < 6; side++) {
-      const neighbor = axialNeighbor(hex.q, hex.r, side);
+    for (let dir = 0; dir < 6; dir++) {
+      const neighbor = axialNeighbor(hex.q, hex.r, dir);
       if (landSet.has(keyFromHex(neighbor))) continue;
 
-      const p1 = corners[side];
-      const p2 = corners[(side + 1) % 6];
+      const edge = dirToEdge[dir];
+      const p1 = corners[edge];
+      const p2 = corners[(edge + 1) % 6];
+
       const line = makeSvg("line", {
         x1: p1.x,
         y1: p1.y,
@@ -105,6 +111,7 @@ function drawIslandOutline() {
         y2: p2.y,
         class: "island-outline",
       });
+
       outlineLayer.appendChild(line);
     }
   }
