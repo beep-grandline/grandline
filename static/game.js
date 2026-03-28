@@ -202,7 +202,7 @@ svg.addEventListener("wheel", (event) => {
   const zoomStep = event.deltaY < 0 ? 1.12 : 0.89;
   state.scale *= zoomStep;
   state.scale = clamp(state.scale, 0.08, 4.5);
-
+  clampPan();
   applyTransform();
   updateLayerVisibility();
 }, { passive: false });
