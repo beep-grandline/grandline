@@ -10,6 +10,24 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 const HEX_SIZE = 26;
 const SQRT3 = Math.sqrt(3);
 
+// Rectangle you want to stay on-screen at all times.
+const WORLD_BOUNDS = {
+  minX: -2400,
+  maxX:  2400,
+  minY: -1800,
+  maxY:  1800,
+};
+
+function getMinScale() {
+  const worldWidth  = WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX;
+  const worldHeight = WORLD_BOUNDS.maxY - WORLD_BOUNDS.minY;
+
+  return Math.max(
+    window.innerWidth / worldWidth,
+    window.innerHeight / worldHeight
+  );
+}
+
 const state = {
   x: window.innerWidth / 2,
   y: window.innerHeight / 2,
@@ -27,12 +45,10 @@ applyTransform();
 updateLayerVisibility();
 
 window.addEventListener("resize", () => {
-  if (!state.dragging) {
-    state.x = window.innerWidth / 2;
-    state.y = window.innerHeight / 2;
-  }
-
+  state.scale = Math.max(state.scale, getMinScale());
+  clampPan();
   applyTransform();
+  updateLayerVisibility();
 });
 
 function buildScene() {
@@ -200,8 +216,11 @@ svg.addEventListener("wheel", (event) => {
   event.preventDefault();
 
   const zoomStep = event.deltaY < 0 ? 1.12 : 0.89;
+  const minScale = getMinScale();
+
   state.scale *= zoomStep;
-  state.scale = clamp(state.scale, 0.08, 4.5);
+  state.scale = clamp(state.scale, minScale, 4.5);
+
   clampPan();
   applyTransform();
   updateLayerVisibility();
@@ -212,19 +231,17 @@ function clampPan() {
   const h = window.innerHeight;
   const s = state.scale;
 
-  // only clamp if the map is bigger than the screen
-  // otherwise the map is too small to fill and the formula inverts
-  if (4800 * s > w) {
-    state.x = clamp(state.x, w - 2400 * s, 2400 * s);
-  } else {
-    state.x = w / 2; // center it if it fits
-  }
+  state.x = clamp(
+    state.x,
+    w - WORLD_BOUNDS.maxX * s,
+    -WORLD_BOUNDS.minX * s
+  );
 
-  if (3600 * s > h) {
-    state.y = clamp(state.y, h - 1800 * s, 1800 * s);
-  } else {
-    state.y = h / 2;
-  }
+  state.y = clamp(
+    state.y,
+    h - WORLD_BOUNDS.maxY * s,
+    -WORLD_BOUNDS.minY * s
+  );
 }
 
 /*
