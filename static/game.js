@@ -31,7 +31,7 @@ window.addEventListener("resize", () => {
     state.x = window.innerWidth / 2;
     state.y = window.innerHeight / 2;
   }
-  clampPan();
+
   applyTransform();
 });
 
@@ -212,16 +212,19 @@ function clampPan() {
   const h = window.innerHeight;
   const s = state.scale;
 
-  // world bounds
-  const minX = -2400, maxX = 2400;
-  const minY = -1800, maxY = 1800;
+  // only clamp if the map is bigger than the screen
+  // otherwise the map is too small to fill and the formula inverts
+  if (4800 * s > w) {
+    state.x = clamp(state.x, w - 2400 * s, 2400 * s);
+  } else {
+    state.x = w / 2; // center it if it fits
+  }
 
-  // convert: screen origin is at state.x/state.y
-  // so the left edge of the box in screen space is state.x + minX * s
-  // we don't want that to go past the right edge of the screen (w)
-  // and we don't want the right edge to go past the left (0)
-  state.x = clamp(state.x, w - maxX * s, -minX * s);
-  state.y = clamp(state.y, h - maxY * s, -minY * s);
+  if (3600 * s > h) {
+    state.y = clamp(state.y, h - 1800 * s, 1800 * s);
+  } else {
+    state.y = h / 2;
+  }
 }
 
 /*
