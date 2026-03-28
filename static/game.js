@@ -37,7 +37,8 @@ const state = {
   lastY: 0,
 };
 
-const landHexes = buildIsland();
+const islands = buildIslands();
+const landHexes = Object.values(islands).flat();
 const landSet = new Set(landHexes.map(keyFromHex));
 
 buildScene();
@@ -140,36 +141,66 @@ function drawIslandOutline() {
   For now it stays in JS so the project stays easy to read.
   Later, this is the part you'd move into a shared JSON file.
 */
-function buildIsland() {
+function buildIslands() {
+  const islandA = rowsToHexes([
+    { r: -3, qs: [0, 1, 2] },
+    { r: -2, qs: [-1, 0, 1, 2, 3] },
+    { r: -1, qs: [-2, -1, 0, 1, 2, 3] },
+    { r:  0, qs: [-2, -1, 0, 1, 2] },
+    { r:  1, qs: [-2, -1, 0, 1] },
+    { r:  2, qs: [-1, 0, 1] },
+  ]);
+
+  const islandB = shiftHexes(rowsToHexes([
+    { r: -2, qs: [0, 1] },
+    { r: -1, qs: [-1, 0, 1, 2] },
+    { r:  0, qs: [-2, -1, 0, 1, 2] },
+    { r:  1, qs: [-2, -1, 0, 1] },
+    { r:  2, qs: [-1, 0] },
+  ]), 11, -4);
+
+  const islandC = shiftHexes(rowsToHexes([
+    { r: -2, qs: [0, 1, 2] },
+    { r: -1, qs: [-1, 0, 1, 2] },
+    { r:  0, qs: [-2, -1, 0, 1, 2] },
+    { r:  1, qs: [-2, -1, 0, 1] },
+    { r:  2, qs: [-1, 0, 1] },
+    { r:  3, qs: [0] },
+  ]), -10, 7);
+
+  return {
+    islandA,
+    islandB,
+    islandC,
+  };
+}
+
+/*
+  Turns row-based coordinate input into:
+  [{q, r}, {q, r}, ...]
+*/
+function rowsToHexes(rows) {
   const hexes = [];
-  const seen = new Set();
 
-  const blobs = [
-    { q: -6, r: -1, radius: 4 },
-    { q: 3, r: -3, radius: 5 },
-    { q: -1, r: 5, radius: 5 },
-  ];
-
-  for (let q = -20; q <= 20; q++) {
-    for (let r = -20; r <= 20; r++) {
-      const insideBlob = blobs.some((blob) => hexDistance(q, r, blob.q, blob.r) <= blob.radius);
-      if (!insideBlob) continue;
-
-      const key = `${q},${r}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      hexes.push({ q, r });
+  for (const row of rows) {
+    for (const q of row.qs) {
+      hexes.push({ q, r: row.r });
     }
   }
 
-  const cutouts = [
-    [0, 2], [1, 2], [2, 2], [3, 1], [3, 2], [4, 0], [5, -1],
-    [-1, 0], [-2, 0], [-3, 1], [-4, 2], [-5, 2],
-    [-8, 4], [-7, 5], [6, -5], [6, -4]
-  ];
+  return hexes;
+}
 
-  const cutSet = new Set(cutouts.map(([q, r]) => `${q},${r}`));
-  return hexes.filter((hex) => !cutSet.has(`${hex.q},${hex.r}`));
+/*
+  Moves an island somewhere else on the map.
+  Useful so you can define the shape near (0,0),
+  then place it wherever you want.
+*/
+function shiftHexes(hexes, dq, dr) {
+  return hexes.map((hex) => ({
+    q: hex.q + dq,
+    r: hex.r + dr,
+  }));
 }
 
 /*
@@ -308,15 +339,15 @@ function axialNeighbor(q, r, side) {
   };
 }
 
-function hexDistance(q1, r1, q2, r2) {
-  const s1 = -q1 - r1;
-  const s2 = -q2 - r2;
-  return Math.max(
-    Math.abs(q1 - q2),
-    Math.abs(r1 - r2),
-    Math.abs(s1 - s2)
-  );
-}
+// function hexDistance(q1, r1, q2, r2) {
+//   const s1 = -q1 - r1;
+//   const s2 = -q2 - r2;
+//   return Math.max(
+//     Math.abs(q1 - q2),
+//     Math.abs(r1 - r2),
+//     Math.abs(s1 - s2)
+//   );
+// }
 
 function keyFromHex(hex) {
   return `${hex.q},${hex.r}`;
