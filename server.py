@@ -27,6 +27,14 @@ async def ws_test(websocket: WebSocket):
     except:
         pass
 
+@app.post("/snapshot")
+async def snapshot(image: UploadFile = File(...)):
+    svg_data = await image.read()
+    png_data = cairosvg.svg2png(bytestring=svg_data)
+    with open("snapshot.png", "wb") as f:
+        f.write(png_data)
+    return {"ok": True}
+
 async def main():
     config = uvicorn.Config(app, host="0.0.0.0", port=8000)
     server = uvicorn.Server(config)
