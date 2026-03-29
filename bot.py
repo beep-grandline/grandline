@@ -44,7 +44,31 @@ async def map_cmd(interaction: discord.Interaction):
     await interaction.followup.send(file=file, embed=embed, ephemeral=True)
 
 
-# define the view with buttons — custom_id is permanent, survives restarts
+
+# @bot.tree.command(name="sail", description="Register your character", guild=MY_GUILD)
+# @discord.app_commands.describe(job="Island to sail to")
+# async def sail(interaction: discord.Interaction, job: str):
+#     uid = str(interaction.user.id)
+#     name = interaction.user.name
+#     result = game.sail(uid, name, destination)
+#     if result["ok"]:
+#         await interaction.response.send_message(result["message"])
+#     else:
+#         await interaction.response.send_message(result["error"], ephemeral=True)
+
+@bot.tree.command(name="position", description="Check your position", guild=MY_GUILD)
+async def position(interaction: discord.Interaction):
+    await interaction.response.send_message("You are at Twin Capes.")
+
+
+
+
+
+
+
+
+
+# --- ROLE PICKER --------------------------------------------------------#
 class RolePicker(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)  # timeout=None = never expires
@@ -67,15 +91,22 @@ class RolePicker(discord.ui.View):
 
 
 async def assign_role(interaction: discord.Interaction, role_name: str):
+    # remove all other crew roles first
+    crew_roles = ["Straw Hat Pirates", "Heart Pirates", "Worst Generation"]
+    for rname in crew_roles:
+        existing = discord.utils.get(interaction.guild.roles, name=rname)
+        if existing and existing in interaction.user.roles:
+            await interaction.user.remove_roles(existing)
+
     role = discord.utils.get(interaction.guild.roles, name=role_name)
     if not role:
         await interaction.response.send_message(
-            f"Role '{role_name}' doesn't exist on this server.", ephemeral=True
+            f"Role '{role_name}' doesn't exist.", ephemeral=True
         )
         return
     await interaction.user.add_roles(role)
     await interaction.response.send_message(
-        f"{role_name} role successfully added.", ephemeral=True
+        f"You joined the {role_name}!", ephemeral=True
     )
 
 @bot.tree.command(name="rolepicker", description="Post the role picker message", guild=MY_GUILD)
@@ -92,18 +123,3 @@ async def rolepicker(interaction: discord.Interaction):
     )
     await interaction.channel.send(embed=embed, view=RolePicker())
     await interaction.followup.send("Posted!", ephemeral=True)
-
-# @bot.tree.command(name="sail", description="Register your character", guild=MY_GUILD)
-# @discord.app_commands.describe(job="Island to sail to")
-# async def sail(interaction: discord.Interaction, job: str):
-#     uid = str(interaction.user.id)
-#     name = interaction.user.name
-#     result = game.sail(uid, name, destination)
-#     if result["ok"]:
-#         await interaction.response.send_message(result["message"])
-#     else:
-#         await interaction.response.send_message(result["error"], ephemeral=True)
-
-@bot.tree.command(name="position", description="Check your position", guild=MY_GUILD)
-async def position(interaction: discord.Interaction):
-    await interaction.response.send_message("You are at Twin Capes.")
