@@ -120,6 +120,6 @@ async def rolepicker(interaction: discord.Interaction):
         await interaction.response.send_message("No permission.", ephemeral=True)
         return
     await interaction.response.defer(ephemeral=True)
-    msg = "#Choose Your Allegiance!"
-    await interaction.channel.send_message(msg, view=RolePicker())
+    msg = "# Choose Your Allegiance!"
+    await interaction.channel.send(msg, view=RolePicker())
     await interaction.followup.send("Posted!", ephemeral=True)
