@@ -5,3 +5,4 @@ uvicorn
 Pillow
 websockets
 cairosvg
+python-multipart
