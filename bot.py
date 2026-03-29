@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import game
 import os
+import db
 
 MY_GUILD = discord.Object(id=1487526877185704107)
 
@@ -45,16 +46,16 @@ async def map_cmd(interaction: discord.Interaction):
 
 
 
-# @bot.tree.command(name="sail", description="Register your character", guild=MY_GUILD)
-# @discord.app_commands.describe(job="Island to sail to")
-# async def sail(interaction: discord.Interaction, job: str):
-#     uid = str(interaction.user.id)
-#     name = interaction.user.name
-#     result = game.sail(uid, name, destination)
-#     if result["ok"]:
-#         await interaction.response.send_message(result["message"])
-#     else:
-#         await interaction.response.send_message(result["error"], ephemeral=True)
+@bot.tree.command(name="sail", description="Register your character", guild=MY_GUILD)
+@discord.app_commands.describe(job="Register your character")
+async def sail(interaction: discord.Interaction, job: str):
+    uid = str(interaction.user.id)
+    name = interaction.user.name
+    
+    if result["ok"]:
+        await interaction.response.send_message(result["message"])
+    else:
+        await interaction.response.send_message(result["error"], ephemeral=True)
 
 @bot.tree.command(name="position", description="Check your position", guild=MY_GUILD)
 async def position(interaction: discord.Interaction):
@@ -65,10 +66,20 @@ async def position(interaction: discord.Interaction):
 
 
 
+# MONEY COMMANDS
+@bot.tree.command(name="purse", description="Check how much money you have", guild=MY_GUILD)
+async def position(interaction: discord.Interaction):
+    uid = str(interaction.user.id)
+    berry = db.get_berry(uid)
+    await interaction.response.send_message(f"You have ₿{berry}.")
 
 
 
-# --- ROLE PICKER --------------------------------------------------------#
+
+
+
+
+# ──── ROLE PICKER ────────────────────────────────────────────────────────────
 class RolePicker(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)  # timeout=None = never expires
