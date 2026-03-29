@@ -89,7 +89,7 @@ async def position(interaction: discord.Interaction):
 @bot.tree.command(name="setberry", description="Check how much money you have", guild=MY_GUILD)
 async def position(interaction: discord.Interaction, amount: int):
     uid = str(interaction.user.id)
-    berry = db.set_berry(uid, amount):
+    berry = db.set_berry(uid, amount)
 
 
 
