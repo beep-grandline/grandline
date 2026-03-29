@@ -31,6 +31,7 @@ async def ws_test(websocket: WebSocket):
 async def snapshot(image: UploadFile = File(...)):
     svg_data = await image.read()
     png_data = cairosvg.svg2png(bytestring=svg_data)
+    print("successfully updated map")
     with open("snapshot.png", "wb") as f:
         f.write(png_data)
     return {"ok": True}
