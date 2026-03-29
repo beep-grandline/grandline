@@ -2,10 +2,10 @@ import discord
 from discord.ext import commands
 import os
 
+MY_GUILD = discord.Object(id=1487526877185704107)
+
 intents = discord.Intents.default()
 intents.message_content = True
-
-MY_GUILD = discord.Object(id=1487526877185704107)
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -19,7 +19,7 @@ async def on_ready():
     print(f"Logged in as {bot.user}")
 
 
-@bot.tree.command(name="map", description="Post the current map")
+@bot.tree.command(name="map", description="Post the current map", guild=MY_GUILD)
 async def map_cmd(interaction: discord.Interaction):
     if not os.path.exists("snapshot.png"):
         await interaction.response.send_message(
@@ -32,11 +32,11 @@ async def map_cmd(interaction: discord.Interaction):
     embed.set_image(url="attachment://map.png")
     await interaction.followup.send(file=file, embed=embed)
 
-@bot.tree.command(name="sail", description="Sail to an island")
+@bot.tree.command(name="sail", description="Sail to an island", guild=MY_GUILD)
 async def sail(interaction: discord.Interaction, destination: str):
     await interaction.response.send_message(f"Setting sail for {destination}!")
 
-@bot.tree.command(name="position", description="Check your position")
+@bot.tree.command(name="position", description="Check your position", guild=MY_GUILD)
 async def position(interaction: discord.Interaction):
     await interaction.response.send_message("You are at Twin Capes.")
 
