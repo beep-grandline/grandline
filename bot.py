@@ -9,7 +9,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync(guild=MY_GUILD)
+    await bot.tree.sync(guild=1487526877185704107)
     print(f"Logged in as {bot.user}")
 
 
