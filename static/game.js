@@ -379,8 +379,18 @@ async function sendMapSnapshot() {
   const w = Math.round(rect.width)
   const h = Math.round(rect.height)
 
+  // fetch your stylesheet and inject it into the SVG
+  const cssRes = await fetch("/static/style.css")
+  const css = await cssRes.text()
+
   const svgStr = new XMLSerializer().serializeToString(svgEl)
-  const encoded = btoa(unescape(encodeURIComponent(svgStr)))
+  // inject a <style> block right after the opening <svg> tag
+  const svgWithStyles = svgStr.replace(
+    /(<svg[^>]*>)/,
+    `$1<style>${css}</style>`
+  )
+
+  const encoded = btoa(unescape(encodeURIComponent(svgWithStyles)))
   const dataUrl = `data:image/svg+xml;base64,${encoded}`
 
   const canvas = document.createElement("canvas")
@@ -390,9 +400,9 @@ async function sendMapSnapshot() {
 
   const img = new Image()
   img.onload = async () => {
-    ctx.fillStyle = "#020a14"        // ← background fill first
-    ctx.fillRect(0, 0, w, h)         // ← then clear to that color
-    ctx.drawImage(img, 0, 0, w, h)   // ← then draw SVG on top
+    ctx.fillStyle = "#020a14"
+    ctx.fillRect(0, 0, w, h)
+    ctx.drawImage(img, 0, 0, w, h)
 
     canvas.toBlob(async (pngBlob) => {
       const formData = new FormData()
