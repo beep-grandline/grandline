@@ -78,19 +78,20 @@ async def assign_role(interaction: discord.Interaction, role_name: str):
         f"You joined the {role_name}!", ephemeral=True
     )
 
-# GM command to post the picker message in whatever channel it's run in
 @bot.tree.command(name="rolepicker", description="Post the role picker message", guild=MY_GUILD)
 async def rolepicker(interaction: discord.Interaction):
     role_names = [r.name for r in interaction.user.roles]
     if "Admin" not in role_names:
         await interaction.response.send_message("No permission.", ephemeral=True)
         return
+    await interaction.response.defer(ephemeral=True)
     embed = discord.Embed(
-        title="Choose Your Allegiance",
+        title="Choose Your Crew",
         description="Pick a crew to join. You can change it later.",
         color=0x1a3f6b
     )
-    await interaction.response.send_message(embed=embed, view=RolePicker())
+    await interaction.channel.send(embed=embed, view=RolePicker())
+    await interaction.followup.send("Posted!", ephemeral=True)
 
 # @bot.tree.command(name="sail", description="Register your character", guild=MY_GUILD)
 # @discord.app_commands.describe(job="Island to sail to")
