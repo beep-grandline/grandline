@@ -1,4 +1,4 @@
-import sqlite3
+import db
 
 # COORDINATES
 HEX_DIRECTIONS = {
