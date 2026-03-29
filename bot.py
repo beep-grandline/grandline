@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+import game
 import os
 
 MY_GUILD = discord.Object(id=1487526877185704107)
