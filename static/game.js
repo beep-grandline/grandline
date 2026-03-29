@@ -375,23 +375,34 @@ function clamp(value, min, max) {
 async function sendMapSnapshot() {
   const svgEl = document.getElementById("map")
   const rect = svgEl.getBoundingClientRect()
-  
-  const w = Math.round(rect.width) || svgEl.clientWidth || 1280
-  const h = Math.round(rect.height) || svgEl.clientHeight || 960
+  const w = Math.round(rect.width)
+  const h = Math.round(rect.height)
 
-  const clone = svgEl.cloneNode(true)
-  clone.setAttribute("width", w)
-  clone.setAttribute("height", h)
-  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg")
+  // draw the SVG into a canvas
+  const canvas = document.createElement("canvas")
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext("2d")
 
-  const svgStr = new XMLSerializer().serializeToString(clone)
+  const svgStr = new XMLSerializer().serializeToString(svgEl)
   const blob = new Blob([svgStr], { type: "image/svg+xml" })
-  const formData = new FormData()
-  formData.append("image", blob, "map.svg")
+  const url = URL.createObjectURL(blob)
 
-  const res = await fetch("/snapshot", { method: "POST", body: formData })
-  const data = await res.json()
-  console.log("snapshot:", data)
+  const img = new Image()
+  img.onload = async () => {
+    ctx.drawImage(img, 0, 0, w, h)
+    URL.revokeObjectURL(url)
+
+    // convert canvas to PNG blob and POST it
+    canvas.toBlob(async (pngBlob) => {
+      const formData = new FormData()
+      formData.append("image", pngBlob, "map.png")
+      const res = await fetch("/snapshot", { method: "POST", body: formData })
+      const data = await res.json()
+      console.log("snapshot:", data)
+    }, "image/png")
+  }
+  img.src = url
 }
 
 setInterval(sendMapSnapshot, 10000)
