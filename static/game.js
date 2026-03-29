@@ -374,12 +374,16 @@ function clamp(value, min, max) {
 
 async function sendMapSnapshot() {
   const svgEl = document.getElementById("map")
+  const rect = svgEl.getBoundingClientRect()
   
-  // clone so we don't modify the live element
+  const w = Math.round(rect.width) || svgEl.clientWidth || 1280
+  const h = Math.round(rect.height) || svgEl.clientHeight || 960
+
   const clone = svgEl.cloneNode(true)
-  clone.setAttribute("width", svgEl.getBoundingClientRect().width)
-  clone.setAttribute("height", svgEl.getBoundingClientRect().height)
-  
+  clone.setAttribute("width", w)
+  clone.setAttribute("height", h)
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg")
+
   const svgStr = new XMLSerializer().serializeToString(clone)
   const blob = new Blob([svgStr], { type: "image/svg+xml" })
   const formData = new FormData()
