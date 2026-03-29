@@ -49,19 +49,19 @@ class RolePicker(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)  # timeout=None = never expires
 
-    @discord.ui.button(label="Pirate", style=discord.ButtonStyle.primary, custom_id="role_pirate")
+    @discord.ui.button(label="🏴‍☠️ Pirate", style=discord.ButtonStyle.secondary, custom_id="role_pirate")
     async def strawhat(self, interaction: discord.Interaction, button: discord.ui.Button):
         await assign_role(interaction, "Pirate")
 
-    @discord.ui.button(label="Marine", style=discord.ButtonStyle.secondary, custom_id="role_marine")
+    @discord.ui.button(label="⚓ Marine", style=discord.ButtonStyle.secondary, custom_id="role_marine")
     async def heart(self, interaction: discord.Interaction, button: discord.ui.Button):
         await assign_role(interaction, "Marine")
 
-    @discord.ui.button(label="Civilian", style=discord.ButtonStyle.danger, custom_id="role_civ")
+    @discord.ui.button(label="👨 Civilian", style=discord.ButtonStyle.secondary, custom_id="role_civ")
     async def worstgen(self, interaction: discord.Interaction, button: discord.ui.Button):
         await assign_role(interaction, "Civilian")
 
-    @discord.ui.button(label="Revolutionary", style=discord.ButtonStyle.danger, custom_id="role_revo")
+    @discord.ui.button(label="🗡️ Revolutionary", style=discord.ButtonStyle.secondary, custom_id="role_revo")
     async def worstgen(self, interaction: discord.Interaction, button: discord.ui.Button):
         await assign_role(interaction, "Revolutionary")
 
