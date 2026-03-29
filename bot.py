@@ -5,7 +5,7 @@ import os
 intents = discord.Intents.default()
 intents.message_content = True
 
-MY_GUILD = 1487526877185704107
+MY_GUILD = discord.Object(id=1487526877185704107)
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
