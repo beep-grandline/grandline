@@ -126,12 +126,12 @@ def get_crew_by_name(name):
         "SELECT * FROM crews WHERE name=?", (name,)
     ).fetchone()
 
-def upsert_crew(crew_id, name, color):
+def upsert_crew(crew_id, name):
     db.execute("""
-        INSERT INTO crews (id, name, color)
-        VALUES (?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET name=excluded.name, color=excluded.color
-    """, (crew_id, name, color))
+        INSERT INTO crews (id, name)
+        VALUES (?, ?)
+        ON CONFLICT(id) DO UPDATE SET name=excluded.name
+    """, (crew_id, name))
     db.commit()
 
 init_db()  # runs on import, creates tables if they don't exist
