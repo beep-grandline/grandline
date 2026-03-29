@@ -44,18 +44,28 @@ async def map_cmd(interaction: discord.Interaction):
     embed.set_image(url="attachment://map.png")
     await interaction.followup.send(file=file, embed=embed, ephemeral=True)
 
-
-
-@bot.tree.command(name="sail", description="Register your character", guild=MY_GUILD)
-@discord.app_commands.describe(job="Register your character")
-async def sail(interaction: discord.Interaction, job: str):
+@bot.tree.command(name="register", description="Register your character", guild=MY_GUILD)
+@discord.app_commands.describe(job="Your role (pirate, marine, etc)")
+async def register(interaction: discord.Interaction, job: str):
     uid = str(interaction.user.id)
     name = interaction.user.name
+    db.upsert_player(uid, name)
+    await interaction.response.send_message(
+        f"Welcome to the Grand Line, {name}!", ephemeral=True
+    )
+
+# @bot.tree.command(name="sail", description="Register your character", guild=MY_GUILD)
+# @discord.app_commands.describe(job="Register your character")
+# async def sail(interaction: discord.Interaction, job: str):
+#     uid = str(interaction.user.id)
+#     name = interaction.user.name
+
+#     db.
     
-    if result["ok"]:
-        await interaction.response.send_message(result["message"])
-    else:
-        await interaction.response.send_message(result["error"], ephemeral=True)
+#     if result["ok"]:
+#         await interaction.response.send_message(result["message"])
+#     else:
+#         await interaction.response.send_message(result["error"], ephemeral=True)
 
 @bot.tree.command(name="position", description="Check your position", guild=MY_GUILD)
 async def position(interaction: discord.Interaction):
@@ -71,7 +81,7 @@ async def position(interaction: discord.Interaction):
 async def position(interaction: discord.Interaction):
     uid = str(interaction.user.id)
     berry = db.get_berry(uid)
-    await interaction.response.send_message(f"You have ₿{berry}.")
+    await interaction.response.send_message(f"You have ฿{berry}.")
 
 
 
