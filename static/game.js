@@ -390,9 +390,9 @@ async function sendMapSnapshot() {
 
   const img = new Image()
   img.onload = async () => {
-    ctx.fillStyle = "#020a14"
-    ctx.fillRect(0, 0, w, h)
-    ctx.drawImage(img, 0, 0, w, h)
+    ctx.fillStyle = "#020a14"        // ← background fill first
+    ctx.fillRect(0, 0, w, h)         // ← then clear to that color
+    ctx.drawImage(img, 0, 0, w, h)   // ← then draw SVG on top
 
     canvas.toBlob(async (pngBlob) => {
       const formData = new FormData()
@@ -403,4 +403,5 @@ async function sendMapSnapshot() {
   }
   img.src = dataUrl
 }
+
 setInterval(sendMapSnapshot, 10000)
