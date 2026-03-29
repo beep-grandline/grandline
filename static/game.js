@@ -374,7 +374,13 @@ function clamp(value, min, max) {
 
 async function sendMapSnapshot() {
   const svgEl = document.getElementById("map")
-  const svgStr = new XMLSerializer().serializeToString(svgEl)
+  
+  // clone so we don't modify the live element
+  const clone = svgEl.cloneNode(true)
+  clone.setAttribute("width", svgEl.getBoundingClientRect().width)
+  clone.setAttribute("height", svgEl.getBoundingClientRect().height)
+  
+  const svgStr = new XMLSerializer().serializeToString(clone)
   const blob = new Blob([svgStr], { type: "image/svg+xml" })
   const formData = new FormData()
   formData.append("image", blob, "map.svg")
