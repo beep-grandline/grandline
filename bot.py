@@ -11,7 +11,11 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync(guild=MY_GUILD)
+    try:
+        synced = await bot.tree.sync(guild=MY_GUILD)
+        print(f"Synced {len(synced)} commands: {[c.name for c in synced]}")
+    except Exception as e:
+        print(f"Sync failed: {e}")
     print(f"Logged in as {bot.user}")
 
 
