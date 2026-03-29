@@ -91,22 +91,26 @@ class RolePicker(discord.ui.View):
 
 
 async def assign_role(interaction: discord.Interaction, role_name: str):
-    # remove all other crew roles first
-    crew_roles = ["Straw Hat Pirates", "Heart Pirates", "Worst Generation"]
+    crew_roles = ["Pirate", "Marine", "Civilian", "Revolutionary"]
+    
+    # check if they already have one of the crew roles
     for rname in crew_roles:
         existing = discord.utils.get(interaction.guild.roles, name=rname)
         if existing and existing in interaction.user.roles:
-            await interaction.user.remove_roles(existing)
+            await interaction.response.send_message(
+                f"You already have the {rname} role. You can't change it.", ephemeral=True
+            )
+            return
 
     role = discord.utils.get(interaction.guild.roles, name=role_name)
     if not role:
         await interaction.response.send_message(
-            f"Role '{role_name}' doesn't exist.", ephemeral=True
+            f"Role '{role_name}' doesn't exist on this server.", ephemeral=True
         )
         return
     await interaction.user.add_roles(role)
     await interaction.response.send_message(
-        f"You joined the {role_name}!", ephemeral=True
+        f"You are now a {role_name}!", ephemeral=True
     )
 
 @bot.tree.command(name="rolepicker", description="Post the role picker message", guild=MY_GUILD)
