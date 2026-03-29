@@ -5,11 +5,13 @@ import os
 intents = discord.Intents.default()
 intents.message_content = True
 
+MY_GUILD = 1487526877185704107
+
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    await bot.tree.sync(guild=1487526877185704107)
+    await bot.tree.sync(guild=MY_GUILD)
     print(f"Logged in as {bot.user}")
 
 
