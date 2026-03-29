@@ -113,4 +113,25 @@ def remove_berry(player_id, amount):
     db.commit()
     return True
 
+
+
+# ── Crew management ────────────────────────────
+def get_crew(crew_id):
+    return db.execute(
+        "SELECT * FROM crews WHERE id=?", (crew_id,)
+    ).fetchone()
+
+def get_crew_by_name(name):
+    return db.execute(
+        "SELECT * FROM crews WHERE name=?", (name,)
+    ).fetchone()
+
+def upsert_crew(crew_id, name, color):
+    db.execute("""
+        INSERT INTO crews (id, name, color)
+        VALUES (?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET name=excluded.name, color=excluded.color
+    """, (crew_id, name, color))
+    db.commit()
+
 init_db()  # runs on import, creates tables if they don't exist
