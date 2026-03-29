@@ -371,3 +371,15 @@ function makeSvg(tag, attrs) {
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
+
+async function sendMapSnapshot() {
+  const svgEl = document.getElementById("map")
+  const svgStr = new XMLSerializer().serializeToString(svgEl)
+  const blob = new Blob([svgStr], { type: "image/svg+xml" })
+  const formData = new FormData()
+  formData.append("image", blob, "map.svg")
+
+  const res = await fetch("/snapshot", { method: "POST", body: formData })
+  const data = await res.json()
+  console.log("snapshot:", data)
+}
