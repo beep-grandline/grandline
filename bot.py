@@ -76,6 +76,74 @@ async def position(interaction: discord.Interaction):
 
 
 
+
+
+@bot.tree.command(name="crew", description="Create a new crew", guild=MY_GUILD)
+@discord.app_commands.describe(
+    name="Name of the crew",
+    color="Hex color code for the crew role (e.g. ff0000 for red)"
+)
+async def crew(interaction: discord.Interaction, name: str, color: str):
+    await interaction.response.defer(ephemeral=True)
+
+    # clean the color — strip # if they included it
+    color = color.strip().lstrip("#")
+
+    # validate it's a real hex color
+    if len(color) != 6:
+        await interaction.followup.send(
+            "Invalid color — use a 6 digit hex code like `ff0000`.", ephemeral=True
+        )
+        return
+
+    try:
+        color_int = int(color, 16)
+    except ValueError:
+        await interaction.followup.send(
+            "Invalid color — use a 6 digit hex code like `ff0000`.", ephemeral=True
+        )
+        return
+
+    # check if crew already exists
+    existing_crew = db.get_crew_by_name(name)
+    if existing_crew:
+        await interaction.followup.send(
+            f"A crew named **{name}** already exists.", ephemeral=True
+        )
+        return
+
+    # check if a role with that name already exists
+    existing_role = discord.utils.get(interaction.guild.roles, name=name)
+    if existing_role:
+        await interaction.followup.send(
+            f"A role named **{name}** already exists on this server.", ephemeral=True
+        )
+        return
+
+    # create the Discord role with the given color
+    role = await interaction.guild.create_role(
+        name=name,
+        color=discord.Color(color_int),
+        mentionable=True
+    )
+
+    # store in db using role.id as the crew id
+    db.upsert_crew(str(role.id), name, color)
+
+    await interaction.followup.send(
+        f"Crew **{name}** created with color `#{color}`!", ephemeral=True
+    )
+
+
+
+
+
+
+
+
+
+
+
 # MONEY COMMANDS
 @bot.tree.command(name="purse", description="Check how much money you have", guild=MY_GUILD)
 async def position(interaction: discord.Interaction):
