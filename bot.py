@@ -29,7 +29,8 @@ async def map_cmd(interaction: discord.Interaction):
     file = discord.File("snapshot.png", filename="map.png")
     embed = discord.Embed(title="Grand Line: Paradise", color=0x1a3f6b)
     embed.set_image(url="attachment://map.png")
-    await interaction.followup.send(file=file, embed=embed,ephemeral=True)
+    await interaction.response.defer(ephemeral=True)
+    await interaction.followup.send(file=file, embed=embed)
 
 @bot.tree.command(name="sail", description="Sail to an island", guild=MY_GUILD)
 async def sail(interaction: discord.Interaction, destination: str):
