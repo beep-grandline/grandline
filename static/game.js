@@ -372,37 +372,35 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+
 async function sendMapSnapshot() {
   const svgEl = document.getElementById("map")
   const rect = svgEl.getBoundingClientRect()
   const w = Math.round(rect.width)
   const h = Math.round(rect.height)
 
-  // draw the SVG into a canvas
+  const svgStr = new XMLSerializer().serializeToString(svgEl)
+  const encoded = btoa(unescape(encodeURIComponent(svgStr)))
+  const dataUrl = `data:image/svg+xml;base64,${encoded}`
+
   const canvas = document.createElement("canvas")
   canvas.width = w
   canvas.height = h
   const ctx = canvas.getContext("2d")
 
-  const svgStr = new XMLSerializer().serializeToString(svgEl)
-  const blob = new Blob([svgStr], { type: "image/svg+xml" })
-  const url = URL.createObjectURL(blob)
-
   const img = new Image()
   img.onload = async () => {
+    ctx.fillStyle = "#020a14"
+    ctx.fillRect(0, 0, w, h)
     ctx.drawImage(img, 0, 0, w, h)
-    URL.revokeObjectURL(url)
 
-    // convert canvas to PNG blob and POST it
     canvas.toBlob(async (pngBlob) => {
       const formData = new FormData()
       formData.append("image", pngBlob, "map.png")
-      const res = await fetch("/snapshot", { method: "POST", body: formData })
-      const data = await res.json()
-      console.log("snapshot:", data)
+      await fetch("/snapshot", { method: "POST", body: formData })
+      console.log("snapshot sent")
     }, "image/png")
   }
-  img.src = url
+  img.src = dataUrl
 }
-
 setInterval(sendMapSnapshot, 10000)
