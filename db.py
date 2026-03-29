@@ -33,7 +33,8 @@ def init_db():
             r       INTEGER DEFAULT 0,
             role    TEXT DEFAULT 'pirate',
             bounty  INTEGER DEFAULT 0,
-            hp      INTEGER DEFAULT 100
+            hp      INTEGER DEFAULT 100,
+            berry   INTEGER DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS crews (
@@ -82,5 +83,33 @@ def get_island(q, r):
     return db.execute(
         "SELECT * FROM islands WHERE q=? AND r=?", (q, r)
     ).fetchone()
+
+def get_berry(player_id):
+    player = db.execute(
+        "SELECT berry FROM players WHERE id=?", (player_id,)
+    ).fetchone()
+    return player["berry"] if player else None
+
+def set_berry(player_id, amount):
+    db.execute(
+        "UPDATE players SET berry=? WHERE id=?", (amount, player_id)
+    )
+    db.commit()
+
+def add_berry(player_id, amount):
+    db.execute(
+        "UPDATE players SET berry = berry + ? WHERE id=?", (amount, player_id)
+    )
+    db.commit()
+
+def remove_berry(player_id, amount):
+    player = get_player(player_id)
+    if player["berry"] < amount:
+        return False  # not enough funds
+    db.execute(
+        "UPDATE players SET berry = berry - ? WHERE id=?", (amount, player_id)
+    )
+    db.commit()
+    return True
 
 init_db()  # runs on import, creates tables if they don't exist
