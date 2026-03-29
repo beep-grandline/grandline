@@ -38,10 +38,15 @@ async def snapshot(image: UploadFile = File(...)):
 async def main():
     config = uvicorn.Config(app, host="0.0.0.0", port=8000)
     server = uvicorn.Server(config)
-    await asyncio.gather(
-        server.serve(),
-        bot.start(os.getenv("DISCORD_TOKEN"))
-    )
+    try:
+        await asyncio.gather(
+            server.serve(),
+            bot.start(os.getenv("DISCORD_TOKEN"))
+        )
+    except asyncio.CancelledError:
+        pass
+    finally:
+        await bot.close()
 
 if __name__ == "__main__":
     asyncio.run(main())
