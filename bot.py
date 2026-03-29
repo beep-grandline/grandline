@@ -50,19 +50,19 @@ class RolePicker(discord.ui.View):
         super().__init__(timeout=None)  # timeout=None = never expires
 
     @discord.ui.button(label="🏴‍☠️ Pirate", style=discord.ButtonStyle.secondary, custom_id="role_pirate")
-    async def strawhat(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def pirate(self, interaction: discord.Interaction, button: discord.ui.Button):
         await assign_role(interaction, "Pirate")
 
     @discord.ui.button(label="⚓ Marine", style=discord.ButtonStyle.secondary, custom_id="role_marine")
-    async def heart(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def marine(self, interaction: discord.Interaction, button: discord.ui.Button):
         await assign_role(interaction, "Marine")
 
     @discord.ui.button(label="👨 Civilian", style=discord.ButtonStyle.secondary, custom_id="role_civ")
-    async def worstgen(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def civilian(self, interaction: discord.Interaction, button: discord.ui.Button):
         await assign_role(interaction, "Civilian")
 
     @discord.ui.button(label="🗡️ Revolutionary", style=discord.ButtonStyle.secondary, custom_id="role_revo")
-    async def worstgen(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def revolutionary(self, interaction: discord.Interaction, button: discord.ui.Button):
         await assign_role(interaction, "Revolutionary")
 
 
@@ -75,7 +75,7 @@ async def assign_role(interaction: discord.Interaction, role_name: str):
         return
     await interaction.user.add_roles(role)
     await interaction.response.send_message(
-        f"You joined the {role_name}!", ephemeral=True
+        f"{role_name} role successfully added.", ephemeral=True
     )
 
 @bot.tree.command(name="rolepicker", description="Post the role picker message", guild=MY_GUILD)
