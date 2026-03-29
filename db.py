@@ -84,6 +84,7 @@ def get_island(q, r):
         "SELECT * FROM islands WHERE q=? AND r=?", (q, r)
     ).fetchone()
 
+# ── Currency management ────────────────────────────
 def get_berry(player_id):
     player = db.execute(
         "SELECT berry FROM players WHERE id=?", (player_id,)
