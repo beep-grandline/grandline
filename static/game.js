@@ -374,44 +374,62 @@ function clamp(value, min, max) {
 
 
 async function sendMapSnapshot() {
-  const svgEl = document.getElementById("map")
-  const rect = svgEl.getBoundingClientRect()
-  const w = Math.round(rect.width)
-  const h = Math.round(rect.height)
+  const svgEl = document.getElementById("map");
+  const rect = svgEl.getBoundingClientRect();
+  const w = Math.round(rect.width);
+  const h = Math.round(rect.height);
 
-  // fetch your stylesheet and inject it into the SVG
-  const cssRes = await fetch("/static/style.css")
-  const css = await cssRes.text()
+  if (!w || !h) return;
 
-  const svgStr = new XMLSerializer().serializeToString(svgEl)
-  // inject a <style> block right after the opening <svg> tag
-  const svgWithStyles = svgStr.replace(
-    /(<svg[^>]*>)/,
-    `$1<style>${css}</style>`
-  )
+  const clone = svgEl.cloneNode(true);
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width", w);
+  clone.setAttribute("height", h);
 
-  const encoded = btoa(unescape(encodeURIComponent(svgWithStyles)))
-  const dataUrl = `data:image/svg+xml;base64,${encoded}`
+  if (!clone.getAttribute("viewBox")) {
+    clone.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  }
 
-  const canvas = document.createElement("canvas")
-  canvas.width = w
-  canvas.height = h
-  const ctx = canvas.getContext("2d")
+  const cssRes = await fetch("/static/style.css");
+  const css = await cssRes.text();
 
-  const img = new Image()
+  const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
+  style.textContent = css;
+  clone.insertBefore(style, clone.firstChild);
+
+  const svgStr = new XMLSerializer().serializeToString(clone);
+  const blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+
+  const img = new Image();
+
   img.onload = async () => {
-    ctx.fillStyle = "#020a14"
-    ctx.fillRect(0, 0, w, h)
-    ctx.drawImage(img, 0, 0, w, h)
+    ctx.fillStyle = "#020a14";
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(url);
 
     canvas.toBlob(async (pngBlob) => {
-      const formData = new FormData()
-      formData.append("image", pngBlob, "map.png")
-      await fetch("/snapshot", { method: "POST", body: formData })
-      console.log("snapshot sent")
-    }, "image/png")
-  }
-  img.src = dataUrl
+      const formData = new FormData();
+      formData.append("image", pngBlob, "map.png");
+      await fetch("/snapshot", { method: "POST", body: formData });
+      console.log("snapshot sent");
+    }, "image/png");
+  };
+
+  img.onerror = (e) => {
+    console.error("SVG image failed to load", e, svgStr);
+    URL.revokeObjectURL(url);
+  };
+
+  img.src = url;
 }
+
+setInterval(sendMapSnapshot, 10000);
 
 setInterval(sendMapSnapshot, 10000)
