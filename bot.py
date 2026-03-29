@@ -27,7 +27,7 @@ async def map_cmd(interaction: discord.Interaction):
         return
     await interaction.response.defer()
     file = discord.File("snapshot.png", filename="map.png")
-    embed = discord.Embed(title="Grand Line — Current State", color=0x1a3f6b)
+    embed = discord.Embed(title="Grand Line: Paradise", color=0x1a3f6b)
     embed.set_image(url="attachment://map.png")
     await interaction.followup.send(file=file, embed=embed)
 
