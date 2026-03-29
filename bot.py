@@ -82,7 +82,7 @@ async def assign_role(interaction: discord.Interaction, role_name: str):
 @bot.tree.command(name="rolepicker", description="Post the role picker message", guild=MY_GUILD)
 async def rolepicker(interaction: discord.Interaction):
     role_names = [r.name for r in interaction.user.roles]
-    if "GM" not in role_names:
+    if "Admin" not in role_names:
         await interaction.response.send_message("No permission.", ephemeral=True)
         return
     embed = discord.Embed(
