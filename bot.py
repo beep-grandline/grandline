@@ -83,7 +83,7 @@ async def position(interaction: discord.Interaction):
     berry = db.get_berry(uid)
     if berry == 0:
         await interaction.response.send_message(f"You are broke.")
-    else
+    else:
         await interaction.response.send_message(f"You have ฿\033[1m{berry}\033[1m.")
 
 
