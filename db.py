@@ -1,0 +1,86 @@
+import sqlite3
+
+db = sqlite3.connect("grandline.db", check_same_thread=False)
+db.row_factory = sqlite3.Row
+
+def init_db():
+    db.executescript("""
+        CREATE TABLE IF NOT EXISTS hexes (
+            q             INTEGER NOT NULL,
+            r             INTEGER NOT NULL,
+            region        TEXT DEFAULT 'open_sea',
+            terrain       TEXT DEFAULT 'sea',
+            movement_cost INTEGER DEFAULT 1,
+            hazard        TEXT,
+            PRIMARY KEY (q, r)
+        );
+
+        CREATE TABLE IF NOT EXISTS islands (
+            id      INTEGER PRIMARY KEY AUTOINCREMENT,
+            q       INTEGER NOT NULL,
+            r       INTEGER NOT NULL,
+            name    TEXT,
+            type    TEXT,
+            arc     TEXT,
+            FOREIGN KEY (q, r) REFERENCES hexes(q, r)
+        );
+
+        CREATE TABLE IF NOT EXISTS players (
+            id      TEXT PRIMARY KEY,
+            name    TEXT,
+            crew_id TEXT,
+            q       INTEGER DEFAULT 0,
+            r       INTEGER DEFAULT 0,
+            role    TEXT DEFAULT 'pirate',
+            bounty  INTEGER DEFAULT 0,
+            hp      INTEGER DEFAULT 100
+        );
+
+        CREATE TABLE IF NOT EXISTS crews (
+            id     TEXT PRIMARY KEY,
+            name   TEXT,
+            home_q INTEGER,
+            home_r INTEGER,
+            bounty INTEGER DEFAULT 0
+        );
+    """)
+    db.commit()
+
+# ── hex queries ───────────────────────────────────
+def get_hex(q, r):
+    return db.execute(
+        "SELECT * FROM hexes WHERE q=? AND r=?", (q, r)
+    ).fetchone()
+
+def get_all_hexes():
+    return db.execute("SELECT * FROM hexes").fetchall()
+
+# ── player queries ────────────────────────────────
+def get_player(player_id):
+    return db.execute(
+        "SELECT * FROM players WHERE id=?", (player_id,)
+    ).fetchone()
+
+def get_all_players():
+    return db.execute("SELECT * FROM players").fetchall()
+
+def upsert_player(player_id, name):
+    db.execute(
+        "INSERT OR IGNORE INTO players (id, name) VALUES (?, ?)",
+        (player_id, name)
+    )
+    db.commit()
+
+def update_player_position(player_id, q, r):
+    db.execute(
+        "UPDATE players SET q=?, r=? WHERE id=?", (q, r, player_id)
+    )
+    db.commit()
+
+# ── island queries ────────────────────────────────
+def get_island(q, r):
+    return db.execute(
+        "SELECT * FROM islands WHERE q=? AND r=?", (q, r)
+    ).fetchone()
+
+init_db()  # runs on import, creates tables if they don't exist
