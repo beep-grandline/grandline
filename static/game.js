@@ -383,3 +383,9 @@ async function sendMapSnapshot() {
   const data = await res.json()
   console.log("snapshot:", data)
 }
+
+ws.onmessage = (e) => {
+  const state = JSON.parse(e.data)
+  // ... your existing update logic ...
+  sendMapSnapshot()  // add this
+}
