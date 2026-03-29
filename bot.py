@@ -18,3 +18,4 @@ async def sail(interaction: discord.Interaction, destination: str):
 @bot.tree.command(name="position", description="Check your position")
 async def position(interaction: discord.Interaction):
     await interaction.response.send_message("You are at Twin Capes.")
+
