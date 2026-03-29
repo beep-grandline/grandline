@@ -18,6 +18,15 @@ async def on_ready():
     print(f"Logged in as {bot.user}")
 
 
+@bot.tree.command(name="help", description="Show available commands", guild=MY_GUILD)
+async def help_cmd(interaction: discord.Interaction):
+    embed = discord.Embed(title="LARP Piece Commands", color=0x1a3f6b)
+    embed.add_field(name="/map", value="Sends the current map to your DMs", inline=False)
+    embed.add_field(name="/sail", value="Sail to an island", inline=False)
+    embed.add_field(name="/position", value="Check your current position", inline=False)
+    embed.add_field(name="/help", value="Show this message", inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 @bot.tree.command(name="map", description="Post the current map", guild=MY_GUILD)
 async def map_cmd(interaction: discord.Interaction):
     if not os.path.exists("snapshot.png"):
