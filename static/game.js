@@ -390,4 +390,4 @@ async function sendMapSnapshot() {
   console.log("snapshot:", data)
 }
 
-setInterval(sendMapSnapshot, 30000)
+setInterval(sendMapSnapshot, 10000)
