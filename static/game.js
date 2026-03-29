@@ -415,4 +415,4 @@ async function sendMapSnapshot() {
 }
 
 
-setInterval(sendMapSnapshot, 10000);
+setInterval(sendMapSnapshot, 30000);
