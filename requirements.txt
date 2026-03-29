@@ -4,4 +4,4 @@ fastapi
 uvicorn
 Pillow
 websockets
-
+cairosvg
