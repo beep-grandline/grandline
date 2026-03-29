@@ -17,7 +17,7 @@ async def on_ready():
     print(f"Synced {len(synced)} commands: {[c.name for c in synced]}")
     print(f"Logged in as {bot.user}")
 
-
+# Listcommands
 @bot.tree.command(name="help", description="Show available commands", guild=MY_GUILD)
 async def help_cmd(interaction: discord.Interaction):
     embed = discord.Embed(title="LARP Piece Commands", color=0x1a3f6b)
@@ -27,6 +27,7 @@ async def help_cmd(interaction: discord.Interaction):
     embed.add_field(name="/help", value="Show this message", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
+# Base map img generator, to expand once we get a better sense of rendering
 @bot.tree.command(name="map", description="Post the current map", guild=MY_GUILD)
 async def map_cmd(interaction: discord.Interaction):
     if not os.path.exists("snapshot.png"):
@@ -39,6 +40,7 @@ async def map_cmd(interaction: discord.Interaction):
     embed = discord.Embed(title="Grand Line: Paradise", color=0x1a3f6b)
     embed.set_image(url="attachment://map.png")
     await interaction.followup.send(file=file, embed=embed, ephemeral=True)
+
 
 @bot.tree.command(name="sail", description="Sail to an island", guild=MY_GUILD)
 async def sail(interaction: discord.Interaction, destination: str):
