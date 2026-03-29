@@ -120,10 +120,6 @@ async def rolepicker(interaction: discord.Interaction):
         await interaction.response.send_message("No permission.", ephemeral=True)
         return
     await interaction.response.defer(ephemeral=True)
-    embed = discord.Embed(
-        title="Choose Your Crew",
-        description="Pick a crew to join. You can change it later.",
-        color=0x1a3f6b
-    )
-    await interaction.channel.send(embed=embed, view=RolePicker())
+    msg = "#Choose Your Allegiance!"
+    await interaction.channel.send_message(msg, view=RolePicker())
     await interaction.followup.send("Posted!", ephemeral=True)
