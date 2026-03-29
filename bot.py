@@ -84,12 +84,13 @@ async def position(interaction: discord.Interaction):
     if berry == 0:
         await interaction.response.send_message(f"You are broke.")
     else:
-        await interaction.response.send_message(f"You have ฿\033[1m{berry}\033[1m.")
+        await interaction.response.send_message(f"You have ฿\033[1m{berry}\033[0m.")
 
 @bot.tree.command(name="setberry", description="Check how much money you have", guild=MY_GUILD)
 async def position(interaction: discord.Interaction, amount: int):
     uid = str(interaction.user.id)
     berry = db.set_berry(uid, amount)
+    await interaction.response.send_message(f"Successfully set berry.", ephemeral=True)
 
 
 
