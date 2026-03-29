@@ -384,8 +384,4 @@ async function sendMapSnapshot() {
   console.log("snapshot:", data)
 }
 
-ws.onmessage = (e) => {
-  const state = JSON.parse(e.data)
-  // ... your existing update logic ...
-  sendMapSnapshot()  // add this
-}
+setInterval(sendMapSnapshot, 30000)
