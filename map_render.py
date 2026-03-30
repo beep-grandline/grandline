@@ -2,12 +2,12 @@ from PIL import Image, ImageDraw
 import math
 import db
 
-SIZE = 20
+SIZE = 40
 SQRT3 = math.sqrt(3)
 
 TERRAIN_COLORS = {
-    "sea":       (100, 160, 220),
-    "island":    (201, 148,  58),
+    "sea":       (24, 152, 213),
+    "island":    (24, 152, 213),
     "forest":    ( 42, 107,  58),
     "desert":    (200, 164,  74),
     "snow":      (138, 184, 204),
