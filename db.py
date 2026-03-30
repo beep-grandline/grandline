@@ -128,7 +128,7 @@ def delete_crew(crew_id):
 
 def get_crew_by_name(name):
     return db.execute(
-        "SELECT * FROM crews WHERE name=?", (name,)
+        "SELECT * FROM crews WHERE LOWER(name)=LOWER(?)", (name,)
     ).fetchone()
 
 def upsert_crew(crew_id, name):
