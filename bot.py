@@ -130,7 +130,7 @@ async def crew(interaction: discord.Interaction, name: str, color: str):
 @bot.tree.command(name="disband", description="Disband a crew", guild=MY_GUILD)
 @discord.app_commands.describe(name="Name of the crew to disband")
 async def disband(interaction: discord.Interaction, name: str):
-    await interaction.response.defer(ephemeral=True)
+    await interaction.response.defer()
 
     # check permissions
     role_names = [r.name for r in interaction.user.roles]
@@ -153,7 +153,7 @@ async def disband(interaction: discord.Interaction, name: str):
     db.delete_crew(crew["id"])
     crewname = crew["name"]
 
-    await interaction.followup.send(f"Crew **{crewname}** has been disbanded.", ephemeral=True)
+    await interaction.followup.send(f"Crew **{crewname}** has been disbanded.")
 
 
 
