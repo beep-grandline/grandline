@@ -87,7 +87,7 @@ async def position(interaction: discord.Interaction):
     color="Hex color code (e.g. ff0000 for red)"
 )
 async def crew(interaction: discord.Interaction, name: str, color: str):
-    # await interaction.response.defer(ephemeral=True)
+    await interaction.response.defer()
 
     color = color.strip().lstrip("#")
 
