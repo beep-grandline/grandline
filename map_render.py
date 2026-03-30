@@ -1,35 +1,39 @@
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 import math
 import db
 
-SIZE = 20  # hex size in pixels
+SIZE = 20
 SQRT3 = math.sqrt(3)
 
 TERRAIN_COLORS = {
     "sea":       (26,  63, 107),
-    "island":    (201,148, 58),
-    "forest":    (42, 107, 58),
-    "desert":    (200,164, 74),
-    "snow":      (138,184,204),
-    "volcano":   (139, 42, 16),
-    "redline":   (58,   8,  8),
-    "grandline": (22,  42, 82),
+    "island":    (201,148,  58),
+    "forest":    ( 42,107,  58),
+    "desert":    (200,164,  74),
+    "snow":      (138,184, 204),
+    "volcano":   (139, 42,  16),
+    "redline":   ( 58,  8,   8),
+    "grandline": ( 22, 42,  82),
 }
 
 def hex_to_pixel(q, r):
-    x = SIZE * (1.5 * q)
-    y = SIZE * SQRT3 * (r + (0.5 if q % 2 == 1 else 0))
+    # proper pointy-top axial formula
+    x = SIZE * SQRT3 * (q + r / 2)
+    y = SIZE * 1.5 * r
     return x, y
 
 def hex_corners(cx, cy):
     corners = []
     for i in range(6):
-        angle = math.pi / 3 * i
+        angle = math.pi / 3 * i + math.pi / 6  # pointy-top offset
         corners.append((
             cx + SIZE * math.cos(angle),
             cy + SIZE * math.sin(angle)
         ))
     return corners
+
+def hex_distance(q1, r1, q2, r2):
+    return max(abs(q1-q2), abs(r1-r2), abs((q1+r1)-(q2+r2)))
 
 def render_map(player_id, radius=5):
     player = db.get_player(player_id)
@@ -38,14 +42,17 @@ def render_map(player_id, radius=5):
 
     pq, pr = player["q"], player["r"]
 
-    # collect hexes within radius of player
+    # collect hexes within radius using correct axial distance
     hexes = []
     for q in range(pq - radius, pq + radius + 1):
         for r in range(pr - radius, pr + radius + 1):
-            if abs(q - pq) + abs(r - pr) + abs((q + r) - (pq + pr)) <= radius * 2:
+            if hex_distance(q, r, pq, pr) <= radius:
                 hex = db.get_hex(q, r)
                 if hex:
                     hexes.append(hex)
+
+    if not hexes:
+        return None
 
     # figure out canvas size
     pixels = [hex_to_pixel(h["q"], h["r"]) for h in hexes]
@@ -66,23 +73,25 @@ def render_map(player_id, radius=5):
         cy -= min_y
         corners = hex_corners(cx, cy)
         color = TERRAIN_COLORS.get(hex["terrain"], TERRAIN_COLORS["sea"])
-        draw.polygon(corners, fill=color, outline=(255, 255, 255, 30))
+        draw.polygon(corners, fill=color, outline=(40, 40, 40))
 
-        # draw island name if it has one
         island = db.get_island(hex["q"], hex["r"])
         if island:
-            draw.text((cx, cy), island["name"][:8], fill=(255,255,255), anchor="mm")
+            draw.text((cx, cy), island["name"][:8], fill=(255, 255, 255), anchor="mm")
 
-    # draw player marker
+    # draw player markers
     all_players = db.get_all_players()
     for p in all_players:
-        if abs(p["q"] - pq) <= radius and abs(p["r"] - pr) <= radius:
+        if hex_distance(p["q"], p["r"], pq, pr) <= radius:
             cx, cy = hex_to_pixel(p["q"], p["r"])
             cx -= min_x
             cy -= min_y
             r_px = SIZE * 0.4
             draw.ellipse([cx-r_px, cy-r_px, cx+r_px, cy+r_px], fill=(240, 208, 96))
-            draw.text((cx, cy), p["name"][0], fill=(0,0,0), anchor="mm")
+            draw.text((cx, cy), p["name"][0], fill=(0, 0, 0), anchor="mm")
+
+    # rotate 90 degrees so map goes bottom to top
+    img = img.rotate(90, expand=True)
 
     img.save("map_snapshot.png")
     return "map_snapshot.png"
