@@ -38,11 +38,11 @@ async def map_cmd(interaction: discord.Interaction):
             "No snapshot yet.", ephemeral=True
         )
         return
-    await interaction.response.defer()
+    await interaction.response.defer(ephemeral=True)
     file = discord.File("snapshot.png", filename="map.png")
     embed = discord.Embed(title="Grand Line: Paradise", color=0x1a3f6b)
     embed.set_image(url="attachment://map.png")
-    await interaction.followup.send(embed=embed, ephemeral=True)
+    await interaction.followup.send(file=file, embed=embed)
 
 @bot.tree.command(name="register", description="Register your character", guild=MY_GUILD)
 @discord.app_commands.describe(job="Your role (pirate, marine, etc)")
