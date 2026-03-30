@@ -12,6 +12,8 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+GAME_ADMIN = "Admin"
+
 @bot.event
 async def on_ready():
     bot.add_view(RolePicker())
@@ -128,7 +130,7 @@ async def disband(interaction: discord.Interaction, name: str):
 
     # check permissions
     role_names = [r.name for r in interaction.user.roles]
-    if "GM" not in role_names:
+    if GAME_ADMIN not in role_names:
         await interaction.followup.send("Only GMs can disband crews.", ephemeral=True)
         return
 
@@ -235,7 +237,7 @@ async def assign_role(interaction: discord.Interaction, role_name: str):
 @bot.tree.command(name="rolepicker", description="Post the role picker message", guild=MY_GUILD)
 async def rolepicker(interaction: discord.Interaction):
     role_names = [r.name for r in interaction.user.roles]
-    if "Admin" not in role_names:
+    if GAME_ADMIN not in role_names:
         await interaction.response.send_message("No permission.", ephemeral=True)
         return
     await interaction.response.defer(ephemeral=True)
