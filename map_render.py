@@ -72,7 +72,7 @@ def render_map(player_id, radius=6):
         cy -= min_y
         corners = hex_corners(cx, cy)
         color = TERRAIN_COLORS.get(hex["terrain"], TERRAIN_COLORS["sea"])
-        draw.polygon(corners, fill=color, outline=(180, 200, 220))
+        draw.polygon(corners, fill=color, outline=(103, 190, 217))
 
         island = db.get_island(hex["q"], hex["r"])
         if island:
