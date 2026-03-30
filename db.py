@@ -56,6 +56,23 @@ def get_hex(q, r):
 def get_all_hexes():
     return db.execute("SELECT * FROM hexes").fetchall()
 
+def insert_hex(q, r, terrain="sea", region="open_sea"):
+    db.execute("""
+        INSERT OR IGNORE INTO hexes (q, r, terrain, region)
+        VALUES (?, ?, ?, ?)
+    """, (q, r, terrain, region))
+    db.commit()
+
+def insert_island(q, r, name, island_type="town", arc=None):
+    db.execute("""
+        INSERT OR IGNORE INTO islands (q, r, name, type, arc)
+        VALUES (?, ?, ?, ?, ?)
+    """, (q, r, name, island_type, arc))
+    db.commit()
+
+def get_all_islands():
+    return db.execute("SELECT * FROM islands").fetchall()
+
 # ── player queries ────────────────────────────────
 def get_player(player_id):
     return db.execute(
