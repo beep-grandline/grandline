@@ -3,6 +3,7 @@ import math
 import db
 
 SIZE = 100
+RADIUS = 20
 SQRT3 = math.sqrt(3)
 
 TERRAIN_COLORS = {
@@ -36,7 +37,7 @@ def hex_corners(cx, cy):
 def hex_distance(q1, r1, q2, r2):
     return max(abs(q1-q2), abs(r1-r2), abs((q1+r1)-(q2+r2)))
 
-def render_map(player_id, radius=12):
+def render_map(player_id, radius=RADIUS):
     player = db.get_player(player_id)
     if not player:
         return None
