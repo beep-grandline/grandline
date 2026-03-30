@@ -3,6 +3,7 @@ from discord.ext import commands
 import game
 import os
 import db
+import map_render
 
 MY_GUILD = discord.Object(id=1487526877185704107)
 
@@ -118,8 +119,19 @@ async def crew(interaction: discord.Interaction, name: str, color: str):
 
 
 
-
-
+# To send a picture of the map
+@bot.tree.command(name="map", description="View your current area", guild=MY_GUILD)
+async def map_cmd(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+    uid = str(interaction.user.id)
+    path = map_render.render_map(uid, radius=5)
+    if not path:
+        await interaction.followup.send("You are not registered yet.", ephemeral=True)
+        return
+    file = discord.File(path, filename="map.png")
+    embed = discord.Embed(title="Your Position", color=0x1a3f6b)
+    embed.set_image(url="attachment://map.png")
+    await interaction.followup.send(file=file, embed=embed, ephemeral=True)
 
 
 
