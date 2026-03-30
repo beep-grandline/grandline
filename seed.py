@@ -17,11 +17,10 @@ def seed():
     
     db.db.commit()
     print("Grid filled.")
-    
-    # then define your islands on top
+
     islands = [
         # (q, r, terrain, region, island_name, island_type, arc)
-        (35, 10, "island", "grand_line", "Twin Capes",     "town",       "east_blue"),
+        (0, 0, "island", "grand_line", "Twin Capes",     "town",       "east_blue"),
         (35, 20, "desert", "grand_line", "Whiskey Peak",   "town",       "alabasta"),
         (35, 30, "forest", "grand_line", "Little Garden",  "wilderness", "alabasta"),
         (35, 40, "snow",   "grand_line", "Drum Island",    "town",       "alabasta"),
