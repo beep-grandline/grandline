@@ -6,18 +6,19 @@ SIZE = 20
 SQRT3 = math.sqrt(3)
 
 TERRAIN_COLORS = {
-    "sea":       (26,  63, 107),
-    "island":    (201,148,  58),
-    "forest":    ( 42,107,  58),
-    "desert":    (200,164,  74),
-    "snow":      (138,184, 204),
-    "volcano":   (139, 42,  16),
-    "redline":   ( 58,  8,   8),
-    "grandline": ( 22, 42,  82),
+    "sea":       (100, 160, 220),  # light blue
+    "island":    (201, 148,  58),
+    "forest":    ( 42, 107,  58),
+    "desert":    (200, 164,  74),
+    "snow":      (138, 184, 204),
+    "volcano":   (139,  42,  16),
+    "redline":   ( 58,   8,   8),
+    "grandline": ( 60, 100, 180),
 }
 
+BG_COLOR = (100, 160, 220)  # match sea so no visible background
+
 def hex_to_pixel(q, r):
-    # proper pointy-top axial formula
     x = SIZE * SQRT3 * (q + r / 2)
     y = SIZE * 1.5 * r
     return x, y
@@ -25,7 +26,7 @@ def hex_to_pixel(q, r):
 def hex_corners(cx, cy):
     corners = []
     for i in range(6):
-        angle = math.pi / 3 * i + math.pi / 6  # pointy-top offset
+        angle = math.pi / 3 * i + math.pi / 6
         corners.append((
             cx + SIZE * math.cos(angle),
             cy + SIZE * math.sin(angle)
@@ -42,19 +43,14 @@ def render_map(player_id, radius=5):
 
     pq, pr = player["q"], player["r"]
 
-    # collect hexes within radius using correct axial distance
+    # collect a rectangular region instead of hex-shaped radius
     hexes = []
     for q in range(pq - radius, pq + radius + 1):
         for r in range(pr - radius, pr + radius + 1):
-            if hex_distance(q, r, pq, pr) <= radius:
-                hex = db.get_hex(q, r)
-                if hex:
-                    hexes.append(hex)
+            hex = db.get_hex(q, r)
+            # include all hexes in the square range, fill missing ones as sea
+            hexes.append(hex if hex else {"q": q, "r": r, "terrain": "sea"})
 
-    if not hexes:
-        return None
-
-    # figure out canvas size
     pixels = [hex_to_pixel(h["q"], h["r"]) for h in hexes]
     min_x = min(p[0] for p in pixels) - SIZE * 2
     min_y = min(p[1] for p in pixels) - SIZE * 2
@@ -64,7 +60,7 @@ def render_map(player_id, radius=5):
     w = int(max_x - min_x)
     h = int(max_y - min_y)
 
-    img = Image.new("RGB", (w, h), (2, 10, 20))
+    img = Image.new("RGB", (w, h), BG_COLOR)
     draw = ImageDraw.Draw(img)
 
     for hex in hexes:
@@ -73,7 +69,7 @@ def render_map(player_id, radius=5):
         cy -= min_y
         corners = hex_corners(cx, cy)
         color = TERRAIN_COLORS.get(hex["terrain"], TERRAIN_COLORS["sea"])
-        draw.polygon(corners, fill=color, outline=(40, 40, 40))
+        draw.polygon(corners, fill=color, outline=(255, 255, 255))
 
         island = db.get_island(hex["q"], hex["r"])
         if island:
@@ -90,8 +86,6 @@ def render_map(player_id, radius=5):
             draw.ellipse([cx-r_px, cy-r_px, cx+r_px, cy+r_px], fill=(240, 208, 96))
             draw.text((cx, cy), p["name"][0], fill=(0, 0, 0), anchor="mm")
 
-    # rotate 90 degrees so map goes bottom to top
     img = img.rotate(90, expand=True)
-
     img.save("map_snapshot.png")
     return "map_snapshot.png"
