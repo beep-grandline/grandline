@@ -16,7 +16,7 @@ TERRAIN_COLORS = {
     "grandline": ( 60, 100, 180),
 }
 
-BG_COLOR = (100, 160, 220)
+BG_COLOR = (24, 152, 213)
 
 def hex_to_pixel(q, r):
     x = SIZE * SQRT3 * (q + r / 2)
@@ -36,7 +36,7 @@ def hex_corners(cx, cy):
 def hex_distance(q1, r1, q2, r2):
     return max(abs(q1-q2), abs(r1-r2), abs((q1+r1)-(q2+r2)))
 
-def render_map(player_id, radius=5):
+def render_map(player_id, radius=6):
     player = db.get_player(player_id)
     if not player:
         return None
