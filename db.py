@@ -121,6 +121,11 @@ def get_crew(crew_id):
         "SELECT * FROM crews WHERE id=?", (crew_id,)
     ).fetchone()
 
+def delete_crew(crew_id):
+    db.execute("UPDATE players SET crew_id=NULL WHERE crew_id=?", (crew_id,))
+    db.execute("DELETE FROM crews WHERE id=?", (crew_id,))
+    db.commit()
+
 def get_crew_by_name(name):
     return db.execute(
         "SELECT * FROM crews WHERE name=?", (name,)
