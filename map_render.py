@@ -6,7 +6,7 @@ SIZE = 20
 SQRT3 = math.sqrt(3)
 
 TERRAIN_COLORS = {
-    "sea":       (100, 160, 220),  # light blue
+    "sea":       (100, 160, 220),
     "island":    (201, 148,  58),
     "forest":    ( 42, 107,  58),
     "desert":    (200, 164,  74),
@@ -16,7 +16,7 @@ TERRAIN_COLORS = {
     "grandline": ( 60, 100, 180),
 }
 
-BG_COLOR = (100, 160, 220)  # match sea so no visible background
+BG_COLOR = (100, 160, 220)
 
 def hex_to_pixel(q, r):
     x = SIZE * SQRT3 * (q + r / 2)
@@ -43,13 +43,16 @@ def render_map(player_id, radius=5):
 
     pq, pr = player["q"], player["r"]
 
-    # collect a rectangular region instead of hex-shaped radius
+    # collect hex-radius circle as before
     hexes = []
     for q in range(pq - radius, pq + radius + 1):
         for r in range(pr - radius, pr + radius + 1):
-            hex = db.get_hex(q, r)
-            # include all hexes in the square range, fill missing ones as sea
-            hexes.append(hex if hex else {"q": q, "r": r, "terrain": "sea"})
+            if hex_distance(q, r, pq, pr) <= radius:
+                hex = db.get_hex(q, r)
+                hexes.append(hex if hex else {"q": q, "r": r, "terrain": "sea"})
+
+    if not hexes:
+        return None
 
     pixels = [hex_to_pixel(h["q"], h["r"]) for h in hexes]
     min_x = min(p[0] for p in pixels) - SIZE * 2
@@ -69,7 +72,7 @@ def render_map(player_id, radius=5):
         cy -= min_y
         corners = hex_corners(cx, cy)
         color = TERRAIN_COLORS.get(hex["terrain"], TERRAIN_COLORS["sea"])
-        draw.polygon(corners, fill=color, outline=(255, 255, 255))
+        draw.polygon(corners, fill=color, outline=(180, 200, 220))
 
         island = db.get_island(hex["q"], hex["r"])
         if island:
@@ -86,6 +89,16 @@ def render_map(player_id, radius=5):
             draw.ellipse([cx-r_px, cy-r_px, cx+r_px, cy+r_px], fill=(240, 208, 96))
             draw.text((cx, cy), p["name"][0], fill=(0, 0, 0), anchor="mm")
 
-    img = img.rotate(90, expand=True)
+    # crop to a centered rectangle
+    cx_img = w // 2
+    cy_img = h // 2
+    crop_w = int(SIZE * SQRT3 * radius * 1.8)
+    crop_h = int(SIZE * 1.5 * radius * 1.8)
+    left   = max(0, cx_img - crop_w // 2)
+    top    = max(0, cy_img - crop_h // 2)
+    right  = min(w, cx_img + crop_w // 2)
+    bottom = min(h, cy_img + crop_h // 2)
+    img = img.crop((left, top, right, bottom))
+
     img.save("map_snapshot.png")
     return "map_snapshot.png"
