@@ -32,18 +32,18 @@ async def help_cmd(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # Base map img generator, to expand once we get a better sense of rendering
-@bot.tree.command(name="map", description="Post the current map", guild=MY_GUILD)
-async def map_cmd(interaction: discord.Interaction):
-    if not os.path.exists("snapshot.png"):
-        await interaction.response.send_message(
-            "No snapshot yet.", ephemeral=True
-        )
-        return
-    await interaction.response.defer(ephemeral=True)
-    file = discord.File("snapshot.png", filename="map.png")
-    embed = discord.Embed(title="Grand Line: Paradise", color=0x1a3f6b)
-    embed.set_image(url="attachment://map.png")
-    await interaction.followup.send(file=file, embed=embed)
+# @bot.tree.command(name="map", description="Post the current map", guild=MY_GUILD)
+# async def map_cmd(interaction: discord.Interaction):
+#     if not os.path.exists("snapshot.png"):
+#         await interaction.response.send_message(
+#             "No snapshot yet.", ephemeral=True
+#         )
+#         return
+#     await interaction.response.defer(ephemeral=True)
+#     file = discord.File("snapshot.png", filename="map.png")
+#     embed = discord.Embed(title="Grand Line: Paradise", color=0x1a3f6b)
+#     embed.set_image(url="attachment://map.png")
+#     await interaction.followup.send(file=file, embed=embed)
 
 @bot.tree.command(name="register", description="Register your character", guild=MY_GUILD)
 @discord.app_commands.describe(job="Your role (pirate, marine, etc)")
