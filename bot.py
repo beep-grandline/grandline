@@ -113,7 +113,7 @@ async def crew(interaction: discord.Interaction, name: str, color: str):
     )
 
     bot_top = interaction.guild.me.top_role
-    positions = {role: bot_top.position - 1}
+    positions = {role: bot_top.position}
     await interaction.guild.edit_role_positions(positions)
 
     db.upsert_crew(str(role.id), name)
