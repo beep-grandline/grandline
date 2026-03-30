@@ -101,8 +101,8 @@ async def crew(interaction: discord.Interaction, name: str, color: str):
         return
 
     if db.get_crew_by_name(name):
-    await interaction.followup.send(f"A crew named **{name}** already exists.", ephemeral=True)
-    return
+        await interaction.followup.send(f"A crew named **{name}** already exists.", ephemeral=True)
+        return
 
     existing_role = discord.utils.find(
         lambda r: r.name.lower() == name.lower(),
