@@ -112,6 +112,9 @@ async def crew(interaction: discord.Interaction, name: str, color: str):
         mentionable=True
     )
 
+    bot_top = interaction.guild.me.top_role
+    await role.edit(position=bot_top.position - 1)
+
     db.upsert_crew(str(role.id), name)
 
     await interaction.followup.send(f"Crew **{name}** created with color `#{color}`!", ephemeral=True)
