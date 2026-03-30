@@ -36,7 +36,7 @@ def hex_corners(cx, cy):
 def hex_distance(q1, r1, q2, r2):
     return max(abs(q1-q2), abs(r1-r2), abs((q1+r1)-(q2+r2)))
 
-def render_map(player_id, radius=8):
+def render_map(player_id, radius=10):
     player = db.get_player(player_id)
     if not player:
         return None
