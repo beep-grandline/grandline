@@ -152,7 +152,7 @@ async def disband(interaction: discord.Interaction, name: str):
     # delete from db (also clears crew_id from all members)
     db.delete_crew(crew["id"])
 
-    await interaction.followup.send(f"Crew **{name}** has been disbanded.", ephemeral=True)
+    await interaction.followup.send(f"Crew **{crew}** has been disbanded.", ephemeral=True)
 
 
 
