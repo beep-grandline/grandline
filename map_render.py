@@ -36,7 +36,7 @@ def hex_corners(cx, cy):
 def hex_distance(q1, r1, q2, r2):
     return max(abs(q1-q2), abs(r1-r2), abs((q1+r1)-(q2+r2)))
 
-def render_map(player_id, radius=8):
+def render_map(player_id, radius=12):
     player = db.get_player(player_id)
     if not player:
         return None
@@ -72,7 +72,7 @@ def render_map(player_id, radius=8):
         cy -= min_y
         corners = hex_corners(cx, cy)
         color = TERRAIN_COLORS.get(hex["terrain"], TERRAIN_COLORS["sea"])
-        draw.polygon(corners, fill=color, width=1.2, outline=(103, 190, 217))
+        draw.polygon(corners, fill=color, outline=(103, 190, 217))
 
         island = db.get_island(hex["q"], hex["r"])
         if island:
