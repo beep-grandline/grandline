@@ -121,6 +121,33 @@ async def crew(interaction: discord.Interaction, name: str, color: str):
     await interaction.followup.send(f"Crew **{name}** created with color `#{color}`!", ephemeral=True)
 
 
+@bot.tree.command(name="disband", description="Disband a crew", guild=MY_GUILD)
+@discord.app_commands.describe(name="Name of the crew to disband")
+async def disband(interaction: discord.Interaction, name: str):
+    await interaction.response.defer(ephemeral=True)
+
+    # check permissions
+    role_names = [r.name for r in interaction.user.roles]
+    if "GM" not in role_names:
+        await interaction.followup.send("Only GMs can disband crews.", ephemeral=True)
+        return
+
+    # find the crew
+    crew = db.get_crew_by_name(name)
+    if not crew:
+        await interaction.followup.send(f"No crew named **{name}** found.", ephemeral=True)
+        return
+
+    # delete the Discord role
+    role = interaction.guild.get_role(int(crew["id"]))
+    if role:
+        await role.delete()
+
+    # delete from db (also clears crew_id from all members)
+    db.delete_crew(crew["id"])
+
+    await interaction.followup.send(f"Crew **{name}** has been disbanded.", ephemeral=True)
+
 
 
 # To send a picture of the map
