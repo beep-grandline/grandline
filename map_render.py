@@ -3,7 +3,7 @@ import math
 import db
 
 SIZE = 100
-RADIUS = 20
+RADIUS = 4
 SQRT3 = math.sqrt(3)
 
 TERRAIN_COLORS = {
