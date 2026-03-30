@@ -1,14 +1,22 @@
 import db
 
 def seed():
-    # fill the whole grid with sea first
-    print("Filling grid...")
-    for q in range(0, 70):
-        for r in range(0, 270):
+    COLS = 70
+    ROWS = 270
+    # put 0,0 at column 12 from left, middle height
+    ORIGIN_COL = 12
+    ORIGIN_ROW = ROWS // 2
+    
+    for col in range(COLS):
+        for row in range(ROWS):
+            q, r = offset_to_axial(col - ORIGIN_COL, row - ORIGIN_ROW)
             db.db.execute("""
                 INSERT OR IGNORE INTO hexes (q, r, terrain, region)
                 VALUES (?, ?, 'sea', 'open_sea')
             """, (q, r))
+    
+    db.db.commit()
+    print("Grid filled.")
     
     # then define your islands on top
     islands = [
@@ -36,10 +44,10 @@ def seed():
     db.db.commit()
     print(f"Seeded {len(islands)} islands.")
 
-if __name__ == "__main__":
-    seed()
-
 def offset_to_axial(col, row):
     q = col
     r = row - (col - (col % 2)) // 2
     return q, r
+
+if __name__ == "__main__":
+    seed()
