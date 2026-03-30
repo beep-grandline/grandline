@@ -101,10 +101,14 @@ async def crew(interaction: discord.Interaction, name: str, color: str):
         return
 
     if db.get_crew_by_name(name):
-        await interaction.followup.send(f"A crew named **{name}** already exists.", ephemeral=True)
-        return
+    await interaction.followup.send(f"A crew named **{name}** already exists.", ephemeral=True)
+    return
 
-    if discord.utils.get(interaction.guild.roles, name=name):
+    existing_role = discord.utils.find(
+        lambda r: r.name.lower() == name.lower(),
+        interaction.guild.roles
+    )
+    if existing_role:
         await interaction.followup.send(f"A role named **{name}** already exists.", ephemeral=True)
         return
 
@@ -120,7 +124,7 @@ async def crew(interaction: discord.Interaction, name: str, color: str):
 
     db.upsert_crew(str(role.id), name)
 
-    await interaction.followup.send(f"Crew **{name}** created with color `#{color}`!", ephemeral=True)
+    await interaction.followup.send(f"Crew **{name}** created with color `#{color}`!")
 
 
 @bot.tree.command(name="disband", description="Disband a crew", guild=MY_GUILD)
