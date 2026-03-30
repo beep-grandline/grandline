@@ -131,7 +131,7 @@ async def disband(interaction: discord.Interaction, name: str):
     # check permissions
     role_names = [r.name for r in interaction.user.roles]
     if GAME_ADMIN not in role_names:
-        await interaction.followup.send("Only GMs can disband crews.", ephemeral=True)
+        await interaction.followup.send(f"Only **{GAME_ADMIN}s** can disband crews.", ephemeral=True)
         return
 
     # find the crew
