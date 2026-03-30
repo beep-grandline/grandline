@@ -2,7 +2,7 @@ from PIL import Image, ImageDraw
 import math
 import db
 
-SIZE = 60
+SIZE = 100
 SQRT3 = math.sqrt(3)
 
 TERRAIN_COLORS = {
