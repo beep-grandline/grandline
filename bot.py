@@ -1,18 +1,27 @@
 import discord
 from discord.ext import commands
+from dotenv import load_dotenv
 import game
 import os
 import db
 import map_render
 
-MY_GUILD = discord.Object(id=1487526877185704107)
+load_dotenv()
+
+# Bot params 
+MY_GUILD = discord.Object(id=1487526877185704107) # Currently targets our server
+GAME_ADMIN = "Admin" # Set admin role here, change if we give special name
 
 intents = discord.Intents.default()
 intents.message_content = True
-
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-GAME_ADMIN = "Admin"
+# 
+@bot.event
+async def on_ready():
+    synced = await bot.tree.sync(guild=MY_GUILD)
+    print(f"Synced {len(synced)} commands")
+    print(f"Logged in as {bot.user}")
 
 @bot.event
 async def on_ready():
@@ -249,3 +258,8 @@ async def rolepicker(interaction: discord.Interaction):
     msg = "# Choose Your Allegiance!"
     await interaction.channel.send(msg, view=RolePicker())
     await interaction.followup.send("Posted!", ephemeral=True)
+
+
+
+if __name__ == "__main__":
+    bot.run(os.getenv("DISCORD_TOKEN"))
