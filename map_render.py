@@ -281,7 +281,7 @@ def render_map(uid: str, radius: int = 10):
     dist = np.clip(np.sqrt(x**2 + y**2), 0, 1)
     alpha = np.power(dist, 1.8)  # adjust exponent for falloff curve
     vignette = np.zeros((size, size, 4))
-    vignette[:, :, :3] = [0.565, 0.851, 0.929]  # sea color RGB
+    vignette[:, :, :3] = [1, 1, 1]  # sea color RGB
     vignette[:, :, 3]  = alpha
     ax.imshow(vignette, extent=[px-margin, px+margin, py-margin, py+margin],
               aspect="auto", zorder=10, interpolation="bilinear")
