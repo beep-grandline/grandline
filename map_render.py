@@ -355,13 +355,13 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                 fontsize=7, color="black", fontweight="bold",
                 zorder=6)
 
-    # Log pose arrows — one per target, drawn at viewport edge pointing inward/outward
-    _draw_log_pose_arrows(ax, px, py, margin, LOG_POSE_TARGETS)
-
     # Viewport
     margin = SIZE * radius * 1.1
     ax.set_xlim(px - margin, px + margin)
     ax.set_ylim(py - margin, py + margin)
+
+    # Log pose arrows — one per target, drawn at viewport edge pointing inward/outward
+    _draw_log_pose_arrows(ax, px, py, margin, LOG_POSE_TARGETS)
 
     # ── Render to buffer and clean up ─────────────────────────────────────────
     buf = io.BytesIO()
