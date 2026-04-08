@@ -5,6 +5,7 @@ import game
 import os
 import db
 import map_render
+import asyncio
 
 load_dotenv()
 
@@ -171,11 +172,16 @@ async def disband(interaction: discord.Interaction, name: str):
 async def map_cmd(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     uid = str(interaction.user.id)
-    path = map_render.render_map(uid, radius=5)
-    if not path:
+ 
+    # Run the blocking matplotlib render in a thread so it doesn't freeze the bot
+    loop = asyncio.get_event_loop()
+    buf  = await loop.run_in_executor(None, map_render.render_map, uid, 10)
+ 
+    if not buf:
         await interaction.followup.send("You are not registered yet.", ephemeral=True)
         return
-    file = discord.File(path, filename="map.png")
+ 
+    file  = discord.File(buf, filename="map.png")
     embed = discord.Embed(title="Your Position", color=0x1a3f6b)
     embed.set_image(url="attachment://map.png")
     await interaction.followup.send(file=file, embed=embed, ephemeral=True)
