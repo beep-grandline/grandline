@@ -80,9 +80,19 @@ async def register(interaction: discord.Interaction, job: str):
 #     else:
 #         await interaction.response.send_message(result["error"], ephemeral=True)
 
-@bot.tree.command(name="position", description="Check your position", guild=MY_GUILD)
+@bot.tree.command(name="position", description="Check your current position", guild=MY_GUILD)
 async def position(interaction: discord.Interaction):
-    await interaction.response.send_message("You are at Twin Capes.")
+    uid = str(interaction.user.id)
+    pos = db.get_player_position(uid)
+    if not pos:
+        await interaction.response.send_message(
+            "You are not registered yet. Use `/register` first.", ephemeral=True
+        )
+        return
+    q, r = pos
+    await interaction.response.send_message(
+        f"Your current position is **q={q}, r={r}**.", ephemeral=True
+    )
 
 
 
