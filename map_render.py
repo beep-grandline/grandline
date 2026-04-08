@@ -5,8 +5,10 @@ import os
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import numpy as np
 from matplotlib.collections import PatchCollection, LineCollection
 from matplotlib.image import imread
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -29,14 +31,21 @@ PLAYER_COLOR  = "#F0D060"
 LABEL_COLOR   = "#171717"
 SEA_COLOR     = TERRAIN_COLORS["sea"]
 
-# Player ship icon — loaded once, falls back to dot if file missing
+# Player ship icon — loaded once, falls back to dot if file missing.
+# SHIP_ROTATION: number of 90° counter-clockwise turns (1=90°, 2=180°, 3=270°)
+SHIP_ROTATION  = 1
+SHIP_ICON_SIZE = 28   # display size in pixels — tweak to taste
+
 _SHIP_ICON = None
 
 def _get_ship_icon():
     global _SHIP_ICON
     if _SHIP_ICON is None:
         try:
-            _SHIP_ICON = imread("img/boat.png")
+            img = imread("img/boat.png")
+            if SHIP_ROTATION:
+                img = np.rot90(img, k=SHIP_ROTATION)
+            _SHIP_ICON = img
         except FileNotFoundError:
             pass
     return _SHIP_ICON
@@ -218,13 +227,17 @@ def render_map(uid: str, radius: int = 10):
     px, py = _hex_to_pixel(pq, pr)
     icon = _get_ship_icon()
     if icon is not None:
-        half = SIZE * 1.1
-        ax.imshow(
-            icon,
-            extent=[px - half, px + half, py - half, py + half],
+        # OffsetImage sizes in pixels, unaffected by axes data scaling —
+        # no stretch regardless of the hex grid's x/y unit ratio
+        oi = OffsetImage(icon, zoom=SHIP_ICON_SIZE / max(icon.shape[:2]))
+        oi.image.axes = ax
+        ab = AnnotationBbox(
+            oi, (px, py),
+            frameon=False,
+            pad=0,
             zorder=5,
-            aspect="auto",
         )
+        ax.add_artist(ab)
     else:
         ax.plot(px, py, "o",
                 color=PLAYER_COLOR, markersize=14,
