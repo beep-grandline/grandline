@@ -179,20 +179,25 @@ async def disband(interaction: discord.Interaction, name: str):
 
 # To send a picture of the map
 @bot.tree.command(name="map", description="View your current area", guild=MY_GUILD)
-async def map_cmd(interaction: discord.Interaction):
+@discord.app_commands.describe(view="Map view")
+@discord.app_commands.choices(view=[
+    discord.app_commands.Choice(name="default", value="default"),
+    discord.app_commands.Choice(name="roll",    value="roll"),
+])
+async def map_cmd(interaction: discord.Interaction, view: str = "default"):
     await interaction.response.defer(ephemeral=True)
     uid = str(interaction.user.id)
  
-    # Run the blocking matplotlib render in a thread so it doesn't freeze the bot
     loop = asyncio.get_event_loop()
-    buf  = await loop.run_in_executor(None, map_render.render_map, uid, 10)
+    buf  = await loop.run_in_executor(None, map_render.render_map, uid, 10, view)
  
     if not buf:
-        await interaction.followup.send("You are not registered yet.", ephemeral=True)
+        await interaction.followup.send("You are not registered yet. Use `/register` first.", ephemeral=True)
         return
  
+    title = "Your Position" if view == "default" else "Your Position — Roll"
     file  = discord.File(buf, filename="map.png")
-    embed = discord.Embed(title="Your Position", color=0x1a3f6b)
+    embed = discord.Embed(title=title, color=0x1a3f6b)
     embed.set_image(url="attachment://map.png")
     await interaction.followup.send(file=file, embed=embed, ephemeral=True)
 
