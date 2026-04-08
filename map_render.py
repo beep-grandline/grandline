@@ -1,106 +1,229 @@
-from PIL import Image, ImageDraw
+import io
+import json
 import math
-import db
+import os
 
-SIZE = 100
-RADIUS = 4
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.collections import PatchCollection, LineCollection
+
+# ── Constants ─────────────────────────────────────────────────────────────────
+
+MAP_PATH = "map.json"   # path to the exported editor JSON
+
 SQRT3 = math.sqrt(3)
+SIZE  = 3.0             # hex radius in data units
 
 TERRAIN_COLORS = {
-    "sea":       (24, 152, 213),
-    "island":    (24, 152, 213),
-    "forest":    ( 42, 107,  58),
-    "desert":    (200, 164,  74),
-    "snow":      (138, 184, 204),
-    "volcano":   (139,  42,  16),
-    "redline":   ( 58,   8,   8),
-    "grandline": ( 60, 100, 180),
+    "island":    "#c4f5d7",
+    "redline":   "#c7706b",
+    "calm_belt": "#76b8d4",
+    # fallback for anything else
+    "sea":       "#90d9ed",
 }
 
-BG_COLOR = (24, 152, 213)
+BORDER_COLOR  = "#f0f8ff"
+BORDER_WIDTH  = 1.5
+PLAYER_COLOR  = "#F0D060"
+LABEL_COLOR   = "#171717"
+SEA_COLOR     = TERRAIN_COLORS["sea"]
 
-def hex_to_pixel(q, r):
-    x = SIZE * SQRT3 * (q + r / 2)
-    y = SIZE * 1.5 * r
-    return x, y
+# Edge index pairs for each axial neighbour direction (flat-top orientation)
+NEIGHBOR_TO_EDGE = {
+    ( 1,  0): (0, 1),
+    ( 0,  1): (1, 2),
+    (-1,  1): (2, 3),
+    (-1,  0): (3, 4),
+    ( 0, -1): (4, 5),
+    ( 1, -1): (5, 0),
+}
 
-def hex_corners(cx, cy):
-    corners = []
-    for i in range(6):
-        angle = math.pi / 3 * i + math.pi / 6
-        corners.append((
-            cx + SIZE * math.cos(angle),
-            cy + SIZE * math.sin(angle)
-        ))
-    return corners
+# ── Map data cache ────────────────────────────────────────────────────────────
+# Reload from disk only when the file's mtime changes.
 
-def hex_distance(q1, r1, q2, r2):
-    return max(abs(q1-q2), abs(r1-r2), abs((q1+r1)-(q2+r2)))
+_cache = {
+    "mtime":      None,
+    "hex_lookup": {},   # (q, r) -> hex_type string
+    "labels":     {},   # (q, r) -> label string  (island_name or hex_label)
+}
 
-def render_map(player_id, radius=RADIUS):
-    player = db.get_player(player_id)
+
+def _load_map():
+    """Load map JSON into module-level cache. No-op if file unchanged."""
+    try:
+        mtime = os.path.getmtime(MAP_PATH)
+    except FileNotFoundError:
+        return
+
+    if mtime == _cache["mtime"]:
+        return  # already up to date
+
+    with open(MAP_PATH, "r") as f:
+        data = json.load(f)
+
+    hex_lookup = {}
+    labels     = {}
+
+    for tile in data.get("tiles", []):
+        q, r = tile.get("q"), tile.get("r")
+        if q is None or r is None:
+            continue
+        hex_type = tile.get("hex_type", "sea")
+        hex_lookup[(q, r)] = hex_type
+
+        # Use hex_label if present, otherwise fall back to island_name
+        label = tile.get("hex_label") or tile.get("island_name") or ""
+        if label:
+            labels[(q, r)] = label
+
+    _cache["mtime"]      = mtime
+    _cache["hex_lookup"] = hex_lookup
+    _cache["labels"]     = labels
+
+
+# ── Geometry helpers ──────────────────────────────────────────────────────────
+
+def _hex_to_pixel(q, r):
+    """Axial → pixel centre (pointy-top)."""
+    return (
+        SIZE * SQRT3 * (q + r / 2),
+        SIZE * 1.5   * r,
+    )
+
+
+def _hex_corners(q, r):
+    """Return the 6 corner (x, y) points of a hex."""
+    cx, cy = _hex_to_pixel(q, r)
+    return [
+        (cx + SIZE * math.cos(math.pi / 3 * i - math.pi / 6),
+         cy + SIZE * math.sin(math.pi / 3 * i - math.pi / 6))
+        for i in range(6)
+    ]
+
+
+def _hex_distance(q1, r1, q2, r2):
+    return max(abs(q1 - q2), abs(r1 - r2), abs((q1 + r1) - (q2 + r2)))
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+def render_map(uid: str, radius: int = 10) -> io.BytesIO | None:
+    """
+    Render a viewport map centred on the player's position.
+
+    Returns a BytesIO PNG buffer, or None if the player isn't registered.
+    The caller is responsible for reading the buffer (it is rewound to 0).
+    """
+    import db  # local import to avoid circular dependency at module level
+
+    player = db.get_player(uid)
     if not player:
         return None
 
-    pq, pr = player["q"], player["r"]
+    pq = player.get("q", 0)
+    pr = player.get("r", 0)
 
-    # collect hex-radius circle as before
-    hexes = []
+    _load_map()
+    hex_lookup = _cache["hex_lookup"]
+    labels     = _cache["labels"]
+
+    # ── Collect hexes in viewport ─────────────────────────────────────────────
+    land_patches = []
+    land_colors  = []
+    border_segs  = []   # line segments for land-sea borders
+    label_data   = []   # (x, y, text) triples
+
     for q in range(pq - radius, pq + radius + 1):
         for r in range(pr - radius, pr + radius + 1):
-            if hex_distance(q, r, pq, pr) <= radius:
-                hex = db.get_hex(q, r)
-                hexes.append(hex if hex else {"q": q, "r": r, "terrain": "sea"})
+            if _hex_distance(q, r, pq, pr) > radius:
+                continue
 
-    if not hexes:
-        return None
+            terrain = hex_lookup.get((q, r), "sea")
+            if terrain == "sea":
+                continue  # sea is the background fill, skip
 
-    pixels = [hex_to_pixel(h["q"], h["r"]) for h in hexes]
-    min_x = min(p[0] for p in pixels) - SIZE * 2
-    min_y = min(p[1] for p in pixels) - SIZE * 2
-    max_x = max(p[0] for p in pixels) + SIZE * 2
-    max_y = max(p[1] for p in pixels) + SIZE * 2
+            color = TERRAIN_COLORS.get(terrain, TERRAIN_COLORS["island"])
+            cx, cy = _hex_to_pixel(q, r)
 
-    w = int(max_x - min_x)
-    h = int(max_y - min_y)
+            land_patches.append(
+                mpatches.RegularPolygon(
+                    (cx, cy), numVertices=6,
+                    radius=SIZE, orientation=0,
+                )
+            )
+            land_colors.append(color)
 
-    img = Image.new("RGB", (w, h), BG_COLOR)
-    draw = ImageDraw.Draw(img)
+            # Label — only on non-redline, non-calm_belt tiles
+            if terrain not in ("redline", "calm_belt") and (q, r) in labels:
+                label_data.append((cx, cy, labels[(q, r)]))
 
-    for hex in hexes:
-        cx, cy = hex_to_pixel(hex["q"], hex["r"])
-        cx -= min_x
-        cy -= min_y
-        corners = hex_corners(cx, cy)
-        color = TERRAIN_COLORS.get(hex["terrain"], TERRAIN_COLORS["sea"])
-        draw.polygon(corners, fill=color)
-        draw.line(corners + [corners[0]], fill=(180, 200, 220), width=4)
+            # Border edges where land meets sea
+            corners = _hex_corners(q, r)
+            for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
+                nq, nr = q + dq, r + dr
+                if hex_lookup.get((nq, nr), "sea") == "sea":
+                    p1, p2 = corners[i1], corners[i2]
+                    border_segs.append([p1, p2])
 
-        island = db.get_island(hex["q"], hex["r"])
-        if island:
-            draw.text((cx, cy), island["name"][:8], fill=(255, 255, 255), anchor="mm")
+    # ── Build figure ──────────────────────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=(10, 10), facecolor=SEA_COLOR)
+    ax.set_aspect("equal")
+    ax.axis("off")
 
-    # draw player markers
-    all_players = db.get_all_players()
-    for p in all_players:
-        if hex_distance(p["q"], p["r"], pq, pr) <= radius:
-            cx, cy = hex_to_pixel(p["q"], p["r"])
-            cx -= min_x
-            cy -= min_y
-            r_px = SIZE * 0.4
-            draw.ellipse([cx-r_px, cy-r_px, cx+r_px, cy+r_px], fill=(240, 208, 96))
-            draw.text((cx, cy), p["name"][0], fill=(0, 0, 0), anchor="mm")
+    # Land hexes — single draw call via PatchCollection
+    if land_patches:
+        pc = PatchCollection(
+            land_patches,
+            facecolors=land_colors,
+            edgecolors="none",
+            linewidths=0,
+            match_original=False,
+        )
+        ax.add_collection(pc)
 
-    # crop to a centered rectangle
-    cx_img = w // 2
-    cy_img = h // 2
-    crop_w = int(SIZE * SQRT3 * radius * 1.8)
-    crop_h = int(SIZE * 1.5 * radius * 1.8)
-    left   = max(0, cx_img - crop_w // 2)
-    top    = max(0, cy_img - crop_h // 2)
-    right  = min(w, cx_img + crop_w // 2)
-    bottom = min(h, cy_img + crop_h // 2)
-    img = img.crop((left, top, right, bottom))
+    # Border edges — single draw call via LineCollection
+    if border_segs:
+        lc = LineCollection(
+            border_segs,
+            colors=BORDER_COLOR,
+            linewidths=BORDER_WIDTH,
+            capstyle="round",
+        )
+        ax.add_collection(lc)
 
-    img.save("map_snapshot.png")
-    return "map_snapshot.png"
+    # Labels
+    for (lx, ly, text) in label_data:
+        ax.text(
+            lx, ly, text,
+            ha="center", va="center",
+            fontsize=7, color=LABEL_COLOR,
+            fontweight="bold", clip_on=True,
+        )
+
+    # Player marker
+    px, py = _hex_to_pixel(pq, pr)
+    ax.plot(px, py, "o",
+            color=PLAYER_COLOR, markersize=14,
+            markeredgecolor="#000", markeredgewidth=0.8,
+            zorder=5)
+    ax.text(px, py, "S",
+            ha="center", va="center",
+            fontsize=7, color="black", fontweight="bold",
+            zorder=6)
+
+    # Viewport
+    margin = SIZE * radius * 1.1
+    ax.set_xlim(px - margin, px + margin)
+    ax.set_ylim(py - margin, py + margin)
+
+    # ── Render to buffer and clean up ─────────────────────────────────────────
+    buf = io.BytesIO()
+    fig.savefig(
+        buf, format="png", dpi=150,
+        bbox_inches="tight",
+        facecolor=SEA_COLOR,
+        pad_inches=0,
+    )
+    plt.close(fig)   # free memory — critical in a long-running bot
+    buf.seek(0)
+    return buf
