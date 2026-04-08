@@ -36,7 +36,7 @@ def _get_ship_icon():
     global _SHIP_ICON
     if _SHIP_ICON is None:
         try:
-            _SHIP_ICON = imread("img/bot.png")
+            _SHIP_ICON = imread("img/boat.png")
         except FileNotFoundError:
             pass
     return _SHIP_ICON
