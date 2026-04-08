@@ -214,7 +214,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         ax.add_collection(LineCollection(
             sea_segs,
             colors=(1.0, 1.0, 1.0, 0.18),
-            linewidths=1.0,
+            linewidths=1.5,
             zorder=1,
         ))
 
