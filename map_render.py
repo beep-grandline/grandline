@@ -107,7 +107,7 @@ def _hex_distance(q1, r1, q2, r2):
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def render_map(uid: str, radius: int = 10) -> io.BytesIO | None:
+def render_map(uid: str, radius: int = 10):
     """
     Render a viewport map centred on the player's position.
 
@@ -120,8 +120,9 @@ def render_map(uid: str, radius: int = 10) -> io.BytesIO | None:
     if not player:
         return None
 
-    pq = player.get("q", 0)
-    pr = player.get("r", 0)
+    # sqlite3.Row supports index access but not .get() — use [] with fallback
+    pq = player["q"] if player["q"] is not None else 0
+    pr = player["r"] if player["r"] is not None else 0
 
     _load_map()
     hex_lookup = _cache["hex_lookup"]
