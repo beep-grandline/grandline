@@ -26,7 +26,7 @@ TERRAIN_COLORS = {
 }
 
 BORDER_COLOR  = "#f0f8ff"
-BORDER_WIDTH  = 1.0
+BORDER_WIDTH  = 1.5
 PLAYER_COLOR  = "#F0D060"
 LABEL_COLOR   = "#171717"
 SEA_COLOR     = TERRAIN_COLORS["sea"]
@@ -214,7 +214,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         ax.add_collection(LineCollection(
             sea_segs,
             colors=(1.0, 1.0, 1.0, 0.18),
-            linewidths=0.5,
+            linewidths=1.0,
             zorder=1,
         ))
 
