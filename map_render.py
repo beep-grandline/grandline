@@ -26,14 +26,14 @@ TERRAIN_COLORS = {
 }
 
 BORDER_COLOR  = "#f0f8ff"
-BORDER_WIDTH  = 1.5
+BORDER_WIDTH  = 1.0
 PLAYER_COLOR  = "#F0D060"
 LABEL_COLOR   = "#171717"
 SEA_COLOR     = TERRAIN_COLORS["sea"]
 
 # Player ship icon — loaded once, falls back to dot if file missing.
 # SHIP_ROTATION: number of 90° counter-clockwise turns (1=90°, 2=180°, 3=270°)
-SHIP_ROTATION  = 1
+SHIP_ROTATION  = 3  # 3 × 90° CCW = 270° CCW = 90° clockwise
 SHIP_ICON_SIZE = 28   # display size in pixels — tweak to taste
 
 _SHIP_ICON = None
@@ -158,7 +158,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     border_segs       = []
     sea_segs          = []
     label_data        = []
-    reachable_patches = []  # roll view only
+    reachable_centers = []  # roll view — (cx, cy) of reachable sea hexes
 
     for q in range(pq - radius, pq + radius + 1):
         for r in range(pr - radius, pr + radius + 1):
@@ -178,14 +178,9 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                             p1, p2 = corners[i1], corners[i2]
                             sea_segs.append([p1, p2])
 
-                # Roll view — highlight reachable ocean hexes
+                # Roll view — collect center for dot marker
                 if view == "roll" and _hex_distance(q, r, pq, pr) <= MOVE_RANGE:
-                    reachable_patches.append(
-                        mpatches.RegularPolygon(
-                            (cx, cy), numVertices=6,
-                            radius=SIZE, orientation=0,
-                        )
-                    )
+                    reachable_centers.append((cx, cy))
                 continue
 
             color = TERRAIN_COLORS.get(terrain, TERRAIN_COLORS["island"])
@@ -223,16 +218,16 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
             zorder=1,
         ))
 
-    # Roll view — reachable hex highlight layer
-    if view == "roll" and reachable_patches:
-        ax.add_collection(PatchCollection(
-            reachable_patches,
-            facecolors=(1.0, 1.0, 1.0, 0.22),
-            edgecolors=(1.0, 1.0, 1.0, 0.55),
-            linewidths=0.8,
-            match_original=False,
+    # Roll view — small dot in each reachable sea hex
+    if view == "roll" and reachable_centers:
+        xs, ys = zip(*reachable_centers)
+        ax.scatter(
+            xs, ys,
+            s=18,                          # dot size in points² — tweak to taste
+            color=(1.0, 1.0, 1.0, 0.55),  # semi-transparent white
+            linewidths=0,
             zorder=2,
-        ))
+        )
 
     # Land hexes — single draw call via PatchCollection
     if land_patches:
