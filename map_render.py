@@ -26,15 +26,15 @@ TERRAIN_COLORS = {
 }
 
 BORDER_COLOR  = "#f0f8ff"
-BORDER_WIDTH  = 2
+BORDER_WIDTH  = 1.5
 PLAYER_COLOR  = "#F0D060"
 LABEL_COLOR   = "#171717"
 SEA_COLOR     = TERRAIN_COLORS["sea"]
 
 # Player ship icon — loaded once, falls back to dot if file missing.
 # SHIP_ROTATION: number of 90° counter-clockwise turns (1=90°, 2=180°, 3=270°)
-SHIP_ROTATION  = 1
-SHIP_ICON_SIZE = 28   # display size in pixels — tweak to taste
+SHIP_ROTATION  = 3
+SHIP_ICON_SIZE = 34   # display size in pixels — tweak to taste
 
 _SHIP_ICON = None
 
@@ -208,7 +208,7 @@ def render_map(uid: str, radius: int = 10):
     if sea_segs:
         ax.add_collection(LineCollection(
             sea_segs,
-            colors=(1.0, 1.0, 1.0, 0.18),
+            colors=(1.0, 1.0, 1.0, 0.25),
             linewidths=0.5,
             zorder=1,
         ))
