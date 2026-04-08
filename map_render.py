@@ -25,11 +25,16 @@ TERRAIN_COLORS = {
     "sea":       "#75e1ff",
 }
 
-BORDER_COLOR  = "#f0f8ff"
-BORDER_WIDTH  = 1.5
-PLAYER_COLOR  = "#F0D060"
-LABEL_COLOR   = "#171717"
-SEA_COLOR     = TERRAIN_COLORS["sea"]
+BORDER_COLOR     = "#f0f8ff"
+BORDER_WIDTH     = 1.5   # land-sea edge thickness
+SEA_GRID_WIDTH   = 1.5   # sea-sea grid line thickness
+PLAYER_COLOR     = "#F0D060"
+LABEL_COLOR      = "#171717"
+SEA_COLOR        = TERRAIN_COLORS["sea"]
+
+# Log pose targets — (q, r) tuples the arrow points toward.
+# Replace with dynamic data later (e.g. from db or game state).
+LOG_POSE_TARGETS = [(32, 10)]
 
 # Player ship icon — loaded once, falls back to dot if file missing.
 # SHIP_ROTATION: number of 90° counter-clockwise turns (1=90°, 2=180°, 3=270°)
@@ -127,6 +132,70 @@ def _hex_distance(q1, r1, q2, r2):
     return max(abs(q1 - q2), abs(r1 - r2), abs((q1 + r1) - (q2 + r2)))
 
 
+# ── Log pose arrow helper ─────────────────────────────────────────────────────
+
+def _draw_log_pose_arrows(ax, px, py, margin, targets):
+    """
+    For each target (tq, tr), draw a compass-style arrowhead on the viewport
+    edge pointing toward that hex.  If the target is inside the viewport the
+    arrow is skipped (you can already see it).
+
+    px, py   — player pixel position (viewport centre)
+    margin   — half-width of the viewport in data units
+    targets  — list of (q, r) tuples
+    """
+    ARROW_COLOR  = "#ffe066"   # warm gold
+    ARROW_EDGE   = "#6b4c00"   # dark outline
+    ARROW_INSET  = margin * 0.06   # how far in from the edge the tip sits
+    ARROW_SIZE   = margin * 0.055  # half-width of the arrowhead
+
+    for (tq, tr) in targets:
+        tx, ty = _hex_to_pixel(tq, tr)
+        dx, dy = tx - px, ty - py
+
+        # Skip if target is within the viewport
+        if abs(dx) <= margin and abs(dy) <= margin:
+            continue
+
+        # Normalise direction vector
+        dist = math.hypot(dx, dy)
+        if dist == 0:
+            continue
+        nx, ny = dx / dist, dy / dist
+
+        # Find where the direction ray hits the viewport boundary square
+        # (clamp to whichever axis it reaches first)
+        if abs(nx) < 1e-9:
+            t_hit = margin / abs(ny)
+        elif abs(ny) < 1e-9:
+            t_hit = margin / abs(nx)
+        else:
+            t_hit = min(margin / abs(nx), margin / abs(ny))
+
+        # Tip of the arrow (slightly inset from edge so it's fully visible)
+        tip_x = px + nx * (t_hit - ARROW_INSET)
+        tip_y = py + ny * (t_hit - ARROW_INSET)
+
+        # Perpendicular vector for the arrowhead base
+        perp_x, perp_y = -ny, nx
+
+        # Three points of the triangle: tip + two base corners
+        base_x = tip_x - nx * ARROW_SIZE * 1.8
+        base_y = tip_y - ny * ARROW_SIZE * 1.8
+        pts = [
+            (tip_x, tip_y),
+            (base_x + perp_x * ARROW_SIZE, base_y + perp_y * ARROW_SIZE),
+            (base_x - perp_x * ARROW_SIZE, base_y - perp_y * ARROW_SIZE),
+        ]
+
+        arrow = mpatches.Polygon(pts, closed=True,
+                                 facecolor=ARROW_COLOR,
+                                 edgecolor=ARROW_EDGE,
+                                 linewidth=0.8,
+                                 zorder=8)
+        ax.add_patch(arrow)
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def render_map(uid: str, radius: int = 10, view: str = "default"):
@@ -214,7 +283,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         ax.add_collection(LineCollection(
             sea_segs,
             colors=(1.0, 1.0, 1.0, 0.18),
-            linewidths=1.5,
+            linewidths=SEA_GRID_WIDTH,
             zorder=1,
         ))
 
@@ -285,6 +354,9 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                 ha="center", va="center",
                 fontsize=7, color="black", fontweight="bold",
                 zorder=6)
+
+    # Log pose arrows — one per target, drawn at viewport edge pointing inward/outward
+    _draw_log_pose_arrows(ax, px, py, margin, LOG_POSE_TARGETS)
 
     # Viewport
     margin = SIZE * radius * 1.1
