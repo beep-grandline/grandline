@@ -275,17 +275,6 @@ def render_map(uid: str, radius: int = 10):
     ax.set_xlim(px - margin, px + margin)
     ax.set_ylim(py - margin, py + margin)
 
-    # After everything else is drawn, before savefig
-    size = 400
-    y, x = np.ogrid[-1:1:size*1j, -1:1:size*1j]
-    dist = np.clip(np.sqrt(x**2 + y**2), 0, 1)
-    alpha = np.power(dist, 1.8)  # adjust exponent for falloff curve
-    vignette = np.zeros((size, size, 4))
-    vignette[:, :, :3] = [1, 1, 1]  # sea color RGB
-    vignette[:, :, 3]  = alpha
-    ax.imshow(vignette, extent=[px-margin, px+margin, py-margin, py+margin],
-              aspect="auto", zorder=10, interpolation="bilinear")
-
     # ── Render to buffer and clean up ─────────────────────────────────────────
     buf = io.BytesIO()
     fig.savefig(
