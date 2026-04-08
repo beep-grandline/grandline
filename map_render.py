@@ -22,7 +22,7 @@ TERRAIN_COLORS = {
     "redline":   "#c7706b",
     "calm_belt": "#76b8d4",
     # fallback for anything else
-    "sea":       "#90d9ed",
+    "sea":       "#75e1ff",#"#90d9ed",
 }
 
 BORDER_COLOR  = "#f0f8ff"
