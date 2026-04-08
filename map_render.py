@@ -6,6 +6,7 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.collections import PatchCollection, LineCollection
+from matplotlib.image import imread
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -27,6 +28,18 @@ BORDER_WIDTH  = 1.5
 PLAYER_COLOR  = "#F0D060"
 LABEL_COLOR   = "#171717"
 SEA_COLOR     = TERRAIN_COLORS["sea"]
+
+# Player ship icon — loaded once, falls back to dot if file missing
+_SHIP_ICON = None
+
+def _get_ship_icon():
+    global _SHIP_ICON
+    if _SHIP_ICON is None:
+        try:
+            _SHIP_ICON = imread("img/bot.png")
+        except FileNotFoundError:
+            pass
+    return _SHIP_ICON
 
 # Edge index pairs for each axial neighbour direction (flat-top orientation)
 NEIGHBOR_TO_EDGE = {
@@ -201,16 +214,26 @@ def render_map(uid: str, radius: int = 10):
             fontweight="bold", clip_on=True,
         )
 
-    # Player marker
+    # Player marker — ship icon if available, dot fallback otherwise
     px, py = _hex_to_pixel(pq, pr)
-    ax.plot(px, py, "o",
-            color=PLAYER_COLOR, markersize=14,
-            markeredgecolor="#000", markeredgewidth=0.8,
-            zorder=5)
-    ax.text(px, py, "S",
-            ha="center", va="center",
-            fontsize=7, color="black", fontweight="bold",
-            zorder=6)
+    icon = _get_ship_icon()
+    if icon is not None:
+        half = SIZE * 1.1
+        ax.imshow(
+            icon,
+            extent=[px - half, px + half, py - half, py + half],
+            zorder=5,
+            aspect="auto",
+        )
+    else:
+        ax.plot(px, py, "o",
+                color=PLAYER_COLOR, markersize=14,
+                markeredgecolor="#000", markeredgewidth=0.8,
+                zorder=5)
+        ax.text(px, py, "S",
+                ha="center", va="center",
+                fontsize=7, color="black", fontweight="bold",
+                zorder=6)
 
     # Viewport
     margin = SIZE * radius * 1.1
