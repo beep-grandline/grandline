@@ -1,7 +1,5 @@
 discord.py
 python-dotenv
-fastapi
-uvicorn
 Pillow
-websockets
+matplotlib
 
