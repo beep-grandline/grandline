@@ -153,7 +153,8 @@ def render_map(uid: str, radius: int = 10):
     # ── Collect hexes in viewport ─────────────────────────────────────────────
     land_patches = []
     land_colors  = []
-    border_segs  = []   # line segments for land-sea borders
+    border_segs  = []   # land-sea border edges
+    sea_segs     = []   # sea-sea grid edges (thin outline)
     label_data   = []   # (x, y, text) triples
 
     for q in range(pq - radius, pq + radius + 1):
@@ -162,11 +163,22 @@ def render_map(uid: str, radius: int = 10):
                 continue
 
             terrain = hex_lookup.get((q, r), "sea")
+            cx, cy  = _hex_to_pixel(q, r)
+            corners = _hex_corners(q, r)
+
             if terrain == "sea":
-                continue  # sea is the background fill, skip
+                # Only draw edges that face another in-viewport sea hex or the
+                # viewport boundary — avoids double-drawing every shared edge
+                for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
+                    nq, nr = q + dq, r + dr
+                    if _hex_distance(nq, nr, pq, pr) <= radius:
+                        # Only add the edge once (when dq>0, or dq==0 and dr>0)
+                        if dq > 0 or (dq == 0 and dr > 0):
+                            p1, p2 = corners[i1], corners[i2]
+                            sea_segs.append([p1, p2])
+                continue
 
             color = TERRAIN_COLORS.get(terrain, TERRAIN_COLORS["island"])
-            cx, cy = _hex_to_pixel(q, r)
 
             land_patches.append(
                 mpatches.RegularPolygon(
@@ -181,7 +193,6 @@ def render_map(uid: str, radius: int = 10):
                 label_data.append((cx, cy, labels[(q, r)]))
 
             # Border edges where land meets sea
-            corners = _hex_corners(q, r)
             for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
                 nq, nr = q + dq, r + dr
                 if hex_lookup.get((nq, nr), "sea") == "sea":
@@ -193,6 +204,15 @@ def render_map(uid: str, radius: int = 10):
     ax.set_aspect("equal")
     ax.axis("off")
 
+    # Sea grid — drawn first so land sits on top
+    if sea_segs:
+        ax.add_collection(LineCollection(
+            sea_segs,
+            colors=(1.0, 1.0, 1.0, 0.18),
+            linewidths=0.5,
+            zorder=1,
+        ))
+
     # Land hexes — single draw call via PatchCollection
     if land_patches:
         pc = PatchCollection(
@@ -201,6 +221,7 @@ def render_map(uid: str, radius: int = 10):
             edgecolors="none",
             linewidths=0,
             match_original=False,
+            zorder=2,
         )
         ax.add_collection(pc)
 
@@ -211,6 +232,7 @@ def render_map(uid: str, radius: int = 10):
             colors=BORDER_COLOR,
             linewidths=BORDER_WIDTH,
             capstyle="round",
+            zorder=3,
         )
         ax.add_collection(lc)
 
