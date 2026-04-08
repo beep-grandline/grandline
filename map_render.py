@@ -136,35 +136,38 @@ def _hex_distance(q1, r1, q2, r2):
 
 def _draw_log_pose_arrows(ax, px, py, margin, targets):
     """
-    For each target (tq, tr), draw a compass-style arrowhead on the viewport
-    edge pointing toward that hex.  If the target is inside the viewport the
-    arrow is skipped (you can already see it).
-
-    px, py   — player pixel position (viewport centre)
-    margin   — half-width of the viewport in data units
-    targets  — list of (q, r) tuples
+    For each target (tq, tr), draw a compass-style arrow on the viewport edge
+    pointing toward that hex. Skipped if the target is inside the viewport.
     """
-    ARROW_COLOR  = "#ffe066"   # warm gold
-    ARROW_EDGE   = "#6b4c00"   # dark outline
-    ARROW_INSET  = margin * 0.06   # how far in from the edge the tip sits
-    ARROW_SIZE   = margin * 0.055  # half-width of the arrowhead
+    ARROW_FILL   = (1.0, 1.0, 1.0, 0.82)   # translucent white fill
+    ARROW_EDGE   = (0.1, 0.1, 0.1, 0.9)    # dark outline
+    ARROW_INSET  = margin * 0.07            # tip inset from viewport edge
+    ARROW_SIZE   = margin * 0.09            # overall scale of the arrow
+
+    # Base shape pointing in +y direction, normalized to ARROW_SIZE.
+    # 4 points: tip, lower-right outer, notch center (chevron), lower-left outer.
+    # The notch pulls the base center inward, creating the cursor silhouette.
+    BASE_SHAPE = [
+        ( 0.00,  1.00),   # tip
+        ( 0.48, -0.38),   # lower-right outer wing
+        ( 0.00,  0.08),   # notch center (chevron indent)
+        (-0.48, -0.38),   # lower-left outer wing
+    ]
 
     for (tq, tr) in targets:
         tx, ty = _hex_to_pixel(tq, tr)
         dx, dy = tx - px, ty - py
 
-        # Skip if target is within the viewport
+        # Skip if target is already visible in the viewport
         if abs(dx) <= margin and abs(dy) <= margin:
             continue
 
-        # Normalise direction vector
         dist = math.hypot(dx, dy)
         if dist == 0:
             continue
         nx, ny = dx / dist, dy / dist
 
-        # Find where the direction ray hits the viewport boundary square
-        # (clamp to whichever axis it reaches first)
+        # Find intersection of direction ray with viewport boundary
         if abs(nx) < 1e-9:
             t_hit = margin / abs(ny)
         elif abs(ny) < 1e-9:
@@ -172,27 +175,29 @@ def _draw_log_pose_arrows(ax, px, py, margin, targets):
         else:
             t_hit = min(margin / abs(nx), margin / abs(ny))
 
-        # Tip of the arrow (slightly inset from edge so it's fully visible)
+        # Arrow tip position (inset from edge)
         tip_x = px + nx * (t_hit - ARROW_INSET)
         tip_y = py + ny * (t_hit - ARROW_INSET)
 
-        # Perpendicular vector for the arrowhead base
-        perp_x, perp_y = -ny, nx
+        # Rotation angle: our base shape points in +y, rotate to face (nx, ny)
+        angle = math.atan2(ny, nx) - math.pi / 2
 
-        # Three points of the triangle: tip + two base corners
-        base_x = tip_x - nx * ARROW_SIZE * 1.8
-        base_y = tip_y - ny * ARROW_SIZE * 1.8
-        pts = [
-            (tip_x, tip_y),
-            (base_x + perp_x * ARROW_SIZE, base_y + perp_y * ARROW_SIZE),
-            (base_x - perp_x * ARROW_SIZE, base_y - perp_y * ARROW_SIZE),
-        ]
+        cos_a, sin_a = math.cos(angle), math.sin(angle)
 
-        arrow = mpatches.Polygon(pts, closed=True,
-                                 facecolor=ARROW_COLOR,
-                                 edgecolor=ARROW_EDGE,
-                                 linewidth=0.8,
-                                 zorder=8)
+        def rotate_and_place(lx, ly):
+            rx = lx * cos_a - ly * sin_a
+            ry = lx * sin_a + ly * cos_a
+            return (tip_x + rx * ARROW_SIZE, tip_y + ry * ARROW_SIZE)
+
+        pts = [rotate_and_place(lx, ly) for lx, ly in BASE_SHAPE]
+
+        arrow = mpatches.Polygon(
+            pts, closed=True,
+            facecolor=ARROW_FILL,
+            edgecolor=ARROW_EDGE,
+            linewidth=1.0,
+            zorder=8,
+        )
         ax.add_patch(arrow)
 
 
