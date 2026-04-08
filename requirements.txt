@@ -2,4 +2,4 @@ discord.py
 python-dotenv
 Pillow
 matplotlib
-
+asyncio
