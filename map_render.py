@@ -22,7 +22,7 @@ TERRAIN_COLORS = {
     "redline":   "#c7706b",
     "calm_belt": "#76b8d4",
     # fallback for anything else
-    "sea":       "#75e1ff",#"#90d9ed",
+    "sea":       "#90d9ed",
 }
 
 BORDER_COLOR  = "#f0f8ff"
@@ -33,8 +33,8 @@ SEA_COLOR     = TERRAIN_COLORS["sea"]
 
 # Player ship icon — loaded once, falls back to dot if file missing.
 # SHIP_ROTATION: number of 90° counter-clockwise turns (1=90°, 2=180°, 3=270°)
-SHIP_ROTATION  = 3
-SHIP_ICON_SIZE = 34   # display size in pixels — tweak to taste
+SHIP_ROTATION  = 1
+SHIP_ICON_SIZE = 28   # display size in pixels — tweak to taste
 
 _SHIP_ICON = None
 
@@ -129,33 +129,36 @@ def _hex_distance(q1, r1, q2, r2):
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def render_map(uid: str, radius: int = 10):
+def render_map(uid: str, radius: int = 10, view: str = "default"):
     """
     Render a viewport map centred on the player's position.
 
+    view: "default" — normal map
+          "roll"    — highlights reachable ocean hexes within move_range
     Returns a BytesIO PNG buffer, or None if the player isn't registered.
-    The caller is responsible for reading the buffer (it is rewound to 0).
     """
-    import db  # local import to avoid circular dependency at module level
+    import db
 
     player = db.get_player(uid)
     if not player:
         return None
 
-    # sqlite3.Row supports index access but not .get() — use [] with fallback
     pq = player["q"] if player["q"] is not None else 0
     pr = player["r"] if player["r"] is not None else 0
+
+    MOVE_RANGE = 5  # placeholder — swap for player stat later
 
     _load_map()
     hex_lookup = _cache["hex_lookup"]
     labels     = _cache["labels"]
 
     # ── Collect hexes in viewport ─────────────────────────────────────────────
-    land_patches = []
-    land_colors  = []
-    border_segs  = []   # land-sea border edges
-    sea_segs     = []   # sea-sea grid edges (thin outline)
-    label_data   = []   # (x, y, text) triples
+    land_patches      = []
+    land_colors       = []
+    border_segs       = []
+    sea_segs          = []
+    label_data        = []
+    reachable_patches = []  # roll view only
 
     for q in range(pq - radius, pq + radius + 1):
         for r in range(pr - radius, pr + radius + 1):
@@ -167,15 +170,22 @@ def render_map(uid: str, radius: int = 10):
             corners = _hex_corners(q, r)
 
             if terrain == "sea":
-                # Only draw edges that face another in-viewport sea hex or the
-                # viewport boundary — avoids double-drawing every shared edge
+                # Sea grid edges
                 for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
                     nq, nr = q + dq, r + dr
                     if _hex_distance(nq, nr, pq, pr) <= radius:
-                        # Only add the edge once (when dq>0, or dq==0 and dr>0)
                         if dq > 0 or (dq == 0 and dr > 0):
                             p1, p2 = corners[i1], corners[i2]
                             sea_segs.append([p1, p2])
+
+                # Roll view — highlight reachable ocean hexes
+                if view == "roll" and _hex_distance(q, r, pq, pr) <= MOVE_RANGE:
+                    reachable_patches.append(
+                        mpatches.RegularPolygon(
+                            (cx, cy), numVertices=6,
+                            radius=SIZE, orientation=0,
+                        )
+                    )
                 continue
 
             color = TERRAIN_COLORS.get(terrain, TERRAIN_COLORS["island"])
@@ -208,9 +218,20 @@ def render_map(uid: str, radius: int = 10):
     if sea_segs:
         ax.add_collection(LineCollection(
             sea_segs,
-            colors=(1.0, 1.0, 1.0, 0.25),
-            linewidths=1,
+            colors=(1.0, 1.0, 1.0, 0.18),
+            linewidths=0.5,
             zorder=1,
+        ))
+
+    # Roll view — reachable hex highlight layer
+    if view == "roll" and reachable_patches:
+        ax.add_collection(PatchCollection(
+            reachable_patches,
+            facecolors=(1.0, 1.0, 1.0, 0.22),
+            edgecolors=(1.0, 1.0, 1.0, 0.55),
+            linewidths=0.8,
+            match_original=False,
+            zorder=2,
         ))
 
     # Land hexes — single draw call via PatchCollection
