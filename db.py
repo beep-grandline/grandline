@@ -47,7 +47,20 @@ def init_db():
     """)
     db.commit()
 
-# ── hex queries ───────────────────────────────────
+# ── Utility ───────────────────────────────────────────────────────────────────
+
+def row_to_dict(row):
+    """Convert a sqlite3.Row to a plain dict. Returns None if row is None.
+    
+    Use this whenever you need .get() or want to safely pass row data around.
+    sqlite3.Row supports row["key"] but not row.get("key", default).
+    """
+    if row is None:
+        return None
+    return dict(row)
+
+# ── Hex queries ───────────────────────────────────────────────────────────────
+
 def get_hex(q, r):
     return db.execute(
         "SELECT * FROM hexes WHERE q=? AND r=?", (q, r)
@@ -73,11 +86,23 @@ def insert_island(q, r, name, island_type="town", arc=None):
 def get_all_islands():
     return db.execute("SELECT * FROM islands").fetchall()
 
-# ── player queries ────────────────────────────────
+# ── Player queries ────────────────────────────────────────────────────────────
+
 def get_player(player_id):
+    """Returns a sqlite3.Row or None. Use row["field"] not row.get()."""
     return db.execute(
         "SELECT * FROM players WHERE id=?", (player_id,)
     ).fetchone()
+
+def get_player_position(player_id):
+    """Returns (q, r) tuple, or None if player not found."""
+    row = db.execute(
+        "SELECT q, r FROM players WHERE id=?", (player_id,)
+    ).fetchone()
+    if not row:
+        return None
+    return (row["q"] if row["q"] is not None else 0,
+            row["r"] if row["r"] is not None else 0)
 
 def get_all_players():
     return db.execute("SELECT * FROM players").fetchall()
@@ -95,13 +120,15 @@ def update_player_position(player_id, q, r):
     )
     db.commit()
 
-# ── island queries ────────────────────────────────
+# ── Island queries ────────────────────────────────────────────────────────────
+
 def get_island(q, r):
     return db.execute(
         "SELECT * FROM islands WHERE q=? AND r=?", (q, r)
     ).fetchone()
 
-# ── Currency management ────────────────────────────
+# ── Currency management ───────────────────────────────────────────────────────
+
 def get_berry(player_id):
     player = db.execute(
         "SELECT berry FROM players WHERE id=?", (player_id,)
@@ -122,17 +149,16 @@ def add_berry(player_id, amount):
 
 def remove_berry(player_id, amount):
     player = get_player(player_id)
-    if player["berry"] < amount:
-        return False  # not enough funds
+    if not player or player["berry"] < amount:
+        return False  # not found or not enough funds
     db.execute(
         "UPDATE players SET berry = berry - ? WHERE id=?", (amount, player_id)
     )
     db.commit()
     return True
 
+# ── Crew management ───────────────────────────────────────────────────────────
 
-
-# ── Crew management ────────────────────────────
 def get_crew(crew_id):
     return db.execute(
         "SELECT * FROM crews WHERE id=?", (crew_id,)
