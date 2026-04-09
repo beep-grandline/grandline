@@ -387,32 +387,35 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         rx0, rx1 = min(rxs)-SIZE, max(rxs)+SIZE
         ry0, ry1 = min(rys)-SIZE, max(rys)+SIZE
 
-        # Randomized phases seeded from bounding box so grain is
-        # consistent but different every time the redline moves
+        # Randomized phases seeded from bounding box
         seed = int(abs(rx0*7 + ry0*13)) % 9999
         rng  = np.random.default_rng(seed)
-        ph   = rng.uniform(0, 2*np.pi, 12)
+
+        # Worley (cellular) noise — scatter seed points, each pixel's value
+        # is its distance to the nearest seed. Produces natural rock-cell shapes.
+        n_seeds = int((rx1-rx0) * (ry1-ry0) * 0.012)  # density controls cell size
+        n_seeds = max(12, min(n_seeds, 80))
+        sx = rng.uniform(rx0, rx1, n_seeds)
+        sy = rng.uniform(ry0, ry1, n_seeds)
 
         _rx = np.linspace(rx0, rx1, 280)
         _ry = np.linspace(ry0, ry1, 280)
         _RX, _RY = np.meshgrid(_rx, _ry)
-        _RZ = np.zeros_like(_RX)
 
-        # High-frequency choppy layers — much tighter than the ocean
-        rock_freqs = [0.28, 0.52, 0.95, 1.7]
-        for _i, _freq in enumerate(rock_freqs):
-            _a = 1.0 / (_i + 1)
-            _RZ += _a * np.sin(_RX * _freq + _RY * _freq * 0.71 + ph[_i*3])
-            _RZ += _a * np.cos(_RX * _freq * 0.83 - _RY * _freq * 1.1 + ph[_i*3+1])
-            _RZ += _a * np.sin(_RX * _freq * 1.3  + _RY * _freq * 0.45 + ph[_i*3+2]) * 0.5
+        # Vectorized: distance from every grid point to every seed
+        # shape: (280, 280, n_seeds) — find min across seeds axis
+        _dx = _RX[:,:,None] - sx[None,None,:]
+        _dy = _RY[:,:,None] - sy[None,None,:]
+        _dist = np.sqrt(_dx**2 + _dy**2)
+        _RZ = _dist.min(axis=2)
 
         # Normalize
         _rmin, _rmax = _RZ.min(), _RZ.max()
         _RZ = (_RZ - _rmin) / (_rmax - _rmin + 1e-9)
 
-        # Dark grain veins — only the bottom 2 bands are visible (darker reds)
-        # upper bands are transparent so the base red shows through
-        rock_colors = ["#9e3d38", "#b04844", "#c7706b", "#c7706b", "#c7706b"]
+        # Dark edges (low distance = near cell center = lighter,
+        # high distance = near cell boundary = darker vein)
+        rock_colors = ["#c7706b", "#c7706b", "#bd5f5a", "#a84e49", "#8f3a36"]
         cf = ax.contourf(
             _RX, _RY, _RZ,
             levels=4,
