@@ -201,10 +201,6 @@ def _draw_log_pose_arrows(ax, px, py, margin, targets):
         ax.add_patch(arrow)
 
 
-def _draw_rock_texture():
-    pass  # used only as a namespace for texture cache via hasattr
-
-
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def render_map(uid: str, radius: int = 10, view: str = "default"):
@@ -371,7 +367,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         )
         ax.add_collection(pc)
 
-    # Rock texture — tile rocks.png across redline bbox, clip to hex shape
+    # Rock grain texture on redline hexes — clipped to redline shape
     if redline_polys:
         from matplotlib.path import Path as MPath
         from matplotlib.patches import PathPatch
@@ -382,29 +378,53 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
             verts = list(poly) + [poly[0]]
             codes = [MPath.MOVETO] + [MPath.LINETO]*(len(poly)-1) + [MPath.CLOSEPOLY]
             paths.append(MPath(verts, codes))
-        clip_path  = MPath.make_compound_path(*paths)
+        clip_path = MPath.make_compound_path(*paths)
         clip_patch = PathPatch(clip_path, transform=ax.transData)
 
-        # Load texture once (cached after first call)
-        if not hasattr(_draw_rock_texture, '_tex'):
-            try:
-                _draw_rock_texture._tex = imread("img/rocks.png")
-            except FileNotFoundError:
-                _draw_rock_texture._tex = None
-        tex = _draw_rock_texture._tex
-        if tex is not None:
-            all_pts = [pt for poly in redline_polys for pt in poly]
-            rxs = [p[0] for p in all_pts]; rys = [p[1] for p in all_pts]
-            rx0, rx1 = min(rxs)-SIZE, max(rxs)+SIZE
-            ry0, ry1 = min(rys)-SIZE, max(rys)+SIZE
-            im = ax.imshow(
-                tex,
-                extent=[rx0, rx1, ry0, ry1],
-                aspect="auto",
-                alpha=0.55,
-                zorder=3,
-            )
-            im.set_clip_path(clip_patch)
+        # Bounding box of all redline hexes
+        all_pts = [pt for poly in redline_polys for pt in poly]
+        rxs = [p[0] for p in all_pts]; rys = [p[1] for p in all_pts]
+        rx0, rx1 = min(rxs)-SIZE, max(rxs)+SIZE
+        ry0, ry1 = min(rys)-SIZE, max(rys)+SIZE
+
+        # Randomized phases seeded from bounding box
+        seed = int(abs(rx0*7 + ry0*13)) % 9999
+        rng  = np.random.default_rng(seed)
+
+        # Worley (cellular) noise — scatter seed points, each pixel's value
+        # is its distance to the nearest seed. Produces natural rock-cell shapes.
+        n_seeds = int((rx1-rx0) * (ry1-ry0) * 0.012)  # density controls cell size
+        n_seeds = max(12, min(n_seeds, 80))
+        sx = rng.uniform(rx0, rx1, n_seeds)
+        sy = rng.uniform(ry0, ry1, n_seeds)
+
+        _rx = np.linspace(rx0, rx1, 280)
+        _ry = np.linspace(ry0, ry1, 280)
+        _RX, _RY = np.meshgrid(_rx, _ry)
+
+        # Vectorized: distance from every grid point to every seed
+        # shape: (280, 280, n_seeds) — find min across seeds axis
+        _dx = _RX[:,:,None] - sx[None,None,:]
+        _dy = _RY[:,:,None] - sy[None,None,:]
+        _dist = np.sqrt(_dx**2 + _dy**2)
+        _RZ = _dist.min(axis=2)
+
+        # Normalize
+        _rmin, _rmax = _RZ.min(), _RZ.max()
+        _RZ = (_RZ - _rmin) / (_rmax - _rmin + 1e-9)
+
+        # Dark edges (low distance = near cell center = lighter,
+        # high distance = near cell boundary = darker vein)
+        rock_colors = ["#c7706b", "#c7706b", "#bd5f5a", "#a84e49", "#8f3a36"]
+        cf = ax.contourf(
+            _RX, _RY, _RZ,
+            levels=4,
+            colors=rock_colors,
+            zorder=3,
+        )
+        for coll in cf.collections:
+            coll.set_clip_path(clip_patch)
+            coll.set_zorder(3)
     if border_segs:
         lc = LineCollection(
             border_segs,
