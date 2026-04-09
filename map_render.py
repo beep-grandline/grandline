@@ -141,7 +141,7 @@ def _draw_log_pose_arrows(ax, px, py, margin, targets):
     """
     ARROW_FILL   = (1.0, 1.0, 1.0, 0.75)   # translucent white fill
     ARROW_EDGE   = (0.35, 0.35, 0.35, 0.9)  # lightened dark outline
-    ARROW_INSET  = margin * 0.07            # tip inset from viewport edge
+    ARROW_INSET  = margin * 0.12            # tip inset from viewport edge
     ARROW_SIZE   = margin * 0.09            # overall scale of the arrow
 
     # Base shape pointing in +y direction, normalized to ARROW_SIZE.
