@@ -139,8 +139,8 @@ def _draw_log_pose_arrows(ax, px, py, margin, targets):
     For each target (tq, tr), draw a compass-style arrow on the viewport edge
     pointing toward that hex. Skipped if the target is inside the viewport.
     """
-    ARROW_FILL   = (1.0, 1.0, 1.0, 0.82)   # translucent white fill
-    ARROW_EDGE   = (0.1, 0.1, 0.1, 0.9)    # dark outline
+    ARROW_FILL   = (1.0, 1.0, 1.0, 0.75)   # translucent white fill
+    ARROW_EDGE   = (0.3, 0.3, 0.3, 0.9)    # dark outline
     ARROW_INSET  = margin * 0.07            # tip inset from viewport edge
     ARROW_SIZE   = margin * 0.09            # overall scale of the arrow
 
