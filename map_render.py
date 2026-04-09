@@ -310,12 +310,14 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         _dist = np.sqrt((_X - _ix) ** 2 + (_Y - _iy) ** 2)
         _bump = np.clip(1.0 - _dist / _fade_radius, 0, 1) ** 2
         _shallow = np.maximum(_shallow, _bump)
-    _zrange = _Z.max() - _Z.min()
-    _Z -= _shallow * _zrange * 0.45
-
-    # Normalize to fixed range so color bands are always evenly distributed
+    # Normalize first so wave bands are evenly distributed
     _zmin, _zmax = _Z.min(), _Z.max()
     _Z = (_Z - _zmin) / (_zmax - _zmin + 1e-9)
+
+    # Now push coastal values toward 0 (lightest band) — happens after normalize
+    # so it isn't rescaled away
+    _Z -= _shallow * 0.45
+    _Z = np.clip(_Z, 0, 1)
 
     ax.contourf(
         _X, _Y, _Z,
