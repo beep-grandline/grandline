@@ -296,6 +296,19 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         _a = 1.0 / _f
         _Z += _a * np.sin(_X * 0.09 * _f + _Y * 0.055 * _f * 0.7)
         _Z += _a * np.cos(_X * 0.045 * _f * 0.8 - _Y * 0.07 * _f)
+
+    # Fade contours near island/redline hexes — simulates shallow water lightening
+    _mask = np.ones_like(_Z)
+    _fade_radius = SIZE * 4
+    for (_q, _r), _terrain in hex_lookup.items():
+        if _terrain in ("sea", "calm_belt"):
+            continue
+        if _hex_distance(_q, _r, pq, pr) > radius:
+            continue  # skip tiles outside viewport
+        _ix, _iy = _hex_to_pixel(_q, _r)
+        _dist = np.sqrt((_X - _ix) ** 2 + (_Y - _iy) ** 2)
+        _mask = np.minimum(_mask, _dist / _fade_radius)
+    _Z = _Z * np.clip(_mask, 0, 1)
     ax.contourf(
         _X, _Y, _Z,
         levels=5,
