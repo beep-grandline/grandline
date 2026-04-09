@@ -286,16 +286,16 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     ax.set_aspect("equal")
     ax.axis("off")
 
-    # Ocean texture — layered sine contours give a subtle topographic depth feel
-    _ox = np.linspace(px - margin * 1.8, px + margin * 1.8, 300)
-    _oy = np.linspace(py - margin * 1.8, py + margin * 1.8, 300)
+    # Ocean texture — frequencies scaled to actual map data units (~±33 range)
+    _ox = np.linspace(px - margin, px + margin, 300)
+    _oy = np.linspace(py - margin, py + margin, 300)
     _X, _Y = np.meshgrid(_ox, _oy)
     _Z = np.zeros_like(_X)
     for _i in range(4):
         _f = 1.8 ** _i
         _a = 1.0 / _f
-        _Z += _a * np.sin(_X * 0.018 * _f + _Y * 0.011 * _f * 0.7)
-        _Z += _a * np.cos(_X * 0.009 * _f * 0.8 - _Y * 0.014 * _f)
+        _Z += _a * np.sin(_X * 0.09 * _f + _Y * 0.055 * _f * 0.7)
+        _Z += _a * np.cos(_X * 0.045 * _f * 0.8 - _Y * 0.07 * _f)
     ax.contourf(
         _X, _Y, _Z,
         levels=5,
