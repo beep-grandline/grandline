@@ -141,7 +141,7 @@ def _draw_log_pose_arrows(ax, px, py, margin, targets):
     """
     ARROW_FILL   = (1.0, 1.0, 1.0, 0.75)   # translucent white fill
     ARROW_EDGE   = (0.35, 0.35, 0.35, 0.9)  # lightened dark outline
-    ARROW_INSET  = margin * 0.12            # how far in from the viewport edge
+    ARROW_INSET  = margin * 0.07            # tip inset from viewport edge
     ARROW_SIZE   = margin * 0.09            # overall scale of the arrow
 
     # Base shape pointing in +y direction, normalized to ARROW_SIZE.
@@ -232,8 +232,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     border_segs       = []
     sea_segs          = []
     label_data        = []
-    reachable_centers = []
-    redline_polys     = []  # corner point lists for redline hexes (for rock grain clip)
+    reachable_centers = []  # roll view — (cx, cy) of reachable sea hexes
 
     for q in range(pq - radius, pq + radius + 1):
         for r in range(pr - radius, pr + radius + 1):
@@ -259,9 +258,6 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                 continue
 
             color = TERRAIN_COLORS.get(terrain, TERRAIN_COLORS["island"])
-
-            if terrain == "redline":
-                redline_polys.append(corners)
 
             land_patches.append(
                 mpatches.RegularPolygon(
@@ -367,64 +363,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         )
         ax.add_collection(pc)
 
-    # Rock grain texture on redline hexes — clipped to redline shape
-    if redline_polys:
-        from matplotlib.path import Path as MPath
-        from matplotlib.patches import PathPatch
-
-        # Build compound clip path from all redline hex polygons
-        paths = []
-        for poly in redline_polys:
-            verts = list(poly) + [poly[0]]
-            codes = [MPath.MOVETO] + [MPath.LINETO]*(len(poly)-1) + [MPath.CLOSEPOLY]
-            paths.append(MPath(verts, codes))
-        clip_path = MPath.make_compound_path(*paths)
-        clip_patch = PathPatch(clip_path, transform=ax.transData)
-
-        # Bounding box of all redline hexes
-        all_pts = [pt for poly in redline_polys for pt in poly]
-        rxs = [p[0] for p in all_pts]; rys = [p[1] for p in all_pts]
-        rx0, rx1 = min(rxs)-SIZE, max(rxs)+SIZE
-        ry0, ry1 = min(rys)-SIZE, max(rys)+SIZE
-
-        # Randomized phases seeded from bounding box
-        seed = int(abs(rx0*7 + ry0*13)) % 9999
-        rng  = np.random.default_rng(seed)
-
-        # Worley (cellular) noise — scatter seed points, each pixel's value
-        # is its distance to the nearest seed. Produces natural rock-cell shapes.
-        n_seeds = int((rx1-rx0) * (ry1-ry0) * 0.012)  # density controls cell size
-        n_seeds = max(12, min(n_seeds, 80))
-        sx = rng.uniform(rx0, rx1, n_seeds)
-        sy = rng.uniform(ry0, ry1, n_seeds)
-
-        _rx = np.linspace(rx0, rx1, 280)
-        _ry = np.linspace(ry0, ry1, 280)
-        _RX, _RY = np.meshgrid(_rx, _ry)
-
-        # Vectorized: distance from every grid point to every seed
-        # shape: (280, 280, n_seeds) — find min across seeds axis
-        _dx = _RX[:,:,None] - sx[None,None,:]
-        _dy = _RY[:,:,None] - sy[None,None,:]
-        _dist = np.sqrt(_dx**2 + _dy**2)
-        _RZ = _dist.min(axis=2)
-
-        # Normalize
-        _rmin, _rmax = _RZ.min(), _RZ.max()
-        _RZ = (_RZ - _rmin) / (_rmax - _rmin + 1e-9)
-
-        # Dark edges (low distance = near cell center = lighter,
-        # high distance = near cell boundary = darker vein)
-        rock_colors = ["#c7706b", "#c7706b", "#bd5f5a", "#a84e49", "#8f3a36"]
-        cf = ax.contourf(
-            _RX, _RY, _RZ,
-            levels=4,
-            colors=rock_colors,
-            zorder=3,
-        )
-        for coll in cf.collections:
-            coll.set_clip_path(clip_patch)
-            coll.set_zorder(3)
+    # Border edges — single draw call via LineCollection
     if border_segs:
         lc = LineCollection(
             border_segs,
