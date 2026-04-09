@@ -74,7 +74,9 @@ NEIGHBOR_TO_EDGE = {
 _cache = {
     "mtime":      None,
     "hex_lookup": {},   # (q, r) -> hex_type string
-    "labels":     {},   # (q, r) -> label string  (island_name or hex_label)
+    "labels":     {},   # (q, r) -> hex_label string (per-hex labels only)
+    "island_names": {}, # (q, r) -> island_name string
+    "origins":    {},   # island_name -> (q, r) origin or None
 }
 
 
@@ -86,13 +88,14 @@ def _load_map():
         return
 
     if mtime == _cache["mtime"]:
-        return  # already up to date
+        return
 
     with open(MAP_PATH, "r") as f:
         data = json.load(f)
 
-    hex_lookup = {}
-    labels     = {}
+    hex_lookup    = {}
+    labels        = {}
+    island_names  = {}
 
     for tile in data.get("tiles", []):
         q, r = tile.get("q"), tile.get("r")
@@ -101,14 +104,30 @@ def _load_map():
         hex_type = tile.get("hex_type", "sea")
         hex_lookup[(q, r)] = hex_type
 
-        # Use hex_label if present, otherwise fall back to island_name
-        label = tile.get("hex_label") or tile.get("island_name") or ""
-        if label:
-            labels[(q, r)] = label
+        # hex_label is a per-hex label (e.g. "Royal Palace") — shown on that hex
+        hex_label = tile.get("hex_label", "")
+        if hex_label:
+            labels[(q, r)] = hex_label
 
-    _cache["mtime"]      = mtime
-    _cache["hex_lookup"] = hex_lookup
-    _cache["labels"]     = labels
+        # island_name links the hex to a named island — used for island label
+        name = tile.get("island_name", "")
+        if name:
+            island_names[(q, r)] = name
+
+    # Load per-island origins from the islands block if present
+    origins = {}
+    for name, idata in data.get("islands", {}).items():
+        orig = idata.get("origin")
+        if orig and orig.get("q") is not None and orig.get("r") is not None:
+            origins[name] = (orig["q"], orig["r"])
+        else:
+            origins[name] = None
+
+    _cache["mtime"]        = mtime
+    _cache["hex_lookup"]   = hex_lookup
+    _cache["labels"]       = labels
+    _cache["island_names"] = island_names
+    _cache["origins"]      = origins
 
 
 # ── Geometry helpers ──────────────────────────────────────────────────────────
@@ -280,16 +299,20 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     MOVE_RANGE = 5  # placeholder — swap for player stat later
 
     _load_map()
-    hex_lookup = _cache["hex_lookup"]
-    labels     = _cache["labels"]
+    hex_lookup    = _cache["hex_lookup"]
+    labels        = _cache["labels"]
+    island_names  = _cache["island_names"]
+    origins       = _cache["origins"]
 
     # ── Collect hexes in viewport ─────────────────────────────────────────────
     land_patches      = []
     land_colors       = []
     border_segs       = []
     sea_segs          = []
-    label_data        = []
+    hex_label_data    = []   # per-hex labels (hex_label field)
     reachable_centers = []
+    # accumulator for island name labels: name -> [list of (cx, cy)]
+    island_accum      = {}
 
     for q in range(pq - radius, pq + radius + 1):
         for r in range(pr - radius, pr + radius + 1):
@@ -322,8 +345,14 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
             )
             land_colors.append(color)
 
-            if terrain not in ("redline", "calm_belt") and (q, r) in labels:
-                label_data.append((cx, cy, labels[(q, r)]))
+            if terrain not in ("redline", "calm_belt"):
+                # Per-hex label (e.g. "Royal Palace")
+                if (q, r) in labels:
+                    hex_label_data.append((cx, cy, labels[(q, r)]))
+                # Accumulate pixel positions for island name centroid
+                name = island_names.get((q, r), "")
+                if name:
+                    island_accum.setdefault(name, []).append((cx, cy))
 
             for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
                 nq, nr = q + dq, r + dr
@@ -331,8 +360,17 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                     p1, p2 = corners[i1], corners[i2]
                     border_segs.append([p1, p2])
 
-    # ── Build figure ──────────────────────────────────────────────────────────
-    px, py = _hex_to_pixel(pq, pr)
+    # ── Resolve island name label positions ──────────────────────────────────
+    # Use the stored origin if set, otherwise use centroid of visible hexes
+    island_label_data = []
+    for name, pts in island_accum.items():
+        origin = origins.get(name)
+        if origin:
+            lx, ly = _hex_to_pixel(origin[0], origin[1])
+        else:
+            lx = sum(p[0] for p in pts) / len(pts)
+            ly = sum(p[1] for p in pts) / len(pts)
+        island_label_data.append((lx, ly, name))
     margin  = SIZE * radius * 1.1
 
     fig, ax = plt.subplots(figsize=(10, 10), facecolor=SEA_COLOR)
@@ -421,13 +459,30 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     # Whirlpool effects — drawn above sea, below labels and player
     _draw_whirlpools(ax, WHIRLPOOL_TILES, pq, pr, radius)
 
-    for (lx, ly, text) in label_data:
-        ax.text(
-            lx, ly, text,
-            ha="center", va="center",
-            fontsize=7, color=LABEL_COLOR,
-            fontweight="bold", clip_on=True,
-        )
+    # Island name labels — one pill per island, at origin or centroid
+    from matplotlib.patches import FancyBboxPatch
+    for (lx, ly, text) in island_label_data:
+        tw = len(text) * 5.5
+        pad_x, pad_y, rd = 5, 3, 3
+        ax.add_patch(FancyBboxPatch(
+            (lx - tw/2 - pad_x, ly - 6 - pad_y),
+            tw + pad_x*2, 11 + pad_y*2,
+            boxstyle=f"round,pad=0,rounding_size={rd}",
+            facecolor=(0.06, 0.09, 0.18, 0.72),
+            edgecolor="none",
+            zorder=6,
+        ))
+        ax.text(lx, ly - 1, text,
+                ha="center", va="center",
+                fontsize=7, color="#ffffff",
+                fontweight="bold", clip_on=True, zorder=7)
+
+    # Per-hex labels (hex_label field — e.g. "Royal Palace")
+    for (lx, ly, text) in hex_label_data:
+        ax.text(lx, ly, text,
+                ha="center", va="center",
+                fontsize=6, color=LABEL_COLOR,
+                fontweight="bold", clip_on=True, zorder=6)
 
     icon = _get_ship_icon()
     if icon is not None:
