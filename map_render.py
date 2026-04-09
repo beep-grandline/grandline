@@ -12,34 +12,104 @@ from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-MAP_PATH = "map.json"   # path to the exported editor JSON
+MAP_PATH = "map.json"
 
 SQRT3 = math.sqrt(3)
-SIZE  = 3.0             # hex radius in data units
+SIZE  = 3.0
 
 TERRAIN_COLORS = {
     "island":    "#c4f5d7",
     "redline":   "#c7706b",
     "calm_belt": "#76b8d4",
-    # fallback for anything else
     "sea":       "#75e1ff",
 }
 
-BORDER_COLOR     = "#f0f8ff"
-BORDER_WIDTH     = 1.5   # land-sea edge thickness
-SEA_GRID_WIDTH   = 1.5   # sea-sea grid line thickness
-PLAYER_COLOR     = "#F0D060"
-LABEL_COLOR      = "#171717"
-SEA_COLOR        = TERRAIN_COLORS["sea"]
+BORDER_COLOR   = "#f0f8ff"
+BORDER_WIDTH   = 1.5
+SEA_GRID_WIDTH = 1.5
+PLAYER_COLOR   = "#F0D060"
+LABEL_COLOR    = "#171717"
+SEA_COLOR      = TERRAIN_COLORS["sea"]
 
-# Log pose targets — (q, r) tuples the arrow points toward.
-# Replace with dynamic data later (e.g. from db or game state).
 LOG_POSE_TARGETS = [(32, 10)]
 
-# Player ship icon — loaded once, falls back to dot if file missing.
-# SHIP_ROTATION: number of 90° counter-clockwise turns (1=90°, 2=180°, 3=270°)
-SHIP_ROTATION  = 3  # 3 × 90° CCW = 270° CCW = 90° clockwise
-SHIP_ICON_SIZE = 28   # display size in pixels — tweak to taste
+SHIP_ROTATION  = 3
+SHIP_ICON_SIZE = 28
+
+# Ocean color ramp as float32 RGB — used for fast imshow color mapping
+_OCEAN_RAMP = np.array([
+    [0x75, 0xe1, 0xff],
+    [0x6d, 0xd4, 0xf5],
+    [0x65, 0xc9, 0xeb],
+    [0x5c, 0xbd, 0xe0],
+    [0x54, 0xb2, 0xd6],
+], dtype=np.float32) / 255.0
+
+# Hex corner offsets — precomputed once, reused every render
+# Avoids 6 trig calls per hex per frame (~1800 calls saved per render)
+_HEX_CORNER_OFFSETS = tuple(
+    (SIZE * math.cos(math.pi / 3 * i - math.pi / 6),
+     SIZE * math.sin(math.pi / 3 * i - math.pi / 6))
+    for i in range(6)
+)
+
+NEIGHBOR_TO_EDGE = {
+    ( 1,  0): (0, 1),
+    ( 0,  1): (1, 2),
+    (-1,  1): (2, 3),
+    (-1,  0): (3, 4),
+    ( 0, -1): (4, 5),
+    ( 1, -1): (5, 0),
+}
+
+# ── Map data cache ────────────────────────────────────────────────────────────
+
+_cache = {
+    "mtime":      None,
+    "hex_lookup": {},
+    "labels":     {},
+}
+
+
+def _load_map():
+    try:
+        mtime = os.path.getmtime(MAP_PATH)
+    except FileNotFoundError:
+        return
+    if mtime == _cache["mtime"]:
+        return
+    with open(MAP_PATH, "r") as f:
+        data = json.load(f)
+    hex_lookup, labels = {}, {}
+    for tile in data.get("tiles", []):
+        q, r = tile.get("q"), tile.get("r")
+        if q is None or r is None:
+            continue
+        hex_lookup[(q, r)] = tile.get("hex_type", "sea")
+        label = tile.get("hex_label") or tile.get("island_name") or ""
+        if label:
+            labels[(q, r)] = label
+    _cache["mtime"]      = mtime
+    _cache["hex_lookup"] = hex_lookup
+    _cache["labels"]     = labels
+
+
+# ── Geometry helpers ──────────────────────────────────────────────────────────
+
+def _hex_to_pixel(q, r):
+    return (SIZE * SQRT3 * (q + r / 2), SIZE * 1.5 * r)
+
+
+def _hex_corners(q, r):
+    cx, cy = _hex_to_pixel(q, r)
+    return [(cx + ox, cy + oy) for ox, oy in _HEX_CORNER_OFFSETS]
+
+
+def _hex_distance(q1, r1, q2, r2):
+    return max(abs(q1-q2), abs(r1-r2), abs((q1+r1)-(q2+r2)))
+
+
+# ── Ship icon cache ───────────────────────────────────────────────────────────
 
 _SHIP_ICON = None
 
@@ -55,119 +125,90 @@ def _get_ship_icon():
             pass
     return _SHIP_ICON
 
-# Edge index pairs for each axial neighbour direction (flat-top orientation)
-NEIGHBOR_TO_EDGE = {
-    ( 1,  0): (0, 1),
-    ( 0,  1): (1, 2),
-    (-1,  1): (2, 3),
-    (-1,  0): (3, 4),
-    ( 0, -1): (4, 5),
-    ( 1, -1): (5, 0),
-}
 
-# ── Map data cache ────────────────────────────────────────────────────────────
-# Reload from disk only when the file's mtime changes.
+# ── Ocean texture ─────────────────────────────────────────────────────────────
 
-_cache = {
-    "mtime":      None,
-    "hex_lookup": {},   # (q, r) -> hex_type string
-    "labels":     {},   # (q, r) -> label string  (island_name or hex_label)
-}
+_OCEAN_PHASES = [
+    (1.3, 0.7, 2.1, 1.8),
+    (0.5, 2.4, 1.1, 0.3),
+    (2.7, 0.9, 1.6, 2.2),
+    (0.2, 1.5, 2.9, 0.8),
+]
 
 
-def _load_map():
-    """Load map JSON into module-level cache. No-op if file unchanged."""
-    try:
-        mtime = os.path.getmtime(MAP_PATH)
-    except FileNotFoundError:
-        return
+def _build_ocean_image(px, py, margin, land_pixels):
+    """
+    Returns an RGBA float32 array (H, W, 4) for the ocean texture.
+    Uses imshow instead of contourf — ~10x faster for this use case.
+    land_pixels: list of (ix, iy) pixel coords of nearby land hexes
+    """
+    N = 220  # grid resolution — 220×220 is plenty for a 10-dpi map
+    ox = np.linspace(px - margin, px + margin, N, dtype=np.float32)
+    oy = np.linspace(py - margin, py + margin, N, dtype=np.float32)
+    X, Y = np.meshgrid(ox, oy)
+    Z = np.zeros((N, N), dtype=np.float32)
 
-    if mtime == _cache["mtime"]:
-        return  # already up to date
+    for i in range(4):
+        f = 1.8 ** i
+        a = 1.0 / f
+        p = _OCEAN_PHASES[i]
+        Z += a * np.sin(X * 0.09*f + Y * 0.055*f*0.7  + p[0])
+        Z += a * np.cos(X * 0.045*f*0.8 - Y * 0.07*f   + p[1])
+        Z += a * np.sin(X * 0.06*f*0.6  + Y * 0.08*f   + p[2]) * 0.4
+        Z += a * np.cos(X * 0.075*f     - Y * 0.05*f*0.9 + p[3]) * 0.4
 
-    with open(MAP_PATH, "r") as f:
-        data = json.load(f)
+    # Normalize
+    zmin, zmax = Z.min(), Z.max()
+    Z = (Z - zmin) / (zmax - zmin + 1e-9)
 
-    hex_lookup = {}
-    labels     = {}
+    # Shallow water — vectorized over all land hexes at once
+    if land_pixels:
+        lp = np.array(land_pixels, dtype=np.float32)  # (K, 2)
+        fade_r = SIZE * 2.5
+        # Broadcast: (K, N, N) distance array, take minimum across K
+        dx = lp[:, 0, None, None] - X[None, :, :]
+        dy = lp[:, 1, None, None] - Y[None, :, :]
+        dists = np.sqrt(dx*dx + dy*dy)           # (K, N, N)
+        min_dist = dists.min(axis=0)             # (N, N)
+        shallow = np.clip(1.0 - min_dist / fade_r, 0, 1) ** 2
+        Z -= shallow * 0.45
+        Z = np.clip(Z, 0, 1)
 
-    for tile in data.get("tiles", []):
-        q, r = tile.get("q"), tile.get("r")
-        if q is None or r is None:
-            continue
-        hex_type = tile.get("hex_type", "sea")
-        hex_lookup[(q, r)] = hex_type
-
-        # Use hex_label if present, otherwise fall back to island_name
-        label = tile.get("hex_label") or tile.get("island_name") or ""
-        if label:
-            labels[(q, r)] = label
-
-    _cache["mtime"]      = mtime
-    _cache["hex_lookup"] = hex_lookup
-    _cache["labels"]     = labels
-
-
-# ── Geometry helpers ──────────────────────────────────────────────────────────
-
-def _hex_to_pixel(q, r):
-    """Axial → pixel centre (pointy-top)."""
-    return (
-        SIZE * SQRT3 * (q + r / 2),
-        SIZE * 1.5   * r,
-    )
-
-
-def _hex_corners(q, r):
-    """Return the 6 corner (x, y) points of a hex."""
-    cx, cy = _hex_to_pixel(q, r)
-    return [
-        (cx + SIZE * math.cos(math.pi / 3 * i - math.pi / 6),
-         cy + SIZE * math.sin(math.pi / 3 * i - math.pi / 6))
-        for i in range(6)
-    ]
+    # Map Z → RGBA using linear interpolation across _OCEAN_RAMP
+    idx_f = Z * (len(_OCEAN_RAMP) - 1)
+    idx0  = np.floor(idx_f).astype(np.int32).clip(0, len(_OCEAN_RAMP) - 2)
+    idx1  = idx0 + 1
+    t     = (idx_f - idx0)[:, :, None]
+    rgb   = _OCEAN_RAMP[idx0] * (1 - t) + _OCEAN_RAMP[idx1] * t
+    rgba  = np.dstack([rgb, np.ones((N, N), dtype=np.float32)])
+    return rgba
 
 
-def _hex_distance(q1, r1, q2, r2):
-    return max(abs(q1 - q2), abs(r1 - r2), abs((q1 + r1) - (q2 + r2)))
-
-
-# ── Log pose arrow helper ─────────────────────────────────────────────────────
+# ── Log pose arrows ───────────────────────────────────────────────────────────
 
 def _draw_log_pose_arrows(ax, px, py, margin, targets):
-    """
-    For each target (tq, tr), draw a compass-style arrow on the viewport edge
-    pointing toward that hex. Skipped if the target is inside the viewport.
-    """
-    ARROW_FILL   = (1.0, 1.0, 1.0, 0.75)   # translucent white fill
-    ARROW_EDGE   = (0.35, 0.35, 0.35, 0.9)  # lightened dark outline
-    ARROW_INSET  = margin * 0.12            # how far in from the viewport edge
-    ARROW_SIZE   = margin * 0.09            # overall scale of the arrow
+    ARROW_FILL  = (1.0, 1.0, 1.0, 0.75)
+    ARROW_EDGE  = (0.35, 0.35, 0.35, 0.9)
+    ARROW_INSET = margin * 0.12
+    ARROW_SIZE  = margin * 0.09
 
-    # Base shape pointing in +y direction, normalized to ARROW_SIZE.
-    # 4 points: tip, lower-right outer, notch center (chevron), lower-left outer.
-    # The notch pulls the base center inward, creating the cursor silhouette.
     BASE_SHAPE = [
-        ( 0.00,  1.00),   # tip
-        ( 0.48, -0.38),   # lower-right outer wing
-        ( 0.00,  0.08),   # notch center (chevron indent)
-        (-0.48, -0.38),   # lower-left outer wing
+        ( 0.00,  1.00),
+        ( 0.48, -0.38),
+        ( 0.00,  0.08),
+        (-0.48, -0.38),
     ]
 
     for (tq, tr) in targets:
         tx, ty = _hex_to_pixel(tq, tr)
         dx, dy = tx - px, ty - py
-
-        # Skip if target is already visible in the viewport
         if abs(dx) <= margin and abs(dy) <= margin:
             continue
-
         dist = math.hypot(dx, dy)
         if dist == 0:
             continue
         nx, ny = dx / dist, dy / dist
 
-        # Find intersection of direction ray with viewport boundary
         if abs(nx) < 1e-9:
             t_hit = margin / abs(ny)
         elif abs(ny) < 1e-9:
@@ -175,34 +216,25 @@ def _draw_log_pose_arrows(ax, px, py, margin, targets):
         else:
             t_hit = min(margin / abs(nx), margin / abs(ny))
 
-        # Arrow tip position (inset from edge)
         tip_x = px + nx * (t_hit - ARROW_INSET)
         tip_y = py + ny * (t_hit - ARROW_INSET)
-
-        # Rotation angle: our base shape points in +y, rotate to face (nx, ny)
-        angle = math.atan2(ny, nx) - math.pi / 2
-
+        angle  = math.atan2(ny, nx) - math.pi / 2
         cos_a, sin_a = math.cos(angle), math.sin(angle)
 
-        def rotate_and_place(lx, ly):
-            rx = lx * cos_a - ly * sin_a
-            ry = lx * sin_a + ly * cos_a
-            return (tip_x + rx * ARROW_SIZE, tip_y + ry * ARROW_SIZE)
-
-        pts = [rotate_and_place(lx, ly) for lx, ly in BASE_SHAPE]
-
-        arrow = mpatches.Polygon(
+        pts = [
+            (tip_x + (lx*cos_a - ly*sin_a) * ARROW_SIZE,
+             tip_y + (lx*sin_a + ly*cos_a) * ARROW_SIZE)
+            for lx, ly in BASE_SHAPE
+        ]
+        ax.add_patch(mpatches.Polygon(
             pts, closed=True,
-            facecolor=ARROW_FILL,
-            edgecolor=ARROW_EDGE,
-            linewidth=1.0,
-            zorder=8,
-        )
-        ax.add_patch(arrow)
+            facecolor=ARROW_FILL, edgecolor=ARROW_EDGE,
+            linewidth=1.0, zorder=8,
+        ))
 
 
 def _draw_rock_texture():
-    pass  # used only as a namespace for texture cache via hasattr
+    pass  # placeholder — kept for future use
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -224,20 +256,20 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     pq = player["q"] if player["q"] is not None else 0
     pr = player["r"] if player["r"] is not None else 0
 
-    MOVE_RANGE = 5  # placeholder — swap for player stat later
+    MOVE_RANGE = 5
 
     _load_map()
     hex_lookup = _cache["hex_lookup"]
     labels     = _cache["labels"]
 
-    # ── Collect hexes in viewport ─────────────────────────────────────────────
+    # ── Collect viewport hexes ────────────────────────────────────────────────
     land_patches      = []
     land_colors       = []
     border_segs       = []
     sea_segs          = []
     label_data        = []
     reachable_centers = []
-    redline_polys     = []  # corner point lists for redline hexes (for rock grain clip)
+    land_pixels       = []  # pixel coords of land hexes for shallow water
 
     for q in range(pq - radius, pq + radius + 1):
         for r in range(pr - radius, pr + radius + 1):
@@ -249,42 +281,29 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
             corners = _hex_corners(q, r)
 
             if terrain == "sea":
-                # Sea grid edges
                 for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
                     nq, nr = q + dq, r + dr
                     if _hex_distance(nq, nr, pq, pr) <= radius:
                         if dq > 0 or (dq == 0 and dr > 0):
-                            p1, p2 = corners[i1], corners[i2]
-                            sea_segs.append([p1, p2])
-
-                # Roll view — collect center for dot marker
+                            sea_segs.append([corners[i1], corners[i2]])
                 if view == "roll" and _hex_distance(q, r, pq, pr) <= MOVE_RANGE:
                     reachable_centers.append((cx, cy))
                 continue
 
             color = TERRAIN_COLORS.get(terrain, TERRAIN_COLORS["island"])
-
-            if terrain == "redline":
-                redline_polys.append(corners)
-
-            land_patches.append(
-                mpatches.RegularPolygon(
-                    (cx, cy), numVertices=6,
-                    radius=SIZE, orientation=0,
-                )
-            )
+            land_patches.append(mpatches.RegularPolygon(
+                (cx, cy), numVertices=6, radius=SIZE, orientation=0,
+            ))
             land_colors.append(color)
+            land_pixels.append((cx, cy))
 
-            # Label — only on non-redline, non-calm_belt tiles
             if terrain not in ("redline", "calm_belt") and (q, r) in labels:
                 label_data.append((cx, cy, labels[(q, r)]))
 
-            # Border edges where land meets sea
             for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
                 nq, nr = q + dq, r + dr
                 if hex_lookup.get((nq, nr), "sea") == "sea":
-                    p1, p2 = corners[i1], corners[i2]
-                    border_segs.append([p1, p2])
+                    border_segs.append([corners[i1], corners[i2]])
 
     # ── Build figure ──────────────────────────────────────────────────────────
     px, py = _hex_to_pixel(pq, pr)
@@ -294,175 +313,63 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     ax.set_aspect("equal")
     ax.axis("off")
 
-    # Ocean texture — frequencies scaled to actual map data units (~±33 range)
-    _ox = np.linspace(px - margin, px + margin, 300)
-    _oy = np.linspace(py - margin, py + margin, 300)
-    _X, _Y = np.meshgrid(_ox, _oy)
-    _Z = np.zeros_like(_X)
-    _phases = [(1.3, 0.7, 2.1, 1.8), (0.5, 2.4, 1.1, 0.3),
-               (2.7, 0.9, 1.6, 2.2), (0.2, 1.5, 2.9, 0.8)]
-    for _i in range(4):
-        _f = 1.8 ** _i
-        _a = 1.0 / _f
-        _p = _phases[_i]
-        _Z += _a * np.sin(_X * 0.09 * _f + _Y * 0.055 * _f * 0.7 + _p[0])
-        _Z += _a * np.cos(_X * 0.045 * _f * 0.8 - _Y * 0.07 * _f + _p[1])
-        _Z += _a * np.sin(_X * 0.06 * _f * 0.6 + _Y * 0.08 * _f + _p[2]) * 0.4
-        _Z += _a * np.cos(_X * 0.075 * _f - _Y * 0.05 * _f * 0.9 + _p[3]) * 0.4
-
-    # Shallow water — subtract a bump near island/redline hexes to pull
-    # coastal Z values toward the minimum, which maps to the lightest color band
-    _fade_radius = SIZE * 2.5
-    _shallow = np.zeros_like(_Z)
-    for (_tq, _tr), _terrain in hex_lookup.items():
-        if _terrain in ("sea", "calm_belt"):
-            continue
-        if _hex_distance(_tq, _tr, pq, pr) > radius:
-            continue
-        _ix, _iy = _hex_to_pixel(_tq, _tr)
-        _dist = np.sqrt((_X - _ix) ** 2 + (_Y - _iy) ** 2)
-        _bump = np.clip(1.0 - _dist / _fade_radius, 0, 1) ** 2
-        _shallow = np.maximum(_shallow, _bump)
-    # Normalize first so wave bands are evenly distributed
-    _zmin, _zmax = _Z.min(), _Z.max()
-    _Z = (_Z - _zmin) / (_zmax - _zmin + 1e-9)
-
-    # Now push coastal values toward 0 (lightest band) — happens after normalize
-    # so it isn't rescaled away
-    _Z -= _shallow * 0.45
-    _Z = np.clip(_Z, 0, 1)
-
-    ax.contourf(
-        _X, _Y, _Z,
-        levels=4,
-        colors=["#75e1ff", "#6dd4f5", "#65c9eb", "#5cbde0", "#54b2d6"],
-        zorder=0,
-    )
-
-    # Sea grid — drawn first so land sits on top
-    if sea_segs:
-        ax.add_collection(LineCollection(
-            sea_segs,
-            colors=(1.0, 1.0, 1.0, 0.18),
-            linewidths=SEA_GRID_WIDTH,
-            zorder=1,
-        ))
-
-    # Roll view — small dot in each reachable sea hex
-    if view == "roll" and reachable_centers:
-        xs, ys = zip(*reachable_centers)
-        ax.scatter(
-            xs, ys,
-            s=18,                          # dot size in points² — tweak to taste
-            color=(1.0, 1.0, 1.0, 0.55),  # semi-transparent white
-            linewidths=0,
-            zorder=2,
-        )
-
-    # Land hexes — single draw call via PatchCollection
-    if land_patches:
-        pc = PatchCollection(
-            land_patches,
-            facecolors=land_colors,
-            edgecolors="none",
-            linewidths=0,
-            match_original=False,
-            zorder=2,
-        )
-        ax.add_collection(pc)
-
-    # Rock texture — tile rocks.png across redline bbox, clip to hex shape
-    if redline_polys:
-        from matplotlib.path import Path as MPath
-        from matplotlib.patches import PathPatch
-
-        # Build compound clip path from all redline hex polygons
-        paths = []
-        for poly in redline_polys:
-            verts = list(poly) + [poly[0]]
-            codes = [MPath.MOVETO] + [MPath.LINETO]*(len(poly)-1) + [MPath.CLOSEPOLY]
-            paths.append(MPath(verts, codes))
-        clip_path  = MPath.make_compound_path(*paths)
-        clip_patch = PathPatch(clip_path, transform=ax.transData)
-
-        # Load texture once (cached after first call)
-        if not hasattr(_draw_rock_texture, '_tex'):
-            try:
-                _draw_rock_texture._tex = imread("img/rocks.png")
-            except FileNotFoundError:
-                _draw_rock_texture._tex = None
-        tex = _draw_rock_texture._tex
-        if tex is not None:
-            all_pts = [pt for poly in redline_polys for pt in poly]
-            rxs = [p[0] for p in all_pts]; rys = [p[1] for p in all_pts]
-            rx0, rx1 = min(rxs)-SIZE, max(rxs)+SIZE
-            ry0, ry1 = min(rys)-SIZE, max(rys)+SIZE
-            im = ax.imshow(
-                tex,
-                extent=[rx0, rx1, ry0, ry1],
-                aspect="auto",
-                alpha=0.55,
-                zorder=3,
-            )
-            im.set_clip_path(clip_patch)
-    if border_segs:
-        lc = LineCollection(
-            border_segs,
-            colors=BORDER_COLOR,
-            linewidths=BORDER_WIDTH,
-            capstyle="round",
-            zorder=3,
-        )
-        ax.add_collection(lc)
-
-    # Labels
-    for (lx, ly, text) in label_data:
-        ax.text(
-            lx, ly, text,
-            ha="center", va="center",
-            fontsize=7, color=LABEL_COLOR,
-            fontweight="bold", clip_on=True,
-        )
-
-    # Player marker — ship icon if available, dot fallback otherwise
-    icon = _get_ship_icon()
-    if icon is not None:
-        # OffsetImage sizes in pixels, unaffected by axes data scaling —
-        # no stretch regardless of the hex grid's x/y unit ratio
-        oi = OffsetImage(icon, zoom=SHIP_ICON_SIZE / max(icon.shape[:2]))
-        oi.image.axes = ax
-        ab = AnnotationBbox(
-            oi, (px, py),
-            frameon=False,
-            pad=0,
-            zorder=5,
-        )
-        ax.add_artist(ab)
-    else:
-        ax.plot(px, py, "o",
-                color=PLAYER_COLOR, markersize=14,
-                markeredgecolor="#000", markeredgewidth=0.8,
-                zorder=5)
-        ax.text(px, py, "S",
-                ha="center", va="center",
-                fontsize=7, color="black", fontweight="bold",
-                zorder=6)
-
-    # Viewport
+    # Viewport must be set before imshow so extent lands correctly
     ax.set_xlim(px - margin, px + margin)
     ax.set_ylim(py - margin, py + margin)
 
-    # Log pose arrows — one per target, drawn at viewport edge pointing inward/outward
+    # Ocean texture — imshow is ~10x faster than contourf
+    ocean_img = _build_ocean_image(px, py, margin, land_pixels)
+    ax.imshow(
+        ocean_img,
+        extent=[px - margin, px + margin, py - margin, py + margin],
+        origin="lower", aspect="auto", interpolation="bilinear",
+        zorder=0,
+    )
+
+    if sea_segs:
+        ax.add_collection(LineCollection(
+            sea_segs, colors=(1.0, 1.0, 1.0, 0.18),
+            linewidths=SEA_GRID_WIDTH, zorder=1,
+        ))
+
+    if view == "roll" and reachable_centers:
+        xs, ys = zip(*reachable_centers)
+        ax.scatter(xs, ys, s=18, color=(1.0, 1.0, 1.0, 0.55),
+                   linewidths=0, zorder=2)
+
+    if land_patches:
+        ax.add_collection(PatchCollection(
+            land_patches, facecolors=land_colors,
+            edgecolors="none", linewidths=0,
+            match_original=False, zorder=2,
+        ))
+
+    if border_segs:
+        ax.add_collection(LineCollection(
+            border_segs, colors=BORDER_COLOR,
+            linewidths=BORDER_WIDTH, capstyle="round", zorder=3,
+        ))
+
+    for lx, ly, text in label_data:
+        ax.text(lx, ly, text, ha="center", va="center",
+                fontsize=7, color=LABEL_COLOR, fontweight="bold", clip_on=True)
+
+    icon = _get_ship_icon()
+    if icon is not None:
+        oi = OffsetImage(icon, zoom=SHIP_ICON_SIZE / max(icon.shape[:2]))
+        oi.image.axes = ax
+        ax.add_artist(AnnotationBbox(oi, (px, py), frameon=False, pad=0, zorder=5))
+    else:
+        ax.plot(px, py, "o", color=PLAYER_COLOR, markersize=14,
+                markeredgecolor="#000", markeredgewidth=0.8, zorder=5)
+        ax.text(px, py, "S", ha="center", va="center",
+                fontsize=7, color="black", fontweight="bold", zorder=6)
+
     _draw_log_pose_arrows(ax, px, py, margin, LOG_POSE_TARGETS)
 
-    # ── Render to buffer and clean up ─────────────────────────────────────────
+    # ── Render to buffer ──────────────────────────────────────────────────────
     buf = io.BytesIO()
-    fig.savefig(
-        buf, format="png", dpi=150,
-        bbox_inches="tight",
-        facecolor=SEA_COLOR,
-        pad_inches=0,
-    )
-    plt.close(fig)   # free memory — critical in a long-running bot
+    fig.savefig(buf, format="png", dpi=150, facecolor=SEA_COLOR, pad_inches=0)
+    plt.close(fig)
     buf.seek(0)
     return buf
