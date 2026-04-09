@@ -311,7 +311,11 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         _bump = np.clip(1.0 - _dist / _fade_radius, 0, 1) ** 2
         _shallow = np.maximum(_shallow, _bump)
     _zrange = _Z.max() - _Z.min()
-    _Z -= _shallow * _zrange * 0.85
+    _Z -= _shallow * _zrange * 0.45
+
+    # Normalize to fixed range so color bands are always evenly distributed
+    _zmin, _zmax = _Z.min(), _Z.max()
+    _Z = (_Z - _zmin) / (_zmax - _zmin + 1e-9)
 
     ax.contourf(
         _X, _Y, _Z,
