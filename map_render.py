@@ -291,11 +291,16 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     _oy = np.linspace(py - margin, py + margin, 300)
     _X, _Y = np.meshgrid(_ox, _oy)
     _Z = np.zeros_like(_X)
+    _phases = [(1.3, 0.7, 2.1, 1.8), (0.5, 2.4, 1.1, 0.3),
+               (2.7, 0.9, 1.6, 2.2), (0.2, 1.5, 2.9, 0.8)]
     for _i in range(4):
         _f = 1.8 ** _i
         _a = 1.0 / _f
-        _Z += _a * np.sin(_X * 0.09 * _f + _Y * 0.055 * _f * 0.7)
-        _Z += _a * np.cos(_X * 0.045 * _f * 0.8 - _Y * 0.07 * _f)
+        _p = _phases[_i]
+        _Z += _a * np.sin(_X * 0.09 * _f + _Y * 0.055 * _f * 0.7 + _p[0])
+        _Z += _a * np.cos(_X * 0.045 * _f * 0.8 - _Y * 0.07 * _f + _p[1])
+        _Z += _a * np.sin(_X * 0.06 * _f * 0.6 + _Y * 0.08 * _f + _p[2]) * 0.4
+        _Z += _a * np.cos(_X * 0.075 * _f - _Y * 0.05 * _f * 0.9 + _p[3]) * 0.4
 
     # Shallow water — subtract a bump near island/redline hexes to pull
     # coastal Z values toward the minimum, which maps to the lightest color band
