@@ -36,6 +36,9 @@ SEA_COLOR        = TERRAIN_COLORS["sea"]
 # Replace with dynamic data later (e.g. from db or game state).
 LOG_POSE_TARGETS = [(32, 10)]
 
+# Whirlpool tiles — list of (q, r) that get the concentric-ring effect
+WHIRLPOOL_TILES = [(-3, 5)]
+
 # Player ship icon — loaded once, falls back to dot if file missing.
 # SHIP_ROTATION: number of 90° counter-clockwise turns (1=90°, 2=180°, 3=270°)
 SHIP_ROTATION  = 3  # 3 × 90° CCW = 270° CCW = 90° clockwise
@@ -132,6 +135,68 @@ def _hex_distance(q1, r1, q2, r2):
     return max(abs(q1 - q2), abs(r1 - r2), abs((q1 + r1) - (q2 + r2)))
 
 
+# ── Whirlpool helper ──────────────────────────────────────────────────────────
+
+def _draw_whirlpools(ax, whirlpool_tiles, pq, pr, radius):
+    """
+    Draw concentric-ring whirlpool effect on any WHIRLPOOL_TILES hex that
+    falls within the current viewport.
+
+    Rings are clipped to the hex shape so they don't bleed into neighbours.
+    """
+    from matplotlib.path import Path as MPath
+    from matplotlib.patches import PathPatch
+
+    RINGS      = 6          # number of concentric rings
+    RING_COLOR = (0.08, 0.25, 0.55)   # deep blue RGB
+    PIT_COLOR  = (0.05, 0.15, 0.42)   # darker centre
+
+    for (wq, wr) in whirlpool_tiles:
+        if _hex_distance(wq, wr, pq, pr) > radius:
+            continue
+
+        cx, cy  = _hex_to_pixel(wq, wr)
+        corners = _hex_corners(wq, wr)
+
+        # Build hex clip path
+        verts = corners + [corners[0]]
+        codes = ([MPath.MOVETO]
+                 + [MPath.LINETO] * (len(corners) - 1)
+                 + [MPath.CLOSEPOLY])
+        clip_patch = PathPatch(
+            MPath(verts, codes),
+            transform=ax.transData,
+        )
+
+        # Draw rings from outermost inward so inner ones paint over outer
+        for i in range(RINGS, 0, -1):
+            r_frac = i / RINGS
+            ring_r = r_frac * SIZE * 0.88
+            alpha  = 0.10 + (RINGS - i) * 0.07   # inner rings darker
+            lw     = 0.8 + (RINGS - i) * 0.25
+
+            circle = mpatches.Circle(
+                (cx, cy), ring_r,
+                fill=False,
+                edgecolor=(*RING_COLOR, alpha),
+                linewidth=lw,
+                zorder=4,
+            )
+            circle.set_clip_path(clip_patch)
+            ax.add_patch(circle)
+
+        # Dark centre pit
+        pit = mpatches.Circle(
+            (cx, cy), SIZE * 0.10,
+            fill=True,
+            facecolor=(*PIT_COLOR, 0.55),
+            edgecolor="none",
+            zorder=4,
+        )
+        pit.set_clip_path(clip_patch)
+        ax.add_patch(pit)
+
+
 # ── Log pose arrow helper ─────────────────────────────────────────────────────
 
 def _draw_log_pose_arrows(ax, px, py, margin, targets):
@@ -139,26 +204,22 @@ def _draw_log_pose_arrows(ax, px, py, margin, targets):
     For each target (tq, tr), draw a compass-style arrow on the viewport edge
     pointing toward that hex. Skipped if the target is inside the viewport.
     """
-    ARROW_FILL   = (1.0, 1.0, 1.0, 0.75)   # translucent white fill
-    ARROW_EDGE   = (0.35, 0.35, 0.35, 0.9)  # lightened dark outline
-    ARROW_INSET  = margin * 0.12            # tip inset from viewport edge
-    ARROW_SIZE   = margin * 0.09            # overall scale of the arrow
+    ARROW_FILL   = (1.0, 1.0, 1.0, 0.75)
+    ARROW_EDGE   = (0.35, 0.35, 0.35, 0.9)
+    ARROW_INSET  = margin * 0.12
+    ARROW_SIZE   = margin * 0.09
 
-    # Base shape pointing in +y direction, normalized to ARROW_SIZE.
-    # 4 points: tip, lower-right outer, notch center (chevron), lower-left outer.
-    # The notch pulls the base center inward, creating the cursor silhouette.
     BASE_SHAPE = [
-        ( 0.00,  1.00),   # tip
-        ( 0.48, -0.38),   # lower-right outer wing
-        ( 0.00,  0.08),   # notch center (chevron indent)
-        (-0.48, -0.38),   # lower-left outer wing
+        ( 0.00,  1.00),
+        ( 0.48, -0.38),
+        ( 0.00,  0.08),
+        (-0.48, -0.38),
     ]
 
     for (tq, tr) in targets:
         tx, ty = _hex_to_pixel(tq, tr)
         dx, dy = tx - px, ty - py
 
-        # Skip if target is already visible in the viewport
         if abs(dx) <= margin and abs(dy) <= margin:
             continue
 
@@ -167,7 +228,6 @@ def _draw_log_pose_arrows(ax, px, py, margin, targets):
             continue
         nx, ny = dx / dist, dy / dist
 
-        # Find intersection of direction ray with viewport boundary
         if abs(nx) < 1e-9:
             t_hit = margin / abs(ny)
         elif abs(ny) < 1e-9:
@@ -175,13 +235,10 @@ def _draw_log_pose_arrows(ax, px, py, margin, targets):
         else:
             t_hit = min(margin / abs(nx), margin / abs(ny))
 
-        # Arrow tip position (inset from edge)
         tip_x = px + nx * (t_hit - ARROW_INSET)
         tip_y = py + ny * (t_hit - ARROW_INSET)
 
-        # Rotation angle: our base shape points in +y, rotate to face (nx, ny)
         angle = math.atan2(ny, nx) - math.pi / 2
-
         cos_a, sin_a = math.cos(angle), math.sin(angle)
 
         def rotate_and_place(lx, ly):
@@ -232,7 +289,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     border_segs       = []
     sea_segs          = []
     label_data        = []
-    reachable_centers = []  # roll view — (cx, cy) of reachable sea hexes
+    reachable_centers = []
 
     for q in range(pq - radius, pq + radius + 1):
         for r in range(pr - radius, pr + radius + 1):
@@ -244,7 +301,6 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
             corners = _hex_corners(q, r)
 
             if terrain == "sea":
-                # Sea grid edges
                 for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
                     nq, nr = q + dq, r + dr
                     if _hex_distance(nq, nr, pq, pr) <= radius:
@@ -252,7 +308,6 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                             p1, p2 = corners[i1], corners[i2]
                             sea_segs.append([p1, p2])
 
-                # Roll view — collect center for dot marker
                 if view == "roll" and _hex_distance(q, r, pq, pr) <= MOVE_RANGE:
                     reachable_centers.append((cx, cy))
                 continue
@@ -267,11 +322,9 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
             )
             land_colors.append(color)
 
-            # Label — only on non-redline, non-calm_belt tiles
             if terrain not in ("redline", "calm_belt") and (q, r) in labels:
                 label_data.append((cx, cy, labels[(q, r)]))
 
-            # Border edges where land meets sea
             for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
                 nq, nr = q + dq, r + dr
                 if hex_lookup.get((nq, nr), "sea") == "sea":
@@ -302,8 +355,6 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         _Z += _a * np.sin(_X * 0.06 * _f * 0.6 + _Y * 0.08 * _f + _p[2]) * 0.4
         _Z += _a * np.cos(_X * 0.075 * _f - _Y * 0.05 * _f * 0.9 + _p[3]) * 0.4
 
-    # Shallow water — subtract a bump near island/redline hexes to pull
-    # coastal Z values toward the minimum, which maps to the lightest color band
     _fade_radius = SIZE * 2.5
     _shallow = np.zeros_like(_Z)
     for (_tq, _tr), _terrain in hex_lookup.items():
@@ -315,12 +366,9 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         _dist = np.sqrt((_X - _ix) ** 2 + (_Y - _iy) ** 2)
         _bump = np.clip(1.0 - _dist / _fade_radius, 0, 1) ** 2
         _shallow = np.maximum(_shallow, _bump)
-    # Normalize first so wave bands are evenly distributed
+
     _zmin, _zmax = _Z.min(), _Z.max()
     _Z = (_Z - _zmin) / (_zmax - _zmin + 1e-9)
-
-    # Now push coastal values toward 0 (lightest band) — happens after normalize
-    # so it isn't rescaled away
     _Z -= _shallow * 0.45
     _Z = np.clip(_Z, 0, 1)
 
@@ -331,7 +379,6 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         zorder=0,
     )
 
-    # Sea grid — drawn first so land sits on top
     if sea_segs:
         ax.add_collection(LineCollection(
             sea_segs,
@@ -340,18 +387,16 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
             zorder=1,
         ))
 
-    # Roll view — small dot in each reachable sea hex
     if view == "roll" and reachable_centers:
         xs, ys = zip(*reachable_centers)
         ax.scatter(
             xs, ys,
-            s=18,                          # dot size in points² — tweak to taste
-            color=(1.0, 1.0, 1.0, 0.55),  # semi-transparent white
+            s=18,
+            color=(1.0, 1.0, 1.0, 0.55),
             linewidths=0,
             zorder=2,
         )
 
-    # Land hexes — single draw call via PatchCollection
     if land_patches:
         pc = PatchCollection(
             land_patches,
@@ -363,7 +408,6 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         )
         ax.add_collection(pc)
 
-    # Border edges — single draw call via LineCollection
     if border_segs:
         lc = LineCollection(
             border_segs,
@@ -374,7 +418,9 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         )
         ax.add_collection(lc)
 
-    # Labels
+    # Whirlpool effects — drawn above sea, below labels and player
+    _draw_whirlpools(ax, WHIRLPOOL_TILES, pq, pr, radius)
+
     for (lx, ly, text) in label_data:
         ax.text(
             lx, ly, text,
@@ -383,19 +429,11 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
             fontweight="bold", clip_on=True,
         )
 
-    # Player marker — ship icon if available, dot fallback otherwise
     icon = _get_ship_icon()
     if icon is not None:
-        # OffsetImage sizes in pixels, unaffected by axes data scaling —
-        # no stretch regardless of the hex grid's x/y unit ratio
         oi = OffsetImage(icon, zoom=SHIP_ICON_SIZE / max(icon.shape[:2]))
         oi.image.axes = ax
-        ab = AnnotationBbox(
-            oi, (px, py),
-            frameon=False,
-            pad=0,
-            zorder=5,
-        )
+        ab = AnnotationBbox(oi, (px, py), frameon=False, pad=0, zorder=5)
         ax.add_artist(ab)
     else:
         ax.plot(px, py, "o",
@@ -407,11 +445,9 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                 fontsize=7, color="black", fontweight="bold",
                 zorder=6)
 
-    # Viewport
     ax.set_xlim(px - margin, px + margin)
     ax.set_ylim(py - margin, py + margin)
 
-    # Log pose arrows — one per target, drawn at viewport edge pointing inward/outward
     _draw_log_pose_arrows(ax, px, py, margin, LOG_POSE_TARGETS)
 
     # ── Render to buffer and clean up ─────────────────────────────────────────
@@ -422,6 +458,6 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         facecolor=SEA_COLOR,
         pad_inches=0,
     )
-    plt.close(fig)   # free memory — critical in a long-running bot
+    plt.close(fig)
     buf.seek(0)
     return buf
