@@ -97,6 +97,34 @@ async def position(interaction: discord.Interaction):
 
 
 
+@bot.tree.command(name="teleport", description="Drop a player to a specific position (admin only)", guild=MY_GUILD)
+@discord.app_commands.describe(
+    target="The user to teleport",
+    q="Hex q coordinate",
+    r="Hex r coordinate",
+)
+async def teleport(interaction: discord.Interaction, target: discord.Member, q: int, r: int):
+    role_names = [role.name for role in interaction.user.roles]
+    if GAME_ADMIN not in role_names:
+        await interaction.response.send_message(
+            f"Only **{GAME_ADMIN}s** can teleport players.", ephemeral=True
+        )
+        return
+ 
+    uid = str(target.id)
+ 
+    if not db.get_player(uid):
+        await interaction.response.send_message(
+            f"**{target.display_name}** is not registered yet.", ephemeral=True
+        )
+        return
+ 
+    db.update_player_position(uid, q, r)
+    await interaction.response.send_message(
+        f"Teleported **{target.display_name}** to q={q}, r={r}."
+    )
+
+
 
 
 
