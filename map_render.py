@@ -297,21 +297,25 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         _Z += _a * np.sin(_X * 0.09 * _f + _Y * 0.055 * _f * 0.7)
         _Z += _a * np.cos(_X * 0.045 * _f * 0.8 - _Y * 0.07 * _f)
 
-    # Fade contours near island/redline hexes — simulates shallow water lightening
-    _mask = np.ones_like(_Z)
-    _fade_radius = SIZE * 4
-    for (_q, _r), _terrain in hex_lookup.items():
+    # Shallow water — subtract a bump near island/redline hexes to pull
+    # coastal Z values toward the minimum, which maps to the lightest color band
+    _fade_radius = SIZE * 2.5
+    _shallow = np.zeros_like(_Z)
+    for (_tq, _tr), _terrain in hex_lookup.items():
         if _terrain in ("sea", "calm_belt"):
             continue
-        if _hex_distance(_q, _r, pq, pr) > radius:
-            continue  # skip tiles outside viewport
-        _ix, _iy = _hex_to_pixel(_q, _r)
+        if _hex_distance(_tq, _tr, pq, pr) > radius:
+            continue
+        _ix, _iy = _hex_to_pixel(_tq, _tr)
         _dist = np.sqrt((_X - _ix) ** 2 + (_Y - _iy) ** 2)
-        _mask = np.minimum(_mask, _dist / _fade_radius)
-    _Z = _Z * np.clip(_mask, 0, 1)
+        _bump = np.clip(1.0 - _dist / _fade_radius, 0, 1) ** 2
+        _shallow = np.maximum(_shallow, _bump)
+    _zrange = _Z.max() - _Z.min()
+    _Z -= _shallow * _zrange * 0.85
+
     ax.contourf(
         _X, _Y, _Z,
-        levels=5,
+        levels=4,
         colors=["#75e1ff", "#6dd4f5", "#65c9eb", "#5cbde0", "#54b2d6"],
         zorder=0,
     )
