@@ -302,7 +302,22 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
             linewidths=0,
             zorder=2,
         )
+        
+    # paste into map_render.py, replace imshow block
+    x = np.linspace(px - margin, px + margin, 300)
+    y = np.linspace(py - margin, py + margin, 300)
+    X, Y = np.meshgrid(x, y)
+    Z = np.zeros_like(X)
+    for i in range(3):
+        f = 1.8 ** i
+        a = 1 / f
+        Z += a * np.sin(X * 0.018 * f + Y * 0.011 * f * 0.7)
+        Z += a * np.cos(X * 0.009 * f * 0.8 - Y * 0.014 * f)
+    levels = 4
+    colors = ["#75e1ff","#6dd4f5","#65c9eb","#5cbde0"]
+    ax.contourf(X, Y, Z, levels=levels, colors=colors, zorder=0)
 
+    
     # Land hexes — single draw call via PatchCollection
     if land_patches:
         pc = PatchCollection(
