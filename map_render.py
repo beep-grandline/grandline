@@ -279,6 +279,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                     border_segs.append([p1, p2])
 
     # ── Build figure ──────────────────────────────────────────────────────────
+    px, py = _hex_to_pixel(pq, pr)
     fig, ax = plt.subplots(figsize=(10, 10), facecolor=SEA_COLOR)
     ax.set_aspect("equal")
     ax.axis("off")
@@ -353,7 +354,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         )
 
     # Player marker — ship icon if available, dot fallback otherwise
-    px, py = _hex_to_pixel(pq, pr)
+
     icon = _get_ship_icon()
     if icon is not None:
         # OffsetImage sizes in pixels, unaffected by axes data scaling —
