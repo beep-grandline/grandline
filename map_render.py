@@ -232,7 +232,8 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     border_segs       = []
     sea_segs          = []
     label_data        = []
-    reachable_centers = []  # roll view — (cx, cy) of reachable sea hexes
+    reachable_centers = []
+    redline_polys     = []  # corner point lists for redline hexes (for rock grain clip)
 
     for q in range(pq - radius, pq + radius + 1):
         for r in range(pr - radius, pr + radius + 1):
@@ -258,6 +259,9 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                 continue
 
             color = TERRAIN_COLORS.get(terrain, TERRAIN_COLORS["island"])
+
+            if terrain == "redline":
+                redline_polys.append(corners)
 
             land_patches.append(
                 mpatches.RegularPolygon(
@@ -363,7 +367,61 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         )
         ax.add_collection(pc)
 
-    # Border edges — single draw call via LineCollection
+    # Rock grain texture on redline hexes — clipped to redline shape
+    if redline_polys:
+        from matplotlib.path import Path as MPath
+        from matplotlib.patches import PathPatch
+
+        # Build compound clip path from all redline hex polygons
+        paths = []
+        for poly in redline_polys:
+            verts = list(poly) + [poly[0]]
+            codes = [MPath.MOVETO] + [MPath.LINETO]*(len(poly)-1) + [MPath.CLOSEPOLY]
+            paths.append(MPath(verts, codes))
+        clip_path = MPath.make_compound_path(*paths)
+        clip_patch = PathPatch(clip_path, transform=ax.transData)
+
+        # Bounding box of all redline hexes
+        all_pts = [pt for poly in redline_polys for pt in poly]
+        rxs = [p[0] for p in all_pts]; rys = [p[1] for p in all_pts]
+        rx0, rx1 = min(rxs)-SIZE, max(rxs)+SIZE
+        ry0, ry1 = min(rys)-SIZE, max(rys)+SIZE
+
+        # Randomized phases seeded from bounding box so grain is
+        # consistent but different every time the redline moves
+        seed = int(abs(rx0*7 + ry0*13)) % 9999
+        rng  = np.random.default_rng(seed)
+        ph   = rng.uniform(0, 2*np.pi, 12)
+
+        _rx = np.linspace(rx0, rx1, 280)
+        _ry = np.linspace(ry0, ry1, 280)
+        _RX, _RY = np.meshgrid(_rx, _ry)
+        _RZ = np.zeros_like(_RX)
+
+        # High-frequency choppy layers — much tighter than the ocean
+        rock_freqs = [0.28, 0.52, 0.95, 1.7]
+        for _i, _freq in enumerate(rock_freqs):
+            _a = 1.0 / (_i + 1)
+            _RZ += _a * np.sin(_RX * _freq + _RY * _freq * 0.71 + ph[_i*3])
+            _RZ += _a * np.cos(_RX * _freq * 0.83 - _RY * _freq * 1.1 + ph[_i*3+1])
+            _RZ += _a * np.sin(_RX * _freq * 1.3  + _RY * _freq * 0.45 + ph[_i*3+2]) * 0.5
+
+        # Normalize
+        _rmin, _rmax = _RZ.min(), _RZ.max()
+        _RZ = (_RZ - _rmin) / (_rmax - _rmin + 1e-9)
+
+        # Dark grain veins — only the bottom 2 bands are visible (darker reds)
+        # upper bands are transparent so the base red shows through
+        rock_colors = ["#9e3d38", "#b04844", "#c7706b", "#c7706b", "#c7706b"]
+        cf = ax.contourf(
+            _RX, _RY, _RZ,
+            levels=4,
+            colors=rock_colors,
+            zorder=3,
+        )
+        for coll in cf.collections:
+            coll.set_clip_path(clip_patch)
+            coll.set_zorder(3)
     if border_segs:
         lc = LineCollection(
             border_segs,
