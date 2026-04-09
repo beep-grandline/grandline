@@ -140,7 +140,7 @@ def _draw_log_pose_arrows(ax, px, py, margin, targets):
     pointing toward that hex. Skipped if the target is inside the viewport.
     """
     ARROW_FILL   = (1.0, 1.0, 1.0, 0.75)   # translucent white fill
-    ARROW_EDGE   = (0.3, 0.3, 0.3, 0.9)    # dark outline
+    ARROW_EDGE   = (0.35, 0.35, 0.35, 0.9)  # lightened dark outline
     ARROW_INSET  = margin * 0.07            # tip inset from viewport edge
     ARROW_SIZE   = margin * 0.09            # overall scale of the arrow
 
@@ -283,6 +283,23 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     ax.set_aspect("equal")
     ax.axis("off")
 
+    # Ocean texture — layered sine contours give a subtle topographic depth feel
+    _ox = np.linspace(px - margin, px + margin, 300)
+    _oy = np.linspace(py - margin, py + margin, 300)
+    _X, _Y = np.meshgrid(_ox, _oy)
+    _Z = np.zeros_like(_X)
+    for _i in range(3):
+        _f = 1.8 ** _i
+        _a = 1.0 / _f
+        _Z += _a * np.sin(_X * 0.018 * _f + _Y * 0.011 * _f * 0.7)
+        _Z += _a * np.cos(_X * 0.009 * _f * 0.8 - _Y * 0.014 * _f)
+    ax.contourf(
+        _X, _Y, _Z,
+        levels=4,
+        colors=["#75e1ff", "#6dd4f5", "#65c9eb", "#5cbde0"],
+        zorder=0,
+    )
+
     # Sea grid — drawn first so land sits on top
     if sea_segs:
         ax.add_collection(LineCollection(
@@ -302,22 +319,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
             linewidths=0,
             zorder=2,
         )
-        
-    # paste into map_render.py, replace imshow block
-    x = np.linspace(px - margin, px + margin, 300)
-    y = np.linspace(py - margin, py + margin, 300)
-    X, Y = np.meshgrid(x, y)
-    Z = np.zeros_like(X)
-    for i in range(3):
-        f = 1.8 ** i
-        a = 1 / f
-        Z += a * np.sin(X * 0.018 * f + Y * 0.011 * f * 0.7)
-        Z += a * np.cos(X * 0.009 * f * 0.8 - Y * 0.014 * f)
-    levels = 4
-    colors = ["#75e1ff","#6dd4f5","#65c9eb","#5cbde0"]
-    ax.contourf(X, Y, Z, levels=levels, colors=colors, zorder=0)
 
-    
     # Land hexes — single draw call via PatchCollection
     if land_patches:
         pc = PatchCollection(
