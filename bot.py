@@ -298,8 +298,9 @@ async def join_cmd(interaction: discord.Interaction, crew: str):
         )
         return
  
-    captain = interaction.guild.get_member(int(captain_id))
-    if not captain:
+    try:
+        captain = await interaction.guild.fetch_member(int(captain_id))
+    except discord.NotFound:
         await interaction.followup.send("Could not find the captain in this server.")
         return
  
