@@ -48,6 +48,16 @@ def init_db():
     """)
     db.commit()
 
+    # ── Migrations — safe to run every startup, silently ignored if already applied
+    for sql in [
+        "ALTER TABLE crews ADD COLUMN captain_id TEXT",
+    ]:
+        try:
+            db.execute(sql)
+            db.commit()
+        except Exception:
+            pass  # column already exists
+
 # ── Utility ───────────────────────────────────────────────────────────────────
 
 def row_to_dict(row):
