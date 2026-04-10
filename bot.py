@@ -109,7 +109,6 @@ async def teleport(interaction: discord.Interaction, target: discord.Member, q: 
         f"Teleported **{target.display_name}** to q={q}, r={r}."
     )
 
-# Creates a new crew, role, and moves the role to the top of the list so it auto colors
 @bot.tree.command(name="crew", description="Create a new crew", guild=MY_GUILD)
 @discord.app_commands.describe(
     name="Name of the crew",
@@ -129,6 +128,7 @@ async def crew(interaction: discord.Interaction, name: str, captain: discord.Mem
         await interaction.followup.send("Invalid color — use a 6 digit hex like `ff0000`.", ephemeral=True)
         return
 
+    # Case-insensitive crew name check (db is the reference for proper casing)
     if db.get_crew_by_name(name):
         await interaction.followup.send(f"A crew named **{name}** already exists.", ephemeral=True)
         return
@@ -141,53 +141,58 @@ async def crew(interaction: discord.Interaction, name: str, captain: discord.Mem
         await interaction.followup.send(f"A role named **{name}** already exists.", ephemeral=True)
         return
 
+    # Check captain isn't already in a crew
+    captain_player = db.get_player(str(captain.id))
+    if captain_player and captain_player["crew_id"]:
+        existing_crew = db.get_crew(captain_player["crew_id"])
+        existing_name = existing_crew["name"] if existing_crew else "a crew"
+        await interaction.followup.send(
+            f"**{captain.display_name}** is already in **{existing_name}** and can't be set as captain.",
+            ephemeral=True
+        )
+        return
+
     role = await interaction.guild.create_role(
         name=name,
         color=discord.Color(color_int),
         mentionable=True
     )
-
     bot_top = interaction.guild.me.top_role
     await interaction.guild.edit_role_positions({role: bot_top.position})
 
     db.upsert_crew(str(role.id), name, captain_id=str(captain.id))
+    db.set_player_crew(str(captain.id), str(role.id))
 
-    # Give the captain the crew role automatically
     await captain.add_roles(role)
-
     await interaction.followup.send(
-        f"Crew **{name}** created with color `#{color}`! "
-        f"Captain: {captain.mention}"
+        f"Crew **{name}** created with color `#{color}`! Captain: {captain.mention}"
     )
 
-# Destroy crew
+
 @bot.tree.command(name="disband", description="Disband a crew", guild=MY_GUILD)
 @discord.app_commands.describe(name="Name of the crew to disband")
 async def disband(interaction: discord.Interaction, name: str):
     await interaction.response.defer()
 
-    # check permissions
     role_names = [r.name for r in interaction.user.roles]
     if GAME_ADMIN not in role_names:
         await interaction.followup.send(f"Only **{GAME_ADMIN}s** can disband crews.", ephemeral=True)
         return
 
-    # find the crew
+    # get_crew_by_name uses LOWER() — case-insensitive match
+    # crew["name"] is used for display so proper casing always comes from db
     crew = db.get_crew_by_name(name)
     if not crew:
         await interaction.followup.send(f"No crew named **{name}** found.", ephemeral=True)
         return
 
-    # delete the Discord role
     role = interaction.guild.get_role(int(crew["id"]))
     if role:
         await role.delete()
 
-    # delete from db (also clears crew_id from all members)
     db.delete_crew(crew["id"])
-    crewname = crew["name"]
 
-    await interaction.followup.send(f"Crew **{crewname}** has been disbanded.")
+    await interaction.followup.send(f"Crew **{crew['name']}** has been disbanded.")
 
 
 
