@@ -147,7 +147,7 @@ async def crew(interaction: discord.Interaction, name: str, captain: discord.Mem
         existing_crew = db.get_crew(captain_player["crew_id"])
         existing_name = existing_crew["name"] if existing_crew else "a crew"
         await interaction.followup.send(
-            f"**{captain.display_name}** is already in **{existing_name}** and can't be set as captain.",
+            f"**{captain.display_name}** is the captain of **{existing_name}**.",
             ephemeral=True
         )
         return
