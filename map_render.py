@@ -371,6 +371,9 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
             lx = sum(p[0] for p in pts) / len(pts)
             ly = sum(p[1] for p in pts) / len(pts)
         island_label_data.append((lx, ly, name))
+
+    # ── Build figure ──────────────────────────────────────────────────────────
+    px, py  = _hex_to_pixel(pq, pr)
     margin  = SIZE * radius * 1.1
 
     fig, ax = plt.subplots(figsize=(10, 10), facecolor=SEA_COLOR)
