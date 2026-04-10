@@ -326,9 +326,32 @@ async def join_cmd(interaction: discord.Interaction, crew: str):
  
  
 # ── /leave ────────────────────────────────────────────────────────────────────
+
+async def leave_confirm_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[discord.app_commands.Choice[str]]:
+    player = db.get_player(str(interaction.user.id))
+    if not player or not player["crew_id"]:
+        return [discord.app_commands.Choice(name="You are not in a crew.", value="no")]
+    crew = db.get_crew(player["crew_id"])
+    name = crew["name"] if crew else "your crew"
+    return [
+        discord.app_commands.Choice(
+            name=f"⚠ This will remove you from {name} — select to confirm",
+            value="yes",
+        )
+    ]
+ 
  
 @bot.tree.command(name="leave", description="Leave your current crew", guild=MY_GUILD)
-async def leave_cmd(interaction: discord.Interaction):
+@discord.app_commands.describe(confirm="Confirm you want to leave")
+@discord.app_commands.autocomplete(confirm=leave_confirm_autocomplete)
+async def leave_cmd(interaction: discord.Interaction, confirm: str):
+    if confirm != "yes":
+        await interaction.response.send_message("Cancelled.", ephemeral=True)
+        return
+ 
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
  
@@ -352,6 +375,7 @@ async def leave_cmd(interaction: discord.Interaction):
     await interaction.response.send_message(
         f"{interaction.user.mention} has left **{crew_name}**."
     )
+ 
 
 # ── /remove ───────────────────────────────────────────────────────────────────
  
