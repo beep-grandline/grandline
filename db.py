@@ -125,6 +125,10 @@ def upsert_player(player_id, name):
     )
     db.commit()
 
+def delete_player(player_id):
+    db.execute("DELETE FROM players WHERE id=?", (player_id,))
+    db.commit()
+
 def update_player_position(player_id, q, r):
     db.execute(
         "UPDATE players SET q=?, r=? WHERE id=?", (q, r, player_id)
