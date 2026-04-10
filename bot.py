@@ -352,7 +352,29 @@ async def leave_cmd(interaction: discord.Interaction):
         f"{interaction.user.mention} has left **{crew_name}**."
     )
 
-
+# ── /remove ───────────────────────────────────────────────────────────────────
+ 
+@bot.tree.command(name="remove", description="Remove a player from the player list", guild=MY_GUILD)
+@discord.app_commands.describe(target="The player to remove")
+async def remove_cmd(interaction: discord.Interaction, target: discord.Member):
+    role_names = [r.name for r in interaction.user.roles]
+    if GAME_ADMIN not in role_names:
+        await interaction.response.send_message(
+            f"Only **{GAME_ADMIN}s** can remove players.", ephemeral=True
+        )
+        return
+ 
+    uid = str(target.id)
+    if not db.get_player(uid):
+        await interaction.response.send_message(
+            f"**{target.display_name}** is not registered.", ephemeral=True
+        )
+        return
+ 
+    db.delete_player(uid)
+    await interaction.response.send_message(
+        f"**{target.display_name}** has been removed from the player list."
+    )
 
 
 
