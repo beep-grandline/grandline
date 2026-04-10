@@ -396,14 +396,20 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     # ── Wind-boosted hexes for roll view ─────────────────────────────────────
     if view == "roll":
         wdq, wdr = get_wind(pq, pr)
+        # base reachable set as axial coords for fast lookup
+        base_set = {(q, r)
+                    for q in range(pq - MOVE_RANGE, pq + MOVE_RANGE + 1)
+                    for r in range(pr - MOVE_RANGE, pr + MOVE_RANGE + 1)
+                    if _hex_distance(q, r, pq, pr) <= MOVE_RANGE}
+        seen = set()
         for step in (1, 2):
-            for q, r in [(pq + wdq*step + dq, pr + wdr*step + dr)
-                         for dq in range(-MOVE_RANGE, MOVE_RANGE+1)
-                         for dr in range(-MOVE_RANGE, MOVE_RANGE+1)
-                         if _hex_distance(dq, dr, 0, 0) <= MOVE_RANGE]:
-                if (hex_lookup.get((q, r), "sea") == "sea"
-                        and _hex_distance(q, r, pq, pr) <= radius):
-                    wind_centers.append(_hex_to_pixel(q, r))
+            for (bq, br) in base_set:
+                wq, wr = bq + wdq * step, br + wdr * step
+                if (wq, wr) in seen or (wq, wr) in base_set:
+                    continue
+                if hex_lookup.get((wq, wr), "sea") == "sea":
+                    seen.add((wq, wr))
+                    wind_centers.append(_hex_to_pixel(wq, wr))
 
     # ── Resolve island name label positions ──────────────────────────────────
     # Use the stored origin if set, otherwise use centroid of visible hexes
