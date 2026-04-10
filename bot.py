@@ -199,179 +199,157 @@ async def disband(interaction: discord.Interaction, name: str):
 
 
 
-import asyncio
 
-# ── Join request view ─────────────────────────────────────────────────────────
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class JoinRequestView(discord.ui.View):
     def __init__(self, applicant: discord.Member, crew_id: str, crew_name: str):
-        super().__init__(timeout=300)  # 5 min to respond
-        self.applicant  = applicant
-        self.crew_id    = crew_id
-        self.crew_name  = crew_name
-
+        super().__init__(timeout=300)
+        self.applicant = applicant
+        self.crew_id   = crew_id
+        self.crew_name = crew_name
+ 
     async def _resolve(self, interaction: discord.Interaction, accepted: bool):
-        # Only the captain (whoever the message was sent to) can respond
         crew = db.get_crew(self.crew_id)
         if not crew or str(interaction.user.id) != crew["captain_id"]:
             await interaction.response.send_message(
                 "Only the captain can respond to this.", ephemeral=True
             )
             return
-
+ 
         self.stop()
         for child in self.children:
             child.disabled = True
-
+ 
         if accepted:
             db.set_player_crew(str(self.applicant.id), self.crew_id)
-            # Give the applicant the crew Discord role
             role = interaction.guild.get_role(int(self.crew_id))
             if role:
                 await self.applicant.add_roles(role)
             await interaction.response.edit_message(
-                content=f"✓ **{self.applicant.display_name}** has joined **{self.crew_name}**!",
+                content=f"✓ {self.applicant.mention} has joined **{self.crew_name}**!",
                 view=self,
+                embed=None,
             )
-            # Notify the applicant
-            try:
-                await self.applicant.send(
-                    f"Your request to join **{self.crew_name}** was accepted!"
-                )
-            except discord.Forbidden:
-                pass
         else:
             await interaction.response.edit_message(
-                content=f"✗ **{self.applicant.display_name}**'s request to join "
-                        f"**{self.crew_name}** was denied.",
+                content=f"✗ {self.applicant.mention}'s request to join **{self.crew_name}** was denied.",
                 view=self,
+                embed=None,
             )
-            try:
-                await self.applicant.send(
-                    f"Your request to join **{self.crew_name}** was denied."
-                )
-            except discord.Forbidden:
-                pass
-
+ 
     @discord.ui.button(label="Accept", style=discord.ButtonStyle.success, custom_id="join_accept")
     async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self._resolve(interaction, accepted=True)
-
+ 
     @discord.ui.button(label="Deny", style=discord.ButtonStyle.danger, custom_id="join_deny")
     async def deny(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self._resolve(interaction, accepted=False)
-
-
+ 
+ 
 # ── /join ─────────────────────────────────────────────────────────────────────
-
+ 
 @bot.tree.command(name="join", description="Request to join a crew", guild=MY_GUILD)
 @discord.app_commands.describe(crew="Name of the crew you want to join")
 async def join_cmd(interaction: discord.Interaction, crew: str):
-    await interaction.response.defer(ephemeral=True)
+    await interaction.response.defer()
     uid = str(interaction.user.id)
-
-    # Must be registered
+ 
     if not db.get_player(uid):
-        await interaction.followup.send(
-            "You need to register first with `/register`.", ephemeral=True
-        )
+        await interaction.followup.send("You need to register first with `/register`.")
         return
-
-    # Check already in a crew
+ 
     player = db.get_player(uid)
     if player["crew_id"]:
         current = db.get_crew(player["crew_id"])
         name = current["name"] if current else "a crew"
-        await interaction.followup.send(
-            f"You are already in **{name}**. Use `/leave` first.", ephemeral=True
-        )
+        await interaction.followup.send(f"You are already in **{name}**. Use `/leave` first.")
         return
-
-    # Find the crew
+ 
     crew_row = db.get_crew_by_name(crew)
     if not crew_row:
-        await interaction.followup.send(
-            f"No crew named **{crew}** found.", ephemeral=True
-        )
+        await interaction.followup.send(f"No crew named **{crew}** found.")
         return
-
-    crew_id   = crew_row["id"]
-    crew_name = crew_row["name"]
+ 
+    crew_id    = crew_row["id"]
+    crew_name  = crew_row["name"]
     captain_id = crew_row["captain_id"]
-
+ 
     if not captain_id:
         await interaction.followup.send(
-            f"**{crew_name}** has no captain set — ask an admin to fix this.",
-            ephemeral=True,
+            f"**{crew_name}** has no captain set — ask an admin to fix this."
         )
         return
-
-    # Ping the captain with accept/deny buttons
+ 
     captain = interaction.guild.get_member(int(captain_id))
     if not captain:
-        await interaction.followup.send(
-            "Could not find the captain in this server.", ephemeral=True
-        )
+        await interaction.followup.send("Could not find the captain in this server.")
         return
-
+ 
     view = JoinRequestView(
         applicant=interaction.user,
         crew_id=crew_id,
         crew_name=crew_name,
     )
-
+ 
     embed = discord.Embed(
         title="Crew Join Request",
-        description=f"**{interaction.user.display_name}** wants to join **{crew_name}**.",
+        description=f"{interaction.user.mention} wants to join **{crew_name}**.",
         color=0x1a3f6b,
     )
     embed.set_thumbnail(url=interaction.user.display_avatar.url)
-
-    try:
-        await captain.send(embed=embed, view=view)
-    except discord.Forbidden:
-        await interaction.followup.send(
-            "Could not DM the captain — they may have DMs disabled.", ephemeral=True
-        )
-        return
-
+ 
+    # Posted in the channel where the command was used, pings the captain
     await interaction.followup.send(
-        f"Your request to join **{crew_name}** has been sent to the captain!",
-        ephemeral=True,
+        content=f"{captain.mention} — new join request!",
+        embed=embed,
+        view=view,
     )
-
-
+ 
+ 
 # ── /leave ────────────────────────────────────────────────────────────────────
-
+ 
 @bot.tree.command(name="leave", description="Leave your current crew", guild=MY_GUILD)
 async def leave_cmd(interaction: discord.Interaction):
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
-
+ 
     if not player:
-        await interaction.response.send_message(
-            "You are not registered yet.", ephemeral=True
-        )
+        await interaction.response.send_message("You are not registered yet.")
         return
-
+ 
     if not player["crew_id"]:
-        await interaction.response.send_message(
-            "You are not in a crew.", ephemeral=True
-        )
+        await interaction.response.send_message("You are not in a crew.")
         return
-
+ 
     crew = db.get_crew(player["crew_id"])
     crew_name = crew["name"] if crew else "your crew"
-
-    # Remove crew role
+ 
     role = interaction.guild.get_role(int(player["crew_id"]))
     if role and role in interaction.user.roles:
         await interaction.user.remove_roles(role)
-
+ 
     db.set_player_crew(uid, None)
-
+ 
     await interaction.response.send_message(
-        f"You have left **{crew_name}**.", ephemeral=True
+        f"{interaction.user.mention} has left **{crew_name}**."
     )
 
 
