@@ -59,6 +59,8 @@ def _get_ship_icon():
     return _SHIP_ICON
 
 # Edge index pairs for each axial neighbour direction (flat-top orientation)
+HEX_DIRS = [(1,0),(-1,0),(0,1),(0,-1),(1,-1),(-1,1)]
+
 NEIGHBOR_TO_EDGE = {
     ( 1,  0): (0, 1),
     ( 0,  1): (1, 2),
