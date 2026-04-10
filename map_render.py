@@ -462,22 +462,11 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     # Whirlpool effects — drawn above sea, below labels and player
     _draw_whirlpools(ax, WHIRLPOOL_TILES, pq, pr, radius)
 
-    # Island name labels — one pill per island, at origin or centroid
-    from matplotlib.patches import FancyBboxPatch
+    # Island name labels — one per island, at origin or centroid
     for (lx, ly, text) in island_label_data:
-        tw = len(text) * 5.5
-        pad_x, pad_y, rd = 5, 3, 3
-        ax.add_patch(FancyBboxPatch(
-            (lx - tw/2 - pad_x, ly - 6 - pad_y),
-            tw + pad_x*2, 11 + pad_y*2,
-            boxstyle=f"round,pad=0,rounding_size={rd}",
-            facecolor=(0.06, 0.09, 0.18, 0.72),
-            edgecolor="none",
-            zorder=6,
-        ))
-        ax.text(lx, ly - 1, text,
+        ax.text(lx, ly, text,
                 ha="center", va="center",
-                fontsize=7, color="#ffffff",
+                fontsize=8, color="#1a2a3a",
                 fontweight="bold", clip_on=True, zorder=7)
 
     # Per-hex labels (hex_label field — e.g. "Royal Palace")
