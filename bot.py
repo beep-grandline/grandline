@@ -327,10 +327,12 @@ async def join_cmd(interaction: discord.Interaction, crew: str):
  
 # ── /leave ────────────────────────────────────────────────────────────────────
 
+# ── /leave ────────────────────────────────────────────────────────────────────
+ 
 async def leave_confirm_autocomplete(
     interaction: discord.Interaction,
     current: str,
-) -> list[discord.app_commands.Choice[str]]:
+):
     player = db.get_player(str(interaction.user.id))
     if not player or not player["crew_id"]:
         return [discord.app_commands.Choice(name="You are not in a crew.", value="no")]
