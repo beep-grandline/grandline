@@ -113,13 +113,13 @@ async def teleport(interaction: discord.Interaction, target: discord.Member, q: 
 @bot.tree.command(name="crew", description="Create a new crew", guild=MY_GUILD)
 @discord.app_commands.describe(
     name="Name of the crew",
+    captain="The crew's captain",
     color="Hex color code (e.g. ff0000 for red)"
 )
-async def crew(interaction: discord.Interaction, name: str, color: str):
+async def crew(interaction: discord.Interaction, name: str, captain: discord.Member, color: str):
     await interaction.response.defer()
 
     color = color.strip().lstrip("#")
-
     if len(color) != 6:
         await interaction.followup.send("Invalid color — use a 6 digit hex like `ff0000`.", ephemeral=True)
         return
@@ -148,12 +148,17 @@ async def crew(interaction: discord.Interaction, name: str, color: str):
     )
 
     bot_top = interaction.guild.me.top_role
-    positions = {role: bot_top.position}
-    await interaction.guild.edit_role_positions(positions)
+    await interaction.guild.edit_role_positions({role: bot_top.position})
 
-    db.upsert_crew(str(role.id), name)
+    db.upsert_crew(str(role.id), name, captain_id=str(captain.id))
 
-    await interaction.followup.send(f"Crew **{name}** created with color `#{color}`!")
+    # Give the captain the crew role automatically
+    await captain.add_roles(role)
+
+    await interaction.followup.send(
+        f"Crew **{name}** created with color `#{color}`! "
+        f"Captain: {captain.mention}"
+    )
 
 # Destroy crew
 @bot.tree.command(name="disband", description="Disband a crew", guild=MY_GUILD)
