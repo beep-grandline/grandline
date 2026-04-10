@@ -38,11 +38,12 @@ def init_db():
         );
 
         CREATE TABLE IF NOT EXISTS crews (
-            id     TEXT PRIMARY KEY,
-            name   TEXT,
-            home_q INTEGER,
-            home_r INTEGER,
-            bounty INTEGER DEFAULT 0
+            id          TEXT PRIMARY KEY,
+            name        TEXT,
+            captain_id  TEXT,
+            home_q      INTEGER,
+            home_r      INTEGER,
+            bounty      INTEGER DEFAULT 0
         );
     """)
     db.commit()
@@ -174,12 +175,26 @@ def get_crew_by_name(name):
         "SELECT * FROM crews WHERE LOWER(name)=LOWER(?)", (name,)
     ).fetchone()
 
-def upsert_crew(crew_id, name):
+def upsert_crew(crew_id, name, captain_id=None):
     db.execute("""
-        INSERT INTO crews (id, name)
-        VALUES (?, ?)
-        ON CONFLICT(id) DO UPDATE SET name=excluded.name
-    """, (crew_id, name))
+        INSERT INTO crews (id, name, captain_id)
+        VALUES (?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            name=excluded.name,
+            captain_id=COALESCE(excluded.captain_id, captain_id)
+    """, (crew_id, name, captain_id))
     db.commit()
+
+def set_player_crew(player_id, crew_id):
+    """Set or clear a player's crew. Pass None to remove from crew."""
+    db.execute(
+        "UPDATE players SET crew_id=? WHERE id=?", (crew_id, player_id)
+    )
+    db.commit()
+
+def get_crew_members(crew_id):
+    return db.execute(
+        "SELECT * FROM players WHERE crew_id=?", (crew_id,)
+    ).fetchall()
 
 init_db()  # runs on import, creates tables if they don't exist
