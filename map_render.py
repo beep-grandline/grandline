@@ -151,7 +151,38 @@ def _hex_corners(q, r):
 
 
 def _hex_distance(q1, r1, q2, r2):
-    return max(abs(q1 - q2), abs(r1 - r2), abs((q1 + r1) - (q2 + r2)))
+    return max(abs(q1-q2), abs(r1-r2), abs((q1+r1)-(q2+r2)))
+
+
+# ── Wind field ────────────────────────────────────────────────────────────────
+# Smooth noise angle field using layered sines, snapped to nearest hex direction.
+# Scale=1 gives large slow-turning wind regions across the map.
+
+_WIND_SCALE  = 1
+_WIND_PHASES = [1.3, 0.7, 2.1, 0.5, 2.4, 1.1]
+_WIND_FREQS  = [1.0, 1.8, 3.2]
+_WIND_DIR_ANGLES = [0, math.pi, math.pi*2/3, math.pi*5/3, math.pi/3, math.pi*4/3]
+
+def _get_wind_angle(q, r):
+    """Returns a continuous angle for the wind at (q, r)."""
+    s = _WIND_SCALE * 0.12
+    a = 0.0
+    for i, f in enumerate(_WIND_FREQS):
+        w = 1.0 / f
+        a += w * math.sin(q * s * f + r * s * f * 0.71 + _WIND_PHASES[i*2])
+        a += w * math.cos(q * s * f * 0.83 - r * s * f * 1.1 + _WIND_PHASES[i*2+1])
+    return a * math.pi
+
+def get_wind(q, r):
+    """Returns the wind as (dq, dr) snapped to the nearest of 6 hex directions."""
+    angle = _get_wind_angle(q, r)
+    best_idx, best_dot = 0, -math.inf
+    for i, da in enumerate(_WIND_DIR_ANGLES):
+        d = math.cos(angle - da)
+        if d > best_dot:
+            best_dot = d
+            best_idx = i
+    return HEX_DIRS[best_idx]
 
 
 # ── Whirlpool helper ──────────────────────────────────────────────────────────
@@ -309,9 +340,9 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     land_colors       = []
     border_segs       = []
     sea_segs          = []
-    hex_label_data    = []   # per-hex labels (hex_label field)
+    hex_label_data    = []
     reachable_centers = []
-    # accumulator for island name labels: name -> [list of (cx, cy)]
+    wind_centers      = []   # roll view — wind-boosted hexes (reddish dots)
     island_accum      = {}
 
     for q in range(pq - radius, pq + radius + 1):
@@ -359,6 +390,18 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                 if hex_lookup.get((nq, nr), "sea") == "sea":
                     p1, p2 = corners[i1], corners[i2]
                     border_segs.append([p1, p2])
+
+    # ── Wind-boosted hexes for roll view ─────────────────────────────────────
+    if view == "roll":
+        wdq, wdr = get_wind(pq, pr)
+        for step in (1, 2):
+            for q, r in [(pq + wdq*step + dq, pr + wdr*step + dr)
+                         for dq in range(-MOVE_RANGE, MOVE_RANGE+1)
+                         for dr in range(-MOVE_RANGE, MOVE_RANGE+1)
+                         if _hex_distance(dq, dr, 0, 0) <= MOVE_RANGE]:
+                if (hex_lookup.get((q, r), "sea") == "sea"
+                        and _hex_distance(q, r, pq, pr) <= radius):
+                    wind_centers.append(_hex_to_pixel(q, r))
 
     # ── Resolve island name label positions ──────────────────────────────────
     # Use the stored origin if set, otherwise use centroid of visible hexes
@@ -430,13 +473,13 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
 
     if view == "roll" and reachable_centers:
         xs, ys = zip(*reachable_centers)
-        ax.scatter(
-            xs, ys,
-            s=18,
-            color=(1.0, 1.0, 1.0, 0.55),
-            linewidths=0,
-            zorder=2,
-        )
+        ax.scatter(xs, ys, s=18, color=(1.0, 1.0, 1.0, 0.55),
+                   linewidths=0, zorder=2)
+
+    if view == "roll" and wind_centers:
+        wxs, wys = zip(*wind_centers)
+        ax.scatter(wxs, wys, s=18, color=(0.85, 0.25, 0.20, 0.50),
+                   linewidths=0, zorder=2)
 
     if land_patches:
         pc = PatchCollection(
