@@ -33,7 +33,7 @@ async def on_ready():
     print(f"Synced {len(synced)} commands: {[c.name for c in synced]}")
     print(f"Logged in as {bot.user}")
 
-# Listcommands
+# HELP LIST, NEED TO UPDATE
 @bot.tree.command(name="help", description="Show available commands", guild=MY_GUILD)
 async def help_cmd(interaction: discord.Interaction):
     embed = discord.Embed(title="LARP Piece Commands", color=0x1a3f6b)
@@ -43,20 +43,17 @@ async def help_cmd(interaction: discord.Interaction):
     embed.add_field(name="/help", value="Show this message", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# Base map img generator, to expand once we get a better sense of rendering
-# @bot.tree.command(name="map", description="Post the current map", guild=MY_GUILD)
-# async def map_cmd(interaction: discord.Interaction):
-#     if not os.path.exists("snapshot.png"):
-#         await interaction.response.send_message(
-#             "No snapshot yet.", ephemeral=True
-#         )
-#         return
-#     await interaction.response.defer(ephemeral=True)
-#     file = discord.File("snapshot.png", filename="map.png")
-#     embed = discord.Embed(title="Grand Line: Paradise", color=0x1a3f6b)
-#     embed.set_image(url="attachment://map.png")
-#     await interaction.followup.send(file=file, embed=embed)
 
+
+
+
+
+
+
+
+
+
+# PLAYER 
 @bot.tree.command(name="register", description="Register your character", guild=MY_GUILD)
 @discord.app_commands.describe(job="Your role (pirate, marine, etc)")
 async def register(interaction: discord.Interaction, job: str):
@@ -67,19 +64,7 @@ async def register(interaction: discord.Interaction, job: str):
         f"Welcome to the Grand Line, {name}!", ephemeral=True
     )
 
-# @bot.tree.command(name="sail", description="Register your character", guild=MY_GUILD)
-# @discord.app_commands.describe(job="Register your character")
-# async def sail(interaction: discord.Interaction, job: str):
-#     uid = str(interaction.user.id)
-#     name = interaction.user.name
-
-#     db.
-    
-#     if result["ok"]:
-#         await interaction.response.send_message(result["message"])
-#     else:
-#         await interaction.response.send_message(result["error"], ephemeral=True)
-
+# MAP 
 @bot.tree.command(name="position", description="Check your current position", guild=MY_GUILD)
 async def position(interaction: discord.Interaction):
     uid = str(interaction.user.id)
@@ -96,7 +81,7 @@ async def position(interaction: discord.Interaction):
 
 
 
-
+# Teleport, for admin use
 @bot.tree.command(name="teleport", description="Drop a player to a specific position (admin only)", guild=MY_GUILD)
 @discord.app_commands.describe(
     target="The user to teleport",
@@ -124,11 +109,7 @@ async def teleport(interaction: discord.Interaction, target: discord.Member, q: 
         f"Teleported **{target.display_name}** to q={q}, r={r}."
     )
 
-
-
-
-
-
+# Creates a new crew, role, and moves the role to the top of the list so it auto colors
 @bot.tree.command(name="crew", description="Create a new crew", guild=MY_GUILD)
 @discord.app_commands.describe(
     name="Name of the crew",
@@ -174,7 +155,7 @@ async def crew(interaction: discord.Interaction, name: str, color: str):
 
     await interaction.followup.send(f"Crew **{name}** created with color `#{color}`!")
 
-
+# Destroy crew
 @bot.tree.command(name="disband", description="Disband a crew", guild=MY_GUILD)
 @discord.app_commands.describe(name="Name of the crew to disband")
 async def disband(interaction: discord.Interaction, name: str):
@@ -205,6 +186,194 @@ async def disband(interaction: discord.Interaction, name: str):
 
 
 
+
+
+
+import asyncio
+
+# ── Join request view ─────────────────────────────────────────────────────────
+
+class JoinRequestView(discord.ui.View):
+    def __init__(self, applicant: discord.Member, crew_id: str, crew_name: str):
+        super().__init__(timeout=300)  # 5 min to respond
+        self.applicant  = applicant
+        self.crew_id    = crew_id
+        self.crew_name  = crew_name
+
+    async def _resolve(self, interaction: discord.Interaction, accepted: bool):
+        # Only the captain (whoever the message was sent to) can respond
+        crew = db.get_crew(self.crew_id)
+        if not crew or str(interaction.user.id) != crew["captain_id"]:
+            await interaction.response.send_message(
+                "Only the captain can respond to this.", ephemeral=True
+            )
+            return
+
+        self.stop()
+        for child in self.children:
+            child.disabled = True
+
+        if accepted:
+            db.set_player_crew(str(self.applicant.id), self.crew_id)
+            # Give the applicant the crew Discord role
+            role = interaction.guild.get_role(int(self.crew_id))
+            if role:
+                await self.applicant.add_roles(role)
+            await interaction.response.edit_message(
+                content=f"✓ **{self.applicant.display_name}** has joined **{self.crew_name}**!",
+                view=self,
+            )
+            # Notify the applicant
+            try:
+                await self.applicant.send(
+                    f"Your request to join **{self.crew_name}** was accepted!"
+                )
+            except discord.Forbidden:
+                pass
+        else:
+            await interaction.response.edit_message(
+                content=f"✗ **{self.applicant.display_name}**'s request to join "
+                        f"**{self.crew_name}** was denied.",
+                view=self,
+            )
+            try:
+                await self.applicant.send(
+                    f"Your request to join **{self.crew_name}** was denied."
+                )
+            except discord.Forbidden:
+                pass
+
+    @discord.ui.button(label="Accept", style=discord.ButtonStyle.success, custom_id="join_accept")
+    async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._resolve(interaction, accepted=True)
+
+    @discord.ui.button(label="Deny", style=discord.ButtonStyle.danger, custom_id="join_deny")
+    async def deny(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._resolve(interaction, accepted=False)
+
+
+# ── /join ─────────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="join", description="Request to join a crew", guild=MY_GUILD)
+@discord.app_commands.describe(crew="Name of the crew you want to join")
+async def join_cmd(interaction: discord.Interaction, crew: str):
+    await interaction.response.defer(ephemeral=True)
+    uid = str(interaction.user.id)
+
+    # Must be registered
+    if not db.get_player(uid):
+        await interaction.followup.send(
+            "You need to register first with `/register`.", ephemeral=True
+        )
+        return
+
+    # Check already in a crew
+    player = db.get_player(uid)
+    if player["crew_id"]:
+        current = db.get_crew(player["crew_id"])
+        name = current["name"] if current else "a crew"
+        await interaction.followup.send(
+            f"You are already in **{name}**. Use `/leave` first.", ephemeral=True
+        )
+        return
+
+    # Find the crew
+    crew_row = db.get_crew_by_name(crew)
+    if not crew_row:
+        await interaction.followup.send(
+            f"No crew named **{crew}** found.", ephemeral=True
+        )
+        return
+
+    crew_id   = crew_row["id"]
+    crew_name = crew_row["name"]
+    captain_id = crew_row["captain_id"]
+
+    if not captain_id:
+        await interaction.followup.send(
+            f"**{crew_name}** has no captain set — ask an admin to fix this.",
+            ephemeral=True,
+        )
+        return
+
+    # Ping the captain with accept/deny buttons
+    captain = interaction.guild.get_member(int(captain_id))
+    if not captain:
+        await interaction.followup.send(
+            "Could not find the captain in this server.", ephemeral=True
+        )
+        return
+
+    view = JoinRequestView(
+        applicant=interaction.user,
+        crew_id=crew_id,
+        crew_name=crew_name,
+    )
+
+    embed = discord.Embed(
+        title="Crew Join Request",
+        description=f"**{interaction.user.display_name}** wants to join **{crew_name}**.",
+        color=0x1a3f6b,
+    )
+    embed.set_thumbnail(url=interaction.user.display_avatar.url)
+
+    try:
+        await captain.send(embed=embed, view=view)
+    except discord.Forbidden:
+        await interaction.followup.send(
+            "Could not DM the captain — they may have DMs disabled.", ephemeral=True
+        )
+        return
+
+    await interaction.followup.send(
+        f"Your request to join **{crew_name}** has been sent to the captain!",
+        ephemeral=True,
+    )
+
+
+# ── /leave ────────────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="leave", description="Leave your current crew", guild=MY_GUILD)
+async def leave_cmd(interaction: discord.Interaction):
+    uid    = str(interaction.user.id)
+    player = db.get_player(uid)
+
+    if not player:
+        await interaction.response.send_message(
+            "You are not registered yet.", ephemeral=True
+        )
+        return
+
+    if not player["crew_id"]:
+        await interaction.response.send_message(
+            "You are not in a crew.", ephemeral=True
+        )
+        return
+
+    crew = db.get_crew(player["crew_id"])
+    crew_name = crew["name"] if crew else "your crew"
+
+    # Remove crew role
+    role = interaction.guild.get_role(int(player["crew_id"]))
+    if role and role in interaction.user.roles:
+        await interaction.user.remove_roles(role)
+
+    db.set_player_crew(uid, None)
+
+    await interaction.response.send_message(
+        f"You have left **{crew_name}**.", ephemeral=True
+    )
+
+
+
+
+
+
+
+
+
+
+
 # To send a picture of the map
 @bot.tree.command(name="map", description="View your current area", guild=MY_GUILD)
 @discord.app_commands.describe(view="Map view")
@@ -228,9 +397,6 @@ async def map_cmd(interaction: discord.Interaction, view: str = "default"):
     embed = discord.Embed(title=title, color=0x1a3f6b)
     embed.set_image(url="attachment://map.png")
     await interaction.followup.send(file=file, embed=embed, ephemeral=True)
-
-
-
 
 
 # MONEY COMMANDS
