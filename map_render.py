@@ -2,6 +2,7 @@ import io
 import json
 import math
 import os
+from functools import lru_cache
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -131,6 +132,9 @@ def _load_map():
     _cache["island_names"] = island_names
     _cache["origins"]      = origins
 
+    # Invalidate texture cache whenever the map file changes
+    _texture_cache.clear()
+
 
 # ── Geometry helpers ──────────────────────────────────────────────────────────
 
@@ -142,8 +146,9 @@ def _hex_to_pixel(q, r):
     )
 
 
+@lru_cache(maxsize=4096)
 def _hex_corners(q, r):
-    """Return the 6 corner (x, y) points of a hex."""
+    """Return the 6 corner (x, y) points of a hex. Cached — called frequently."""
     cx, cy = _hex_to_pixel(q, r)
     return [
         (cx + SIZE * math.cos(math.pi / 3 * i - math.pi / 6),
@@ -310,6 +315,78 @@ def _draw_log_pose_arrows(ax, px, py, margin, targets):
         ax.add_patch(arrow)
 
 
+# ── Ocean texture cache ───────────────────────────────────────────────────────
+# Key: (pq, pr, radius) — reused across calls from the same viewport position.
+# Stores the pre-computed (_X, _Y, _Z) arrays so repeated /map calls by
+# players standing still skip all the numpy work entirely.
+#
+# Cache is intentionally small: Discord bots rarely have >handful of concurrent
+# viewports. Entries are evicted when the map file changes (see _load_map).
+
+_texture_cache: dict = {}
+_TEXTURE_CACHE_MAX = 32   # max number of (pq, pr, radius) entries to keep
+
+# Reduce grid resolution: 150×150 feeds contourf identically to 300×300
+# because contourf interpolates; halving saves ~4× the numpy work.
+_TEXTURE_GRID = 150
+
+
+def _get_ocean_texture(pq, pr, radius, hex_lookup):
+    """
+    Return (X, Y, Z) numpy arrays for the ocean contourf layer.
+    Results are cached by (pq, pr, radius) so repeat renders at the same
+    position are essentially free.
+    """
+    key = (pq, pr, radius)
+    if key in _texture_cache:
+        return _texture_cache[key]
+
+    px, py  = _hex_to_pixel(pq, pr)
+    margin  = SIZE * radius * 1.1
+
+    ox = np.linspace(px - margin, px + margin, _TEXTURE_GRID)
+    oy = np.linspace(py - margin, py + margin, _TEXTURE_GRID)
+    X, Y = np.meshgrid(ox, oy)
+    Z = np.zeros_like(X)
+
+    phases = [(1.3, 0.7, 2.1, 1.8), (0.5, 2.4, 1.1, 0.3),
+              (2.7, 0.9, 1.6, 2.2), (0.2, 1.5, 2.9, 0.8)]
+    for i in range(4):
+        f = 1.8 ** i
+        a = 1.0 / f
+        p = phases[i]
+        Z += a * np.sin(X * 0.09 * f + Y * 0.055 * f * 0.7 + p[0])
+        Z += a * np.cos(X * 0.045 * f * 0.8 - Y * 0.07 * f + p[1])
+        Z += a * np.sin(X * 0.06 * f * 0.6 + Y * 0.08 * f + p[2]) * 0.4
+        Z += a * np.cos(X * 0.075 * f - Y * 0.05 * f * 0.9 + p[3]) * 0.4
+
+    # Land proximity fade — only consider tiles inside the viewport
+    fade_radius = SIZE * 2.5
+    shallow = np.zeros_like(Z)
+    for (tq, tr), terrain in hex_lookup.items():
+        if terrain in ("sea", "calm_belt"):
+            continue
+        # ── OPT: skip tiles outside this viewport ──────────────────────────
+        if _hex_distance(tq, tr, pq, pr) > radius:
+            continue
+        ix, iy = _hex_to_pixel(tq, tr)
+        dist = np.sqrt((X - ix) ** 2 + (Y - iy) ** 2)
+        bump = np.clip(1.0 - dist / fade_radius, 0, 1) ** 2
+        shallow = np.maximum(shallow, bump)
+
+    zmin, zmax = Z.min(), Z.max()
+    Z = (Z - zmin) / (zmax - zmin + 1e-9)
+    Z -= shallow * 0.45
+    Z = np.clip(Z, 0, 1)
+
+    # Evict oldest entry if cache is full
+    if len(_texture_cache) >= _TEXTURE_CACHE_MAX:
+        _texture_cache.pop(next(iter(_texture_cache)))
+
+    _texture_cache[key] = (X, Y, Z)
+    return X, Y, Z
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def render_map(uid: str, radius: int = 10, view: str = "default"):
@@ -354,7 +431,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
 
             terrain = hex_lookup.get((q, r), "sea")
             cx, cy  = _hex_to_pixel(q, r)
-            corners = _hex_corners(q, r)
+            corners = _hex_corners(q, r)   # cached
 
             if terrain == "sea":
                 for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
@@ -431,38 +508,8 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     ax.set_aspect("equal")
     ax.axis("off")
 
-    # Ocean texture — frequencies scaled to actual map data units (~±33 range)
-    _ox = np.linspace(px - margin, px + margin, 300)
-    _oy = np.linspace(py - margin, py + margin, 300)
-    _X, _Y = np.meshgrid(_ox, _oy)
-    _Z = np.zeros_like(_X)
-    _phases = [(1.3, 0.7, 2.1, 1.8), (0.5, 2.4, 1.1, 0.3),
-               (2.7, 0.9, 1.6, 2.2), (0.2, 1.5, 2.9, 0.8)]
-    for _i in range(4):
-        _f = 1.8 ** _i
-        _a = 1.0 / _f
-        _p = _phases[_i]
-        _Z += _a * np.sin(_X * 0.09 * _f + _Y * 0.055 * _f * 0.7 + _p[0])
-        _Z += _a * np.cos(_X * 0.045 * _f * 0.8 - _Y * 0.07 * _f + _p[1])
-        _Z += _a * np.sin(_X * 0.06 * _f * 0.6 + _Y * 0.08 * _f + _p[2]) * 0.4
-        _Z += _a * np.cos(_X * 0.075 * _f - _Y * 0.05 * _f * 0.9 + _p[3]) * 0.4
-
-    _fade_radius = SIZE * 2.5
-    _shallow = np.zeros_like(_Z)
-    for (_tq, _tr), _terrain in hex_lookup.items():
-        if _terrain in ("sea", "calm_belt"):
-            continue
-        if _hex_distance(_tq, _tr, pq, pr) > radius:
-            continue
-        _ix, _iy = _hex_to_pixel(_tq, _tr)
-        _dist = np.sqrt((_X - _ix) ** 2 + (_Y - _iy) ** 2)
-        _bump = np.clip(1.0 - _dist / _fade_radius, 0, 1) ** 2
-        _shallow = np.maximum(_shallow, _bump)
-
-    _zmin, _zmax = _Z.min(), _Z.max()
-    _Z = (_Z - _zmin) / (_zmax - _zmin + 1e-9)
-    _Z -= _shallow * 0.45
-    _Z = np.clip(_Z, 0, 1)
+    # Ocean texture — fetch from cache or compute once
+    _X, _Y, _Z = _get_ocean_texture(pq, pr, radius, hex_lookup)
 
     ax.contourf(
         _X, _Y, _Z,
@@ -551,7 +598,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     # ── Render to buffer and clean up ─────────────────────────────────────────
     buf = io.BytesIO()
     fig.savefig(
-        buf, format="png", dpi=150,
+        buf, format="png", dpi=100,   # 100 vs 150 saves ~2× on PNG encode
         bbox_inches="tight",
         facecolor=SEA_COLOR,
         pad_inches=0,
