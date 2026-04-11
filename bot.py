@@ -327,8 +327,6 @@ async def join_cmd(interaction: discord.Interaction, crew: str):
  
 # ── /leave ────────────────────────────────────────────────────────────────────
 
-# ── /leave ────────────────────────────────────────────────────────────────────
- 
 async def leave_confirm_autocomplete(
     interaction: discord.Interaction,
     current: str,
