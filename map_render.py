@@ -33,6 +33,13 @@ PLAYER_COLOR     = "#F0D060"
 LABEL_COLOR      = "#171717"
 SEA_COLOR        = TERRAIN_COLORS["sea"]
 
+# Calm belt — any hex where abs(r) > 36 is treated as impassable calm belt
+# regardless of what the JSON says. The JSON calm_belt terrain type is ignored.
+CALM_BELT_R = 36
+
+# Calm belt overlay — translucent white drawn above the sea texture
+CALM_BELT_COLOR = (1.0, 1.0, 1.0, 0.38)
+
 # Log pose targets — (q, r) tuples the arrow points toward.
 # Replace with dynamic data later (e.g. from db or game state).
 LOG_POSE_TARGETS = [(32, 10)]
@@ -417,6 +424,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     # ── Collect hexes in viewport ─────────────────────────────────────────────
     land_patches      = []
     land_colors       = []
+    calm_patches      = []   # calm belt hexes — rendered as translucent white overlay
     border_segs       = []
     sea_segs          = []
     hex_label_data    = []
@@ -429,7 +437,29 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
             if _hex_distance(q, r, pq, pr) > radius:
                 continue
 
+            # Calm belt — driven purely by r axis, ignore JSON calm_belt entirely
+            if abs(r) > CALM_BELT_R:
+                cx, cy  = _hex_to_pixel(q, r)
+                corners = _hex_corners(q, r)
+                calm_patches.append(
+                    mpatches.RegularPolygon(
+                        (cx, cy), numVertices=6,
+                        radius=SIZE, orientation=0,
+                    )
+                )
+                for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
+                    nq, nr = q + dq, r + dr
+                    if _hex_distance(nq, nr, pq, pr) <= radius:
+                        if dq > 0 or (dq == 0 and dr > 0):
+                            p1, p2 = corners[i1], corners[i2]
+                            sea_segs.append([p1, p2])
+                continue
+
+            # Ignore calm_belt terrain from JSON — treat as plain sea
             terrain = hex_lookup.get((q, r), "sea")
+            if terrain == "calm_belt":
+                terrain = "sea"
+
             cx, cy  = _hex_to_pixel(q, r)
             corners = _hex_corners(q, r)   # cached
 
@@ -441,6 +471,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                             p1, p2 = corners[i1], corners[i2]
                             sea_segs.append([p1, p2])
 
+                # Roll dots: only on navigable sea, never in calm belt
                 if view == "roll" and _hex_distance(q, r, pq, pr) <= MOVE_RANGE:
                     reachable_centers.append((cx, cy))
                 continue
@@ -455,7 +486,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
             )
             land_colors.append(color)
 
-            if terrain not in ("redline", "calm_belt"):
+            if terrain not in ("redline",):
                 # Per-hex label (e.g. "Royal Palace")
                 if (q, r) in labels:
                     hex_label_data.append((cx, cy, labels[(q, r)]))
@@ -484,7 +515,8 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                 wq, wr = bq + wdq * step, br + wdr * step
                 if (wq, wr) in seen or (wq, wr) in base_set:
                     continue
-                if hex_lookup.get((wq, wr), "sea") == "sea":
+                # Wind dots never land in calm belt
+                if hex_lookup.get((wq, wr), "sea") == "sea" and abs(wr) <= CALM_BELT_R:
                     seen.add((wq, wr))
                     wind_centers.append(_hex_to_pixel(wq, wr))
 
@@ -535,6 +567,17 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         wxs, wys = zip(*wind_centers)
         ax.scatter(wxs, wys, s=18, color=(0.85, 0.25, 0.20, 0.50),
                    linewidths=0, zorder=2)
+
+    if calm_patches:
+        cc = PatchCollection(
+            calm_patches,
+            facecolors=[CALM_BELT_COLOR] * len(calm_patches),
+            edgecolors="none",
+            linewidths=0,
+            match_original=False,
+            zorder=2,
+        )
+        ax.add_collection(cc)
 
     if land_patches:
         pc = PatchCollection(
