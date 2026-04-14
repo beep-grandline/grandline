@@ -8,6 +8,7 @@ import os
 import db
 import map_render
 import asyncio
+from typing import Literal
 
 load_dotenv()
 
@@ -77,18 +78,13 @@ HELP_PAGES = {
     },
 }
 
-@bot.slash_command(description="Help topics")
-async def help(
-    ctx,
-    topic: discord.Option(
-        str,
-        description="What do you need help with?",
-        choices=list(HELP_PAGES.keys()),
-        required=False,
-    )
+@bot.tree.command(name="help", description="Help topics")
+@app_commands.describe(topic="What do you need help with?")
+async def help_command(
+    interaction: discord.Interaction,
+    topic: Literal["map", "travel", "rolls", "devil_fruits"] = None
 ):
     if topic is None:
-        # Root help — show all topics as a menu
         embed = discord.Embed(
             title="📖 Help",
             description="Use `/help <topic>` for details on a specific topic.",
@@ -100,14 +96,14 @@ async def help(
                 value=" • ".join(f"`{f[0]}`" for f in page["fields"]),
                 inline=False,
             )
-        await ctx.respond(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
     page = HELP_PAGES[topic]
     embed = discord.Embed(title=page["title"], color=0x3a7ebf)
     for name, value in page["fields"]:
         embed.add_field(name=name, value=value, inline=False)
-    await ctx.respond(embed=embed, ephemeral=True)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 
