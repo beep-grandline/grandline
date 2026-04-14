@@ -35,15 +35,79 @@ async def on_ready():
     print(f"Synced {len(synced)} commands: {[c.name for c in synced]}")
     print(f"Logged in as {bot.user}")
 
+
+
+
+
+
+
+
+
 # HELP LIST, NEED TO UPDATE
-@bot.tree.command(name="help", description="Show available commands", guild=MY_GUILD)
-async def help_cmd(interaction: discord.Interaction):
-    embed = discord.Embed(title="LARP Piece Commands", color=0x1a3f6b)
-    embed.add_field(name="/map", value="Send map", inline=False)
-    embed.add_field(name="/sail", value="Sail to an island", inline=False)
-    embed.add_field(name="/position", value="Check your current position", inline=False)
-    embed.add_field(name="/help", value="Show this message", inline=False)
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+HELP_PAGES = {
+    "map": {
+        "title": "🗺️ Map & Navigation",
+        "fields": [
+            ("/map", "Shows your current viewport. Updates your position on the map."),
+            ("/map roll", "Shows reachable hexes this turn. White dots = standard, red dots = wind-boosted."),
+        ]
+    },
+    "travel": {
+        "title": "⛵ Travel",
+        "fields": [
+            ("/sail <directions>", "Move your ship. e.g. `/sail n ne ne se`\nDirections: `n s ne sw se nw`"),
+            ("/sail to <island>", "Pathfind to a destination. Bot will preview cost and ask to confirm."),
+            ("/sail stop", "Cancel your queued route."),
+        ]
+    },
+    "rolls": {
+        "title": "🎲 Rolls",
+        "fields": [
+            ("/rolls", "Check your current roll bank and time until next roll."),
+            ("Roll cap", "Max 12 rolls banked. One roll earned every 2 hours."),
+            ("Wind bonus", "Sailing with the wind costs fewer rolls. Check `/map roll` to see wind direction."),
+        ]
+    },
+    "devil_fruits": {
+        "title": "🍎 Devil Fruits",
+        "fields": [
+            ("/df <name>", "Look up a devil fruit. Autocompletes as you type."),
+            ("/df list <type>", "List all fruits of a given type: Paramecia, Zoan, Logia."),
+        ]
+    },
+}
+
+@bot.slash_command(description="Help topics")
+async def help(
+    ctx,
+    topic: discord.Option(
+        str,
+        description="What do you need help with?",
+        choices=list(HELP_PAGES.keys()),
+        required=False,
+    )
+):
+    if topic is None:
+        # Root help — show all topics as a menu
+        embed = discord.Embed(
+            title="📖 Help",
+            description="Use `/help <topic>` for details on a specific topic.",
+            color=0x3a7ebf,
+        )
+        for key, page in HELP_PAGES.items():
+            embed.add_field(
+                name=page["title"],
+                value=" • ".join(f"`{f[0]}`" for f in page["fields"]),
+                inline=False,
+            )
+        await ctx.respond(embed=embed, ephemeral=True)
+        return
+
+    page = HELP_PAGES[topic]
+    embed = discord.Embed(title=page["title"], color=0x3a7ebf)
+    for name, value in page["fields"]:
+        embed.add_field(name=name, value=value, inline=False)
+    await ctx.respond(embed=embed, ephemeral=True)
 
 
 
