@@ -79,7 +79,7 @@ HELP_PAGES = {
 }
 
 @bot.tree.command(name="help", description="Help topics")
-@app_commands.describe(topic="What do you need help with?")
+@discord.app_commands.describe(topic="What do you need help with?")
 async def help_command(
     interaction: discord.Interaction,
     topic: Literal["map", "travel", "rolls", "devil_fruits"] = None
