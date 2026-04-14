@@ -78,7 +78,7 @@ HELP_PAGES = {
     },
 }
 
-@bot.tree.command(name="help", description="Help topics")
+@bot.tree.command(name="help", description="Help topics", guild=MY_GUILD)
 @discord.app_commands.describe(topic="What do you need help with?")
 async def help_command(
     interaction: discord.Interaction,
