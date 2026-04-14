@@ -70,7 +70,7 @@ HELP_PAGES = {
         ]
     },
     "devil fruits": {
-        "title": "<:uo_seiryu:1493492627306319894> Devil Fruits",
+        "title": "<:mera:1493493605267017808> Devil Fruits",
         "fields": [
             ("/df <name>", "Look up a devil fruit. Autocompletes as you type."),
             ("/df list <type>", "List all fruits of a given type: Paramecia, Zoan, Logia."),
