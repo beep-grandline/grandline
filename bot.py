@@ -69,7 +69,7 @@ HELP_PAGES = {
             ("Wind bonus", "Sailing with the wind costs fewer rolls. Check `/map roll` to see wind direction."),
         ]
     },
-    "devil_fruits": {
+    "devil fruits": {
         "title": "🍎 Devil Fruits",
         "fields": [
             ("/df <name>", "Look up a devil fruit. Autocompletes as you type."),
@@ -82,7 +82,7 @@ HELP_PAGES = {
 @discord.app_commands.describe(topic="What do you need help with?")
 async def help_command(
     interaction: discord.Interaction,
-    topic: Literal["map", "travel", "rolls", "devil_fruits"] = None
+    topic: Literal["map", "travel", "rolls", "devil fruits"] = None
 ):
     if topic is None:
         embed = discord.Embed(
