@@ -48,16 +48,16 @@ async def on_ready():
 HELP_PAGES = {
     "Starting": {
         "title": "⛵ Starting",
-        "description": "Commands for registration.",
+        "description": "How to start the game.",
         "fields": [
             ("/register <faction>","Enter the game."),
-            ("/crew", "Create a crew (admin command)."),
-            ("/disband", "Disband a crew (admin command)."),
+            ("/crew", "Create a crew (admin)."),
+            ("/disband", "Disband a crew (admin)."),
         ]
     },
     "Travel": {
         "title": "🗺️ Travel",
-        "description": "Travel commands.",
+        "description": "Navigating the Grand Line.",
         "fields": [
             ("/map", "Shows your current viewport. Updates your position on the map."),
             ("/position", "Lists your current position."),
@@ -83,7 +83,7 @@ async def help_command(
     if topic is None:
         embed = discord.Embed(
             title="📖 Help",
-            description="Use `/help <topic>` for details on a specific topic.",
+            description="Use `/help <topic>` to find bot commands for any of the listed topics.",
             color=0x3a7ebf,
         )
         for key, page in HELP_PAGES.items():
