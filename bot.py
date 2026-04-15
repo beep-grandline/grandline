@@ -46,31 +46,24 @@ async def on_ready():
 
 # HELP LIST, NEED TO UPDATE
 HELP_PAGES = {
-    "map": {
-        "title": "🗺️ Map & Navigation",
+    "Starting": {
+        "title": "⛵ Starting",
+        "fields": [
+            ("/register <faction>","Enter the game."),
+            ("/crew", "Create a crew (admin command)."),
+            ("/disband", "Disband a crew (admin command)."),
+        ]
+    },
+    "Travel": {
+        "title": "🗺️ Travel",
         "fields": [
             ("/map", "Shows your current viewport. Updates your position on the map."),
-            ("/map roll", "Shows reachable hexes this turn. White dots = standard, red dots = wind-boosted."),
+            ("/position", "Lists your current position."),
         ]
     },
-    "travel": {
-        "title": "⛵ Travel",
-        "fields": [
-            ("/sail <directions>", "Move your ship. e.g. `/sail n ne ne se`\nDirections: `n s ne sw se nw`"),
-            ("/sail to <island>", "Pathfind to a destination. Bot will preview cost and ask to confirm."),
-            ("/sail stop", "Cancel your queued route."),
-        ]
-    },
-    "rolls": {
-        "title": "🎲 Rolls",
-        "fields": [
-            ("/rolls", "Check your current roll bank and time until next roll."),
-            ("Roll cap", "Max 12 rolls banked. One roll earned every 2 hours."),
-            ("Wind bonus", "Sailing with the wind costs fewer rolls. Check `/map roll` to see wind direction."),
-        ]
-    },
-    "devil fruits": {
-        "title": "<:mera:1493493605267017808> Devil Fruits",
+    
+    "Devil Fruits": {
+        "title": "<:smile_fruit:1493852186663456918> Devil Fruits",
         "fields": [
             ("/df <name>", "Look up a devil fruit. Autocompletes as you type."),
             ("/df list <type>", "List all fruits of a given type: Paramecia, Zoan, Logia."),
