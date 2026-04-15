@@ -75,7 +75,7 @@ HELP_PAGES = {
 @discord.app_commands.describe(topic="What do you need help with?")
 async def help_command(
     interaction: discord.Interaction,
-    topic: Literal["map", "travel", "rolls", "devil fruits"] = None
+    topic: Literal["Starting", "Travel", "Devil Fruits"] = None
 ):
     if topic is None:
         embed = discord.Embed(
