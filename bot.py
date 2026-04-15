@@ -86,7 +86,7 @@ async def help_command(
         for key, page in HELP_PAGES.items():
             embed.add_field(
                 name=page["title"],
-                value=" • ".join(f"`{f[0]}`" for f in page["fields"]),
+                # value=" • ".join(f"`{f[0]}`" for f in page["fields"]),
                 inline=False,
             )
         await interaction.response.send_message(embed=embed, ephemeral=True)
