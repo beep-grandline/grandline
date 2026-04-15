@@ -48,6 +48,7 @@ async def on_ready():
 HELP_PAGES = {
     "Starting": {
         "title": "⛵ Starting",
+        "description": "Commands for registration.",
         "fields": [
             ("/register <faction>","Enter the game."),
             ("/crew", "Create a crew (admin command)."),
@@ -56,6 +57,7 @@ HELP_PAGES = {
     },
     "Travel": {
         "title": "🗺️ Travel",
+        "description": "Travel commands.",
         "fields": [
             ("/map", "Shows your current viewport. Updates your position on the map."),
             ("/position", "Lists your current position."),
@@ -64,6 +66,7 @@ HELP_PAGES = {
     
     "Devil Fruits": {
         "title": "<:smile_fruit:1493852186663456918> Devil Fruits",
+        "description": "Devil fruit commands.",
         "fields": [
             ("/df <name>", "Look up a devil fruit. Autocompletes as you type."),
             ("/df list <type>", "List all fruits of a given type: Paramecia, Zoan, Logia."),
@@ -86,7 +89,7 @@ async def help_command(
         for key, page in HELP_PAGES.items():
             embed.add_field(
                 name=page["title"],
-                # value=" • ".join(f"`{f[0]}`" for f in page["fields"]),
+                value=page["description"],
                 inline=False,
             )
         await interaction.response.send_message(embed=embed, ephemeral=True)
