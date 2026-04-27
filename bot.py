@@ -416,16 +416,15 @@ async def gm_setberry(interaction: discord.Interaction, target: discord.Member, 
 @gm_group.command(name="help", description="List all GM commands")
 async def gm_help(interaction: discord.Interaction):
     embed = discord.Embed(
-        title="⚙️ GM Commands",
-        description="Available to **Admin** and **Mod** roles.",
+        title="⚙️ Helper commands",
         color=0x2d6a9f,
     )
     commands_list = [
         ("/gm teleport",  "Move a player to a specific hex (target, q, r)"),
         ("/gm crew",      "Create a new crew (name, captain, color)"),
         ("/gm disband",   "Disband a crew by name"),
-        ("/gm remove",    "Remove a player from the player list"),
-        ("/gm setberry",  "Set a player's berry amount (target, amount)"),
+        ("/gm remove",    "Remove a player from the game"),
+        ("/gm setberry",  "Set a player's berry (target, amount)"),
         ("/gm help",      "Show this message"),
     ]
     for name, desc in commands_list:
@@ -462,8 +461,8 @@ async def admin_help(interaction: discord.Interaction):
         color=0x8b0000,
     )
     commands_list = [
-        ("rolepicker", "Used only to refresh the rolepicker."),
-        ("help",       "Show this message"),
+        ("/admin rolepicker", "Used only to refresh the rolepicker."),
+        ("/admin help",       "Show this message"),
     ]
     for name, desc in commands_list:
         embed.add_field(name=name, value=desc, inline=False)
