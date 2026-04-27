@@ -459,15 +459,14 @@ async def admin_rolepicker(interaction: discord.Interaction):
 async def admin_help(interaction: discord.Interaction):
     embed = discord.Embed(
         title="🔒 Admin Commands",
-        description="Available to **Admin** role only.",
         color=0x8b0000,
     )
     commands_list = [
-        ("/admin rolepicker", "Post the faction role picker in the current channel"),
+        ("/admin rolepicker", "Used only to refresh the rolepicker."),
         ("/admin help",       "Show this message"),
     ]
     for name, desc in commands_list:
-        embed.add_field(name=name, value=desc, inline=False)
+        embed.add_field(name=name, value=desc, inline=True)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
