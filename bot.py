@@ -462,11 +462,11 @@ async def admin_help(interaction: discord.Interaction):
         color=0x8b0000,
     )
     commands_list = [
-        ("/admin rolepicker", "Used only to refresh the rolepicker."),
-        ("/admin help",       "Show this message"),
+        ("rolepicker", "Used only to refresh the rolepicker."),
+        ("help",       "Show this message"),
     ]
     for name, desc in commands_list:
-        embed.add_field(name=name, value=desc, inline=True)
+        embed.add_field(name=name, value=desc, inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
