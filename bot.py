@@ -290,6 +290,54 @@ async def leave_cmd(interaction: discord.Interaction, confirm: str):
     )
 
 
+
+
+@bot.tree.command(name="zelle", description="Transfer berry to another player", guild=MY_GUILD)
+@discord.app_commands.describe(target="Who to send berry to", amount="How much to send")
+async def zelle(interaction: discord.Interaction, target: discord.Member, amount: int):
+    uid = str(interaction.user.id)
+ 
+    if amount <= 0:
+        await interaction.response.send_message("Amount must be greater than 0.", ephemeral=True)
+        return
+ 
+    if target.id == interaction.user.id:
+        await interaction.response.send_message("You can't send berry to yourself.", ephemeral=True)
+        return
+ 
+    if not db.get_player(uid):
+        await interaction.response.send_message("You are not registered yet.", ephemeral=True)
+        return
+ 
+    if not db.get_player(str(target.id)):
+        await interaction.response.send_message(
+            f"**{target.display_name}** is not registered.", ephemeral=True
+        )
+        return
+ 
+    success = db.remove_berry(uid, amount)
+    if not success:
+        await interaction.response.send_message("You don't have enough berry.", ephemeral=True)
+        return
+ 
+    db.add_berry(str(target.id), amount)
+    await interaction.response.send_message(
+        f"{interaction.user.mention} sent ฿**{amount:,}** to {target.mention}."
+    )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ── /gm command group — usable by Admin and Mod ───────────────────────────────
 
 gm_group = discord.app_commands.Group(
@@ -411,6 +459,7 @@ async def gm_setberry(interaction: discord.Interaction, target: discord.Member, 
     await interaction.response.send_message(
         f"Set **{target.display_name}**'s berry to ฿{amount}."
     )
+
 
 
 @gm_group.command(name="help", description="List all GM commands")
