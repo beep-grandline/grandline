@@ -1,0 +1,12 @@
+,slash,blunt,pierce,score,Special mod,Notes on categories (click individual cells for specific justifications)
+none,1,1,1,1,,Fruits that don't provide any sort of physical defense against weapons
+sponge,2,0,1,0.58,,Special type for gum gum and berri berri fruits (immune to blunt damage)
+armor,0.7,0.6,1.5,0.86,,Fruits that increase body armor but have increased vulnerability to pierce attacks
+logia,0,0,0,0,,Completely invulnerable to weapons until haki comes into play 
+shell,0.6,0.45,2,0.81,,Fruits that generate hard substances
+buffer,1.5,0.5,0.8,0.84,,Fruits that generate soft substances
+deflect,0.7,0.5,0.5,0.56,likelihood of hit,Fruits that allow attacks to get deflected
+escape,1,1,1,1,likelihood of escape,Might get normal stats but more likely to be able to escape/dodge
+big,0.8,0.5,0.9,0.71,likelihood of hit,More likely to get hit but get a bigger damage reduction
+,,,,,,
+,,,,,,Note: All fruit types with some sort of defense offer a net positive against weapon attacks.
