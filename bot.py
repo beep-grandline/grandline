@@ -380,7 +380,7 @@ async def fruit_autocomplete(
             continue
         if current in eng.lower() or current in jap.lower():
             seen.add(fid)
-            label = f"{eng}  /  {jap}" if jap else eng
+            label = jap
             # Discord Choice name max is 100 chars
             matches.append(discord.app_commands.Choice(
                 name=label[:100],
