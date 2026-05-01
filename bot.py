@@ -411,14 +411,14 @@ async def search_cmd(interaction: discord.Interaction, fruit: str):
     url     = (row.get("url") or "").strip()
  
     embed = discord.Embed(
-        title=eng,
-        description=f"*{jap}*" if jap else "",
+        title=jap,
+        description=f"*{eng}*" if jap else "",
         color=0x1a3f6b,
     )
-    embed.add_field(name="Ability", value=ability, inline=False)
+    embed.add_field(name="Ability", value=ability, inline=True)
     embed.set_thumbnail(url=url)
  
-    await interaction.response.send_message(embed=embed)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 
