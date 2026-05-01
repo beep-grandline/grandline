@@ -410,6 +410,7 @@ async def search_cmd(interaction: discord.Interaction, fruit: str):
     ability = (row.get("ability") or "No description available.").strip()
     url     = (row.get("url") or "").strip()
     cat     = (row.get("cat") or "").strip()
+    print(cat)
 
     if cat == 1: category = "Paramecia"
     elif cat == 2: category = "Zoan"
@@ -417,6 +418,7 @@ async def search_cmd(interaction: discord.Interaction, fruit: str):
     elif cat == 4: category = "Mythical Zoan"
     elif cat == 5: category = "Ancient Zoan"
     elif cat == 6: category = "Special Paramecia"
+        
  
     embed = discord.Embed(
         title=jap,
