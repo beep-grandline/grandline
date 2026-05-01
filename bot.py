@@ -63,8 +63,7 @@ HELP_PAGES = {
         "title": "<:smile_fruit:1493852186663456918> Devil Fruits",
         "description": "Devil fruit commands.",
         "fields": [
-            ("/df <name>", "Look up a devil fruit. Autocompletes as you type."),
-            ("/df list <type>", "List all fruits of a given type: Paramecia, Zoan, Logia."),
+            ("/search <name>", "Find an entry in the devil fruit encyclopedia."),
         ]
     },
 
