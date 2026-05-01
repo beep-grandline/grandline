@@ -416,9 +416,7 @@ async def search_cmd(interaction: discord.Interaction, fruit: str):
         color=0x1a3f6b,
     )
     embed.add_field(name="Ability", value=ability, inline=False)
- 
-    if url:
-        embed.set_thumbnail(url=url)
+    embed.set_thumbnail(url=url)
  
     await interaction.response.send_message(embed=embed)
 
