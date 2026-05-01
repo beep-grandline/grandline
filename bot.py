@@ -79,7 +79,7 @@ async def help_command(
     if topic is None:
         embed = discord.Embed(
             title="📖 Guide to Bot Commands",
-            description="Use `/help <topic>` to find bot commands for any of the listed topics. Want to know how the game works? Use the /info command!",
+            description="Use `/help <topic>` to find bot commands for any of the listed topics. Want to know how the game works? Use the `/info` command!",
             color=0x3a7ebf,
         )
         for key, page in HELP_PAGES.items():
