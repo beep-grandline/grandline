@@ -411,13 +411,12 @@ async def search_cmd(interaction: discord.Interaction, fruit: str):
     url     = (row.get("url") or "").strip()
     cat     = (row.get("cat") or "").strip()
 
-    match cat:
-        case 1: category = "Paramecia"
-        case 2: category = "Zoan"
-        case 3: category = "Logia"
-        case 4: category = "Mythical Zoan"
-        case 5: category = "Ancient Zoan"
-        case 6: category = "Special Paramecia"
+    if cat == 1: category = "Paramecia"
+    elif cat == 2: category = "Zoan"
+    elif cat == 3: category = "Logia"
+    elif cat == 4: category = "Mythical Zoan"
+    elif cat == 5: category = "Ancient Zoan"
+    elif cat == 6: category = "Special Paramecia"
  
     embed = discord.Embed(
         title=jap,
