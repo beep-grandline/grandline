@@ -9,6 +9,7 @@ import db
 import map_render
 import asyncio
 from typing import Literal
+import csv
 
 load_dotenv()
 
