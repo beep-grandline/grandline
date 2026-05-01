@@ -44,10 +44,6 @@ def is_gm(interaction: discord.Interaction) -> bool:
 # ── Help ──────────────────────────────────────────────────────────────────────
 
 HELP_PAGES = {
-    "Info":{
-        "title": "ℹ️ Info",
-        "description": "Confused about how the game works? Start here."
-    },
     "Starting": {
         "title": "⛵ Starting",
         "description": "How to start the game.",
@@ -82,8 +78,8 @@ async def help_command(
 ):
     if topic is None:
         embed = discord.Embed(
-            title="📖 Help",
-            description="Use `/help <topic>` to find bot commands for any of the listed topics.",
+            title="📖 Guide to Bot Commands",
+            description="Use `/help <topic>` to find bot commands for any of the listed topics. Want to know how the game works? Use the /info command!",
             color=0x3a7ebf,
         )
         for key, page in HELP_PAGES.items():
