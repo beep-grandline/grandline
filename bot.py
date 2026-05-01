@@ -44,6 +44,10 @@ def is_gm(interaction: discord.Interaction) -> bool:
 # ── Help ──────────────────────────────────────────────────────────────────────
 
 HELP_PAGES = {
+    "Info":{
+        "title": "ⓘ Info",
+        "description": "Confused about how the game works? Start here."
+    }
     "Starting": {
         "title": "⛵ Starting",
         "description": "How to start the game.",
@@ -69,6 +73,7 @@ HELP_PAGES = {
             ("/df list <type>", "List all fruits of a given type: Paramecia, Zoan, Logia."),
         ]
     },
+
 }
 
 @bot.tree.command(name="help", description="Help topics", guild=MY_GUILD)
