@@ -409,6 +409,15 @@ async def search_cmd(interaction: discord.Interaction, fruit: str):
     jap     = (row.get("jap") or "").strip()
     ability = (row.get("ability") or "No description available.").strip()
     url     = (row.get("url") or "").strip()
+    cat     = (row.get("cat") or "").strip()
+
+    match cat:
+        case 1: category = "Paramecia"
+        case 2: category = "Zoan"
+        case 3: category = "Logia"
+        case 4: category = "Mythical Zoan"
+        case 5: category = "Ancient Zoan"
+        case 6: category = "Special Paramecia"
  
     embed = discord.Embed(
         title=jap,
@@ -416,6 +425,7 @@ async def search_cmd(interaction: discord.Interaction, fruit: str):
         color=0x1a3f6b,
     )
     embed.add_field(name="Ability", value=ability, inline=True)
+    embed.add_field(name="Category",value=category, inline=True)
     embed.set_thumbnail(url=url)
  
     await interaction.response.send_message(embed=embed, ephemeral=True)
