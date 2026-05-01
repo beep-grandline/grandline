@@ -45,7 +45,7 @@ def is_gm(interaction: discord.Interaction) -> bool:
 
 HELP_PAGES = {
     "Info":{
-        "title": "ⓘ Info",
+        "title": "ℹ️ Info",
         "description": "Confused about how the game works? Start here."
     },
     "Starting": {
@@ -53,8 +53,6 @@ HELP_PAGES = {
         "description": "How to start the game.",
         "fields": [
             ("/register <faction>", "Enter the game."),
-            ("/crew", "Create a crew (admin)."),
-            ("/disband", "Disband a crew (admin)."),
         ]
     },
     "Travel": {
