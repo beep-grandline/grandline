@@ -47,7 +47,7 @@ HELP_PAGES = {
     "Info":{
         "title": "ⓘ Info",
         "description": "Confused about how the game works? Start here."
-    }
+    },
     "Starting": {
         "title": "⛵ Starting",
         "description": "How to start the game.",
