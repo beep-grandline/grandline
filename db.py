@@ -402,4 +402,20 @@ def set_fighter_stats(player_id, atk=None, defense=None, spd=None,
     db.execute(f"UPDATE players SET {', '.join(fields)} WHERE id=?", values)
     db.commit()
 
+def set_profile(player_id, char_name=None, fighting_style=None, summary=None):
+    """Update profile fields. None values are skipped."""
+    fields = []
+    values = []
+    for col, val in [("char_name", char_name),
+                     ("fighting_style", fighting_style),
+                     ("summary", summary)]:
+        if val is not None:
+            fields.append(f"{col}=?")
+            values.append(val)
+    if not fields:
+        return
+    values.append(player_id)
+    db.execute(f"UPDATE players SET {', '.join(fields)} WHERE id=?", values)
+    db.commit()
+
 init_db()  # runs on import, creates tables if they don't exist
