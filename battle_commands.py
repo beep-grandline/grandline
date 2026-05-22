@@ -16,48 +16,68 @@ from fruits import get_fighter_types
 # ── Embed builders ────────────────────────────────────────────────────────────
 
 def _battle_embed(state, log=None):
-    fa    = state["fighters"]["a"]
-    fb    = state["fighters"]["b"]
-    title = f"⚔  {fa['name']}  vs  {fb['name']}"
-    embed = discord.Embed(title=title, color=0x1a3f6b)
+    fa = state["fighters"]["a"]
+    fb = state["fighters"]["b"]
 
-    for line in battle_logic.status_block(state):
-        embed.add_field(name="\u200b", value=line, inline=False)
+    turn = state["turn"]
+    embed = discord.Embed(
+        title  = f"Turn {turn}" if turn > 0 else "Battle Start",
+        color  = 0x1a3f6b,
+    )
+    embed.set_author(name=f"⚔  {fa['name']}  vs  {fb['name']}")
+
+    # both HP bars in one field — no gap between them
+    embed.add_field(
+        name  = "\u200b",
+        value = "\n".join(battle_logic.status_block(state)),
+        inline= False,
+    )
 
     if log:
-        log_str = "\n".join(log)
+        # strip the turn header line from the log since it's now the embed title
+        lines   = [l for l in log if not l.startswith("**──")]
+        log_str = "\n".join(lines)
         if len(log_str) > 1024:
             log_str = log_str[-1021:] + "..."
-        embed.add_field(name="\u200b", value=log_str, inline=False)
+        if log_str.strip():
+            embed.add_field(name="\u200b", value=log_str, inline=False)
     else:
         embed.description = "Battle started! Choose your action."
 
-    embed.set_footer(text=f"Turn {state['turn']}  ·  Both players: choose your action")
+    embed.set_footer(text="Choose your action")
     return embed
 
 
 def _finished_embed(state):
-    fa    = state["fighters"]["a"]
-    fb    = state["fighters"]["b"]
-    title = f"⚔  {fa['name']}  vs  {fb['name']}"
-    embed = discord.Embed(title=title, color=0x2d9e5f)
-
-    for line in battle_logic.status_block(state):
-        embed.add_field(name="\u200b", value=line, inline=False)
-
-    log = state.get("log", [])
-    if log:
-        log_str = "\n".join(log)
-        if len(log_str) > 1024:
-            log_str = log_str[-1021:] + "..."
-        embed.add_field(name="\u200b", value=log_str, inline=False)
+    fa = state["fighters"]["a"]
+    fb = state["fighters"]["b"]
 
     winner = state.get("winner")
     if winner == "draw":
-        embed.set_footer(text="Draw!")
+        title = "Draw!"
     elif winner in ("a", "b"):
-        name = state["fighters"][winner]["name"]
-        embed.set_footer(text=f"🏆  {name} wins!")
+        title = f"🏆  {state['fighters'][winner]['name']} wins!"
+    else:
+        title = "Battle Over"
+
+    embed = discord.Embed(title=title, color=0x2d9e5f)
+    embed.set_author(name=f"⚔  {fa['name']}  vs  {fb['name']}")
+
+    embed.add_field(
+        name  = "\u200b",
+        value = "\n".join(battle_logic.status_block(state)),
+        inline= False,
+    )
+
+    log = state.get("log", [])
+    if log:
+        lines   = [l for l in log if not l.startswith("**──")]
+        log_str = "\n".join(lines)
+        if len(log_str) > 1024:
+            log_str = log_str[-1021:] + "..."
+        if log_str.strip():
+            embed.add_field(name="\u200b", value=log_str, inline=False)
+
     return embed
 
 
