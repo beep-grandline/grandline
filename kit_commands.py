@@ -40,6 +40,7 @@ KEYWORDS = {
     "TELEGRAPHED": {"slots": -1, "apply": {"tracking": -3}, "sign": "-", "desc": "tracking -3", "cat": "descriptor", "stat": "tracking"},
     # hits
     "MULTI":       {"slots":  1, "apply": {"hits": +1}, "sign": "+", "desc": "+1 hit roll", "cat": "descriptor", "stat": "hits"},
+    "FLURRY":      {"slots":  1, "apply": {"hits": +5}, "sign": "+", "desc": "+5 hit rolls (power spread, independent rolls)", "cat": "descriptor", "stat": "hits"},
     # conditions
     "DRAINING":    {"slots": -1, "apply": {"hp_cost": 15},    "sign": "-", "desc": "15 HP on use",  "cat": "condition", "stat": "hp_cost"},
     "EXHAUSTING":  {"slots": -1, "apply": {"hp_cost": 25},    "sign": "-", "desc": "25 HP on use",  "cat": "condition", "stat": "hp_cost"},
@@ -96,7 +97,7 @@ def _build_move(name, attack_type, keywords):
     stats["accuracy"] = max(5,  min(100, stats["accuracy"]))
     stats["tracking"] = max(1,  min(10,  stats["tracking"]))
     stats["priority"] = max(-2, min(2,   stats["priority"]))
-    stats["hits"]     = max(1,  min(6,   stats["hits"]))
+    stats["hits"]     = max(1,  min(8,   stats["hits"]))
 
     return {
         "name":      name,
