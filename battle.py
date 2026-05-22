@@ -245,43 +245,39 @@ def _resolve_action(actor, target, action, move_name, opp_action):
                     lines.append(f"→ {target['name']} counters! **{counter_dmg}** damage.")
 
         else:
-            # ── flurry (multi-hit) ────────────────────────────────────────────
-            # power is spread across hits with a bonus for full connect
+            # ── multi-hit (flurry / barrage) ──────────────────────────────────
+            # barrage (30 hits) uses a higher scale so full connect is meaningful
+            scale        = 2.0 if hits >= 20 else 1.3
             per_hit_move = dict(move)
-            per_hit_move["power"] = move["power"] / hits * 1.3
+            per_hit_move["power"] = move["power"] / hits * scale
 
-            result_tokens = []   # "hit" / "miss" / "blocked" per roll
-            total_dmg     = 0
-            got_crit      = False
-            any_blocked   = False
+            hit_count   = 0
+            block_count = 0
+            total_dmg   = 0
+            got_crit    = False
+            any_blocked = False
 
             for _ in range(hits):
-                # each hit rolls accuracy independently, no block inside
                 dmg, did_hit, crit, e_mod, p_mod = _calculate_damage(
                     actor, target, per_hit_move, is_blocking=False
                 )
                 if not did_hit:
-                    result_tokens.append("miss")
                     continue
                 if crit:
                     got_crit = True
                 if is_blocking:
-                    # independent block roll per hit that connects
                     b_ok, _ = _roll_block(target, actor)
                     if b_ok:
-                        result_tokens.append("blocked")
-                        any_blocked = True
-                        dmg = max(1, round(dmg * 0.5))  # block halves each hit
+                        block_count += 1
+                        any_blocked  = True
+                        dmg = max(1, round(dmg * 0.5))
                     else:
-                        result_tokens.append("hit")
+                        hit_count += 1
                 else:
-                    result_tokens.append("hit")
+                    hit_count += 1
                 total_dmg += dmg
 
-            landed  = result_tokens.count("hit") + result_tokens.count("blocked")
-            blocked = result_tokens.count("blocked")
-
-            lines.append("  " + " · ".join(result_tokens))
+            landed = hit_count + block_count
 
             if got_crit:
                 lines.append("→ Critical hit in the barrage!")
@@ -291,8 +287,8 @@ def _resolve_action(actor, target, action, move_name, opp_action):
             else:
                 target["hp"] = max(0, target["hp"] - total_dmg)
                 summary = f"→ {landed}/{hits} connected"
-                if blocked:
-                    summary += f", {blocked} blocked"
+                if block_count:
+                    summary += f", {block_count} blocked"
                 summary += f" — **{total_dmg}** total damage"
                 lines.append(summary)
 
@@ -302,7 +298,6 @@ def _resolve_action(actor, target, action, move_name, opp_action):
                     actor["hp"] = max(0, actor["hp"] - recoil_dmg)
                     lines.append(f"→ {actor['name']} takes {recoil_dmg} recoil damage!")
 
-                # counter fires once at the end if any hits were blocked
                 if any_blocked:
                     counter_dmg = max(1, round(target["atk"] * 0.3))
                     actor["hp"] = max(0, actor["hp"] - counter_dmg)
