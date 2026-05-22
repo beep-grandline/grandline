@@ -1,5 +1,5 @@
 import sqlite3
-import json as _json
+import json
 import time
 
 db = sqlite3.connect("grandline.db", check_same_thread=False)
@@ -345,14 +345,14 @@ def get_player_moves(player_id):
     ).fetchone()
     if not row or not row["moves_json"]:
         return []
-    return _json.loads(row["moves_json"])
+    return json.loads(row["moves_json"])
  
  
 def set_player_moves(player_id, moves):
     """Replace the player's entire move list."""
     db.execute(
         "UPDATE players SET moves_json=? WHERE id=?",
-        (_json.dumps(moves), player_id)
+        (json.dumps(moves), player_id)
     )
     db.commit()
  
