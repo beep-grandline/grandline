@@ -637,8 +637,8 @@ class SetStatsModal(discord.ui.Modal, title="Set Fighter Stats"):
         )
  
 
-# @gm_group.command(name="setstats", description="Set a player's battle stats")
-# @discord.app_commands.describe(target="The player to update")
+@gm_group.command(name="setstats", description="Set a player's battle stats")
+@discord.app_commands.describe(target="The player to update")
 async def gm_setstats(interaction: discord.Interaction, target: discord.Member):
     if not is_gm(interaction):
         await interaction.response.send_message("No permission.", ephemeral=True)
@@ -653,9 +653,9 @@ async def gm_setstats(interaction: discord.Interaction, target: discord.Member):
     await interaction.response.send_modal(SetStatsModal(player, target))
  
  
-# @gm_group.command(name="setfruit", description="Assign a devil fruit to a player")
-# @discord.app_commands.describe(target="The player", fruit="Devil fruit name")
-# @discord.app_commands.autocomplete(fruit=fruit_autocomplete)
+@gm_group.command(name="setfruit", description="Assign a devil fruit to a player")
+@discord.app_commands.describe(target="The player", fruit="Devil fruit name")
+@discord.app_commands.autocomplete(fruit=fruit_autocomplete)
 async def gm_setfruit(interaction: discord.Interaction, target: discord.Member, fruit: str):
     if not is_gm(interaction):
         await interaction.response.send_message("No permission.", ephemeral=True)
