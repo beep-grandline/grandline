@@ -97,11 +97,23 @@ async def _resolve_and_update(interaction: discord.Interaction, channel_id: str)
 
     row     = db.get_battle(channel_id)
     channel = interaction.client.get_channel(int(channel_id))
-    msg     = await channel.fetch_message(int(row["message_id"]))
+
+    # delete the old message so the channel stays clean
+    try:
+        old_msg = await channel.fetch_message(int(row["message_id"]))
+        await old_msg.delete()
+    except Exception:
+        pass
+
+    fa = state["fighters"]["a"]
+    fb = state["fighters"]["b"]
 
     if battle_logic.is_finished(state):
         embed = _finished_embed(state)
-        await msg.edit(embed=embed, view=None)
+        await channel.send(
+            content=f"<@{fa['id']}> <@{fb['id']}>",
+            embed=embed,
+        )
         db.delete_battle(channel_id)
     else:
         db.update_battle_state(channel_id, state)
@@ -111,7 +123,12 @@ async def _resolve_and_update(interaction: discord.Interaction, channel_id: str)
             fighter_b_id=row["fighter_b_id"],
             channel_id=channel_id,
         )
-        await msg.edit(embed=embed, view=view)
+        new_msg = await channel.send(
+            content=f"<@{fa['id']}> <@{fb['id']}>",
+            embed=embed,
+            view=view,
+        )
+        db.set_battle_message(channel_id, str(new_msg.id))
 
 
 # ── Move select ───────────────────────────────────────────────────────────────
@@ -391,11 +408,12 @@ async def forfeit_cmd(interaction: discord.Interaction):
 
     try:
         channel = interaction.client.get_channel(int(row["channel_id"]))
-        msg     = await channel.fetch_message(int(row["message_id"]))
+        old_msg = await channel.fetch_message(int(row["message_id"]))
+        await old_msg.delete()
         state["status"] = "finished"
         state["winner"] = "b" if fa["id"] == uid else "a"
         embed = _finished_embed(state)
-        await msg.edit(embed=embed, view=None)
+        await channel.send(embed=embed)
     except Exception:
         pass
 
