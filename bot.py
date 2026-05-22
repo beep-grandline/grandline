@@ -27,6 +27,8 @@ from battle_commands import challenge_cmd, forfeit_cmd
 bot.tree.add_command(kit_group)
 bot.tree.add_command(challenge_cmd)
 bot.tree.add_command(forfeit_cmd)
+from profile_commands import profile_group
+bot.tree.add_command(profile_group)
 
 @bot.event
 async def on_ready():
