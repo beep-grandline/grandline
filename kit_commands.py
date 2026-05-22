@@ -17,6 +17,7 @@ BASE  = {"power": 3, "accuracy": 75, "priority": 0,
          "tracking": 5, "hits": 1, "hp_cost": 0, "recoil": 0.0}
 
 POWER_TIERS = {"CHIP", "LIGHT", "MEDIUM", "HEAVY", "CRUSHER"}
+HIT_TIERS   = {"FLURRY", "BARRAGE"}   # mutually exclusive — can't combine
 
 KEYWORDS = {
     # power tiers
@@ -39,8 +40,9 @@ KEYWORDS = {
     "FOCUSED":     {"slots":  1, "apply": {"tracking": +2}, "sign": "+", "desc": "tracking +2", "cat": "descriptor", "stat": "tracking"},
     "TELEGRAPHED": {"slots": -1, "apply": {"tracking": -3}, "sign": "-", "desc": "tracking -3", "cat": "descriptor", "stat": "tracking"},
     # hits
-    "MULTI":       {"slots":  1, "apply": {"hits": +1}, "sign": "+", "desc": "+1 hit roll", "cat": "descriptor", "stat": "hits"},
-    "FLURRY":      {"slots":  1, "apply": {"hits": +5}, "sign": "+", "desc": "+5 hit rolls (power spread, independent rolls)", "cat": "descriptor", "stat": "hits"},
+    "MULTI":       {"slots":  1, "apply": {"hits": +1},  "sign": "+", "desc": "+1 hit roll", "cat": "descriptor", "stat": "hits"},
+    "FLURRY":      {"slots":  1, "apply": {"hits": +5},  "sign": "+", "desc": "+5 hit rolls (power spread, independent rolls)", "cat": "descriptor", "stat": "hits"},
+    "BARRAGE":     {"slots":  1, "apply": {"hits": +29}, "sign": "+", "desc": "+29 hit rolls (30 total, 2× scale on full connect)", "cat": "descriptor", "stat": "hits"},
     # conditions
     "DRAINING":    {"slots": -1, "apply": {"hp_cost": 15},    "sign": "-", "desc": "15 HP on use",  "cat": "condition", "stat": "hp_cost"},
     "EXHAUSTING":  {"slots": -1, "apply": {"hp_cost": 25},    "sign": "-", "desc": "25 HP on use",  "cat": "condition", "stat": "hp_cost"},
@@ -75,6 +77,16 @@ def _build_move(name, attack_type, keywords):
             "log": [], "errors": errors, "warnings": [],
         }
 
+    # hard check — flurry and barrage can't coexist
+    hit_tiers_in_input = [k.strip().upper() for k in keywords if k.strip().upper() in HIT_TIERS]
+    if len(hit_tiers_in_input) > 1:
+        errors.append(f"FLURRY and BARRAGE can't be combined — pick one")
+        return {
+            "name": name, "type": attack_type,
+            "stats": stats, "used": 0, "remaining": SLOTS,
+            "log": [], "errors": errors, "warnings": [],
+        }
+
     for kw in keywords:
         key = kw.strip().upper()
         if key not in KEYWORDS:
@@ -97,7 +109,7 @@ def _build_move(name, attack_type, keywords):
     stats["accuracy"] = max(5,  min(100, stats["accuracy"]))
     stats["tracking"] = max(1,  min(10,  stats["tracking"]))
     stats["priority"] = max(-2, min(2,   stats["priority"]))
-    stats["hits"]     = max(1,  min(8,   stats["hits"]))
+    stats["hits"]     = max(1,  min(30,  stats["hits"]))
 
     return {
         "name":      name,
