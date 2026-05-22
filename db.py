@@ -63,14 +63,14 @@ def init_db():
 
     # ── Migrations — safe to run every startup, silently ignored if already applied
     for sql in  [
-    "ALTER TABLE players ADD COLUMN atk      INTEGER DEFAULT 10",
-    "ALTER TABLE players ADD COLUMN defense   INTEGER DEFAULT 10",
-    "ALTER TABLE players ADD COLUMN spd       INTEGER DEFAULT 10",
-    "ALTER TABLE players ADD COLUMN type1     TEXT    DEFAULT 'Normal'",
-    "ALTER TABLE players ADD COLUMN type2     TEXT    DEFAULT 'none'",
-    "ALTER TABLE players ADD COLUMN block_name TEXT",
-    "ALTER TABLE players ADD COLUMN dodge_name TEXT",
-    "ALTER TABLE players ADD COLUMN moves_json TEXT    DEFAULT '[]'",]
+        "ALTER TABLE players ADD COLUMN atk      INTEGER DEFAULT 10",
+        "ALTER TABLE players ADD COLUMN defense   INTEGER DEFAULT 10",
+        "ALTER TABLE players ADD COLUMN spd       INTEGER DEFAULT 10",
+        "ALTER TABLE players ADD COLUMN type1     TEXT    DEFAULT 'Normal'",
+        "ALTER TABLE players ADD COLUMN type2     TEXT    DEFAULT 'none'",
+        "ALTER TABLE players ADD COLUMN block_name TEXT",
+        "ALTER TABLE players ADD COLUMN dodge_name TEXT",
+        "ALTER TABLE players ADD COLUMN moves_json TEXT    DEFAULT '[]'"]
         try:
             db.execute(sql)
             db.commit()
