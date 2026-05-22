@@ -195,6 +195,7 @@ def _resolve_action(actor, target, action, move_name, opp_action):
             ok, pct = _roll_dodge(target, actor, move)
             if ok:
                 lines.append(f"{target['name']} dodges {actor['name']}'s {move['name']}! ({pct}% chance)")
+                target["priority_next_turn"] = True
                 return lines
             else:
                 lines.append(f"{target['name']} tried to dodge but couldn't! ({pct}% chance)")
@@ -234,6 +235,11 @@ def _resolve_action(actor, target, action, move_name, opp_action):
                 recoil_dmg = max(1, round(dmg * recoil))
                 actor["hp"] = max(0, actor["hp"] - recoil_dmg)
                 lines.append(f"→ {actor['name']} takes {recoil_dmg} recoil damage!")
+
+            if is_blocking:
+                counter_dmg = max(1, round(target["atk"] * 0.3))
+                actor["hp"] = max(0, actor["hp"] - counter_dmg)
+                lines.append(f"→ {target['name']} counters! **{counter_dmg}** damage.")
 
     elif action == "block":
         if opp_action != "attack":
@@ -308,13 +314,22 @@ def resolve_turn(state, action_a, action_b):
     state["turn"] += 1
     log = [f"**── Turn {state['turn']} ──**"]
 
-    # speed order
-    spd_move_a = (_find_move(fa, move_a) or {}).get("spd", 0) if act_a == "attack" else 0
-    spd_move_b = (_find_move(fb, move_b) or {}).get("spd", 0) if act_b == "attack" else 0
-    eff_spd_a  = fa["spd"] + spd_move_a
-    eff_spd_b  = fb["spd"] + spd_move_b
+    # dodge priority flip — successful dodge last turn grants initiative
+    a_priority = fa.pop("priority_next_turn", False)
+    b_priority = fb.pop("priority_next_turn", False)
 
-    if eff_spd_a >= eff_spd_b:
+    if a_priority and not b_priority:
+        log.append(f"⚡ {fa['name']} moves first from last turn's dodge!")
+        a_goes_first = True
+    elif b_priority and not a_priority:
+        log.append(f"⚡ {fb['name']} moves first from last turn's dodge!")
+        a_goes_first = False
+    else:
+        spd_move_a = (_find_move(fa, move_a) or {}).get("spd", 0) if act_a == "attack" else 0
+        spd_move_b = (_find_move(fb, move_b) or {}).get("spd", 0) if act_b == "attack" else 0
+        a_goes_first = (fa["spd"] + spd_move_a) >= (fb["spd"] + spd_move_b)
+
+    if a_goes_first:
         first,  second  = fa, fb
         act_f,  move_f  = act_a, move_a
         act_s,  move_s  = act_b, move_b
