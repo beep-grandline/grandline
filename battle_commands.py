@@ -10,6 +10,7 @@ import discord
 import db
 import battle as battle_logic
 from config import MY_GUILD
+from fruits import get_fighter_types
 
 
 # ── Embed builders ────────────────────────────────────────────────────────────
@@ -61,6 +62,7 @@ def _finished_embed(state):
 
 
 def _build_fighter_data(player_row, member: discord.Member):
+    type1, type2 = get_fighter_types(player_row["fruit_id"] if player_row["fruit_id"] else None)
     return {
         "id":      str(member.id),
         "name":    member.display_name,
@@ -68,8 +70,8 @@ def _build_fighter_data(player_row, member: discord.Member):
         "atk":     player_row["atk"]     or 10,
         "defense": player_row["defense"] or 10,
         "spd":     player_row["spd"]     or 10,
-        "type1":   player_row["type1"]   or "Normal",
-        "type2":   player_row["type2"]   or "none",
+        "type1":   type1,
+        "type2":   type2,
         "block":   player_row["block_name"],
         "dodge":   player_row["dodge_name"],
         "moves":   db.get_player_moves(str(member.id)),
