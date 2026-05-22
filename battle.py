@@ -183,6 +183,7 @@ def _resolve_action(actor, target, action, move_name, opp_action):
             return lines
 
         attack_type = move.get("attack_type", "blunt")
+        hits        = move.get("hits", 1)
 
         # hp cost on use — triggers regardless of hit/miss/dodge
         hp_cost = move.get("hp_cost", 0)
@@ -190,7 +191,7 @@ def _resolve_action(actor, target, action, move_name, opp_action):
             actor["hp"] = max(0, actor["hp"] - hp_cost)
             lines.append(f"{actor['name']} exerts themselves! (-{hp_cost} HP)")
 
-        # dodge check
+        # dodge check — a successful dodge beats the whole move
         if opp_action == "dodge":
             ok, pct = _roll_dodge(target, actor, move)
             if ok:
@@ -200,7 +201,7 @@ def _resolve_action(actor, target, action, move_name, opp_action):
             else:
                 lines.append(f"{target['name']} tried to dodge but couldn't! ({pct}% chance)")
 
-        # block check
+        # block check — result used differently for single vs multi-hit
         is_blocking = (opp_action == "block")
         if is_blocking:
             ok, pct = _roll_block(target, actor)
@@ -211,35 +212,101 @@ def _resolve_action(actor, target, action, move_name, opp_action):
                 lines.append(f"{target['name']}'s block fails! ({pct}% chance)")
                 is_blocking = False
 
-        dmg, hit, crit, e_mod, p_mod = _calculate_damage(actor, target, move, is_blocking)
+        lines.append(f"{actor['name']} used **{move['name']}**! [{attack_type} | {hits} hit{'s' if hits > 1 else ''}]")
 
-        lines.append(f"{actor['name']} used **{move['name']}**! [{attack_type} | spd {move.get('spd', 5)}]")
+        if hits == 1:
+            # ── single hit ────────────────────────────────────────────────────
+            dmg, hit, crit, e_mod, p_mod = _calculate_damage(actor, target, move, is_blocking)
 
-        if not hit:
-            lines.append("→ Missed!")
-        elif dmg == 0:
-            label = _effectiveness_label(e_mod, p_mod)
-            if label:
-                lines.append(label)
+            if not hit:
+                lines.append("→ Missed!")
+            elif dmg == 0:
+                label = _effectiveness_label(e_mod, p_mod)
+                if label:
+                    lines.append(label)
+            else:
+                if crit:
+                    lines.append("→ Critical hit!")
+                label = _effectiveness_label(e_mod, p_mod)
+                if label:
+                    lines.append(label)
+                target["hp"] = max(0, target["hp"] - dmg)
+                lines.append(f"→ {target['name']} took **{dmg}** damage. (e:{e_mod}× p:{p_mod:.2f}×)")
+
+                recoil = move.get("recoil", 0.0)
+                if recoil > 0:
+                    recoil_dmg = max(1, round(dmg * recoil))
+                    actor["hp"] = max(0, actor["hp"] - recoil_dmg)
+                    lines.append(f"→ {actor['name']} takes {recoil_dmg} recoil damage!")
+
+                if is_blocking:
+                    counter_dmg = max(1, round(target["atk"] * 0.3))
+                    actor["hp"] = max(0, actor["hp"] - counter_dmg)
+                    lines.append(f"→ {target['name']} counters! **{counter_dmg}** damage.")
+
         else:
-            if crit:
-                lines.append("→ Critical hit!")
-            label = _effectiveness_label(e_mod, p_mod)
-            if label:
-                lines.append(label)
-            target["hp"] = max(0, target["hp"] - dmg)
-            lines.append(f"→ {target['name']} took **{dmg}** damage. (e:{e_mod}× p:{p_mod:.2f}×)")
+            # ── flurry (multi-hit) ────────────────────────────────────────────
+            # power is spread across hits with a bonus for full connect
+            per_hit_move = dict(move)
+            per_hit_move["power"] = move["power"] / hits * 1.3
 
-            recoil = move.get("recoil", 0.0)
-            if recoil > 0:
-                recoil_dmg = max(1, round(dmg * recoil))
-                actor["hp"] = max(0, actor["hp"] - recoil_dmg)
-                lines.append(f"→ {actor['name']} takes {recoil_dmg} recoil damage!")
+            result_tokens = []   # "hit" / "miss" / "blocked" per roll
+            total_dmg     = 0
+            got_crit      = False
+            any_blocked   = False
 
-            if is_blocking:
-                counter_dmg = max(1, round(target["atk"] * 0.3))
-                actor["hp"] = max(0, actor["hp"] - counter_dmg)
-                lines.append(f"→ {target['name']} counters! **{counter_dmg}** damage.")
+            for _ in range(hits):
+                # each hit rolls accuracy independently, no block inside
+                dmg, did_hit, crit, e_mod, p_mod = _calculate_damage(
+                    actor, target, per_hit_move, is_blocking=False
+                )
+                if not did_hit:
+                    result_tokens.append("miss")
+                    continue
+                if crit:
+                    got_crit = True
+                if is_blocking:
+                    # independent block roll per hit that connects
+                    b_ok, _ = _roll_block(target, actor)
+                    if b_ok:
+                        result_tokens.append("blocked")
+                        any_blocked = True
+                        dmg = max(1, round(dmg * 0.5))  # block halves each hit
+                    else:
+                        result_tokens.append("hit")
+                else:
+                    result_tokens.append("hit")
+                total_dmg += dmg
+
+            landed  = result_tokens.count("hit") + result_tokens.count("blocked")
+            blocked = result_tokens.count("blocked")
+
+            lines.append("  " + " · ".join(result_tokens))
+
+            if got_crit:
+                lines.append("→ Critical hit in the barrage!")
+
+            if total_dmg == 0:
+                lines.append("→ All hits missed!")
+            else:
+                target["hp"] = max(0, target["hp"] - total_dmg)
+                summary = f"→ {landed}/{hits} connected"
+                if blocked:
+                    summary += f", {blocked} blocked"
+                summary += f" — **{total_dmg}** total damage"
+                lines.append(summary)
+
+                recoil = move.get("recoil", 0.0)
+                if recoil > 0:
+                    recoil_dmg = max(1, round(total_dmg * recoil))
+                    actor["hp"] = max(0, actor["hp"] - recoil_dmg)
+                    lines.append(f"→ {actor['name']} takes {recoil_dmg} recoil damage!")
+
+                # counter fires once at the end if any hits were blocked
+                if any_blocked:
+                    counter_dmg = max(1, round(target["atk"] * 0.3))
+                    actor["hp"] = max(0, actor["hp"] - counter_dmg)
+                    lines.append(f"→ {target['name']} counters! **{counter_dmg}** damage.")
 
     elif action == "block":
         if opp_action != "attack":
