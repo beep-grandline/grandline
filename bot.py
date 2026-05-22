@@ -10,6 +10,7 @@ import map_render
 import asyncio
 from typing import Literal
 import csv
+from config import MY_GUILD, GUILD_ID, GAME_ADMIN, GAME_MOD
 
 load_dotenv()
 
@@ -21,6 +22,12 @@ GAME_MOD   = "Mod"
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+from kit_commands import kit_group
+from battle_commands import challenge_cmd, forfeit_cmd
+bot.tree.add_command(kit_group)
+bot.tree.add_command(challenge_cmd)
+bot.tree.add_command(forfeit_cmd)
 
 @bot.event
 async def on_ready():
