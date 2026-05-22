@@ -1,5 +1,5 @@
 import sqlite3
-import json
+import json as _json
 import time
 
 db = sqlite3.connect("grandline.db", check_same_thread=False)
@@ -335,6 +335,69 @@ def get_stale_battles(timeout_seconds=1800):
         "SELECT * FROM battles WHERE last_updated < ?", (cutoff,)
     ).fetchall()
     return [row_to_dict(r) for r in rows]
+
+def get_player_moves(player_id):
+    """Returns the player's move list, or [] if none."""
+    row = db.execute(
+        "SELECT moves_json FROM players WHERE id=?", (player_id,)
+    ).fetchone()
+    if not row or not row["moves_json"]:
+        return []
+    return _json.loads(row["moves_json"])
  
+ 
+def set_player_moves(player_id, moves):
+    """Replace the player's entire move list."""
+    db.execute(
+        "UPDATE players SET moves_json=? WHERE id=?",
+        (_json.dumps(moves), player_id)
+    )
+    db.commit()
+ 
+ 
+def add_player_move(player_id, move_dict):
+    """
+    Append a move. Returns False if a move with that name already exists,
+    True on success.
+    """
+    moves = get_player_moves(player_id)
+    if any(m["name"].lower() == move_dict["name"].lower() for m in moves):
+        return False
+    moves.append(move_dict)
+    set_player_moves(player_id, moves)
+    return True
+ 
+ 
+def remove_player_move(player_id, move_name):
+    """
+    Remove a move by name (case-insensitive).
+    Returns False if not found, True on success.
+    """
+    moves     = get_player_moves(player_id)
+    new_moves = [m for m in moves if m["name"].lower() != move_name.lower()]
+    if len(new_moves) == len(moves):
+        return False
+    set_player_moves(player_id, new_moves)
+    return True
+ 
+ 
+# ── Fighter stat management (called by /gm setstats) ─────────────────────────
+ 
+def set_fighter_stats(player_id, atk=None, defense=None, spd=None,
+                      type1=None, type2=None, block_name=None, dodge_name=None):
+    """Update any combination of fighter stats. None values are skipped."""
+    fields = []
+    values = []
+    for col, val in [("atk", atk), ("defense", defense), ("spd", spd),
+                     ("type1", type1), ("type2", type2),
+                     ("block_name", block_name), ("dodge_name", dodge_name)]:
+        if val is not None:
+            fields.append(f"{col}=?")
+            values.append(val)
+    if not fields:
+        return
+    values.append(player_id)
+    db.execute(f"UPDATE players SET {', '.join(fields)} WHERE id=?", values)
+    db.commit()
 
 init_db()  # runs on import, creates tables if they don't exist
