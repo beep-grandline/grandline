@@ -49,7 +49,7 @@ KEYWORDS = {
 # Power is stored on a 1–10 scale; multiply by this to fit battle.py's damage range
 POWER_SCALE = 9
 
-MAX_MOVES = 6
+MAX_MOVES = 4
 
 
 def _build_move(name, attack_type, keywords):
@@ -178,28 +178,26 @@ def _format_stored(move):
 
 # ── Autocomplete handlers ─────────────────────────────────────────────────────
 
-async def _keywords_autocomplete(interaction: discord.Interaction, current: str):
-    upper   = current.upper()
-    parts   = upper.split()
-    if current and not current.endswith(" "):
-        partial = parts[-1] if parts else ""
-        already = set(parts[:-1])
-    else:
-        partial = ""
-        already = set(parts)
+async def _kw_autocomplete(interaction: discord.Interaction, current: str):
+    ns = interaction.namespace
+    already = {
+        (getattr(ns, "kw1", "") or "").upper(),
+        (getattr(ns, "kw2", "") or "").upper(),
+        (getattr(ns, "kw3", "") or "").upper(),
+        (getattr(ns, "kw4", "") or "").upper(),
+    } - {""}
 
+    partial = current.upper()
     choices = []
     for kw, entry in KEYWORDS.items():
-        if kw in already or not kw.startswith(partial):
+        if kw in already:
             continue
-        full_val = (current.rstrip() + " " + kw).strip()
-        n        = -entry["slots"]
-        slot_s   = "free" if n == 0 else f"{n:+d} slot{'s' if abs(n) != 1 else ''}"
+        if partial and not kw.startswith(partial):
+            continue
         choices.append(discord.app_commands.Choice(
-            name=f"{kw}  —  {entry['desc']}  ({slot_s})"[:100],
-            value=full_val[:100],
+            name=f"{kw} — {entry['desc']}"[:100],
+            value=kw,
         ))
-
     return choices[:25]
 
 
@@ -254,44 +252,89 @@ async def kit_show(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-@kit_group.command(name="preview", description="Preview a move without saving it")
-@discord.app_commands.describe(
-    name="Move name",
-    attack_type="Attack type",
-    keywords="Keywords  (e.g. HEAVY QUICK EXHAUSTING)",
-)
-@discord.app_commands.choices(attack_type=_TYPE_CHOICES)
-@discord.app_commands.autocomplete(keywords=_keywords_autocomplete)
-async def kit_preview(interaction: discord.Interaction, name: str, attack_type: str, keywords: str):
-    built = _build_move(name, attack_type, keywords.upper().split())
-    over  = built["remaining"] < 0
-    embed = discord.Embed(
-        title=f"Preview: {name}  ·  `{attack_type}`",
-        description=_format_built(built),
-        color=0xe05555 if over else 0x1a3f6b,
-    )
-    if over:
-        embed.set_footer(text=f"⚠ Over budget by {-built['remaining']} slot(s) — not saveable")
-    else:
-        embed.set_footer(text="Looks good? Use /kit add with the same params to save.")
-    for e in built["errors"]:
-        embed.add_field(name="⚠ Unknown keyword", value=e, inline=True)
-    for w in built["warnings"]:
-        embed.add_field(name="⚠ Warning", value=w, inline=True)
+class ConfirmMoveView(discord.ui.View):
+    def __init__(self, uid: str, move_dict: dict, built: dict, move_count: int):
+        super().__init__(timeout=120)
+        self.uid        = uid
+        self.move_dict  = move_dict
+        self.built      = built
+        self.move_count = move_count
 
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
+
+    @discord.ui.button(label="Add to Kit", style=discord.ButtonStyle.success)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if str(interaction.user.id) != self.uid:
+            await interaction.response.send_message("This isn't your move.", ephemeral=True)
+            return
+        self.stop()
+        for child in self.children:
+            child.disabled = True
+
+        # re-check slot count in case they spammed /kit add
+        current = db.get_player_moves(self.uid)
+        if len(current) >= MAX_MOVES:
+            await interaction.response.edit_message(
+                content=f"Kit is full ({MAX_MOVES}/{MAX_MOVES}). Remove a move first.",
+                embed=None, view=self,
+            )
+            return
+
+        if any(m["name"].lower() == self.move_dict["name"].lower() for m in current):
+            await interaction.response.edit_message(
+                content=f"You already have a move called **{self.move_dict['name']}**.",
+                embed=None, view=self,
+            )
+            return
+
+        db.add_player_move(self.uid, self.move_dict)
+        name  = self.move_dict["name"]
+        atype = self.move_dict["attack_type"]
+        embed = discord.Embed(
+            title=f"✓  Added: {name}  ·  `{atype}`",
+            description=_format_built(self.built),
+            color=0x2d9e5f,
+        )
+        embed.set_footer(text=f"{self.move_count + 1}/{MAX_MOVES} moves in kit")
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if str(interaction.user.id) != self.uid:
+            await interaction.response.send_message("This isn't your move.", ephemeral=True)
+            return
+        self.stop()
+        for child in self.children:
+            child.disabled = True
+        await interaction.response.edit_message(
+            content="Cancelled.", embed=None, view=self
+        )
 
 
 @kit_group.command(name="add", description="Add a move to your kit")
 @discord.app_commands.describe(
     name="Move name",
     attack_type="Attack type",
-    keywords="Keywords  (e.g. HEAVY QUICK EXHAUSTING)",
+    kw1="Keyword 1",
+    kw2="Keyword 2",
+    kw3="Keyword 3",
+    kw4="Keyword 4",
 )
 @discord.app_commands.choices(attack_type=_TYPE_CHOICES)
-@discord.app_commands.autocomplete(keywords=_keywords_autocomplete)
-async def kit_add(interaction: discord.Interaction, name: str, attack_type: str, keywords: str):
-    uid   = str(interaction.user.id)
+@discord.app_commands.autocomplete(kw1=_kw_autocomplete, kw2=_kw_autocomplete,
+                                   kw3=_kw_autocomplete, kw4=_kw_autocomplete)
+async def kit_add(
+    interaction: discord.Interaction,
+    name: str,
+    attack_type: str,
+    kw1: str = None,
+    kw2: str = None,
+    kw3: str = None,
+    kw4: str = None,
+):
+    uid = str(interaction.user.id)
     if not db.get_player(uid):
         await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
         return
@@ -304,13 +347,8 @@ async def kit_add(interaction: discord.Interaction, name: str, attack_type: str,
         )
         return
 
-    if any(m["name"].lower() == name.lower() for m in moves):
-        await interaction.response.send_message(
-            f"You already have a move called **{name}**. Remove it first.", ephemeral=True
-        )
-        return
-
-    built = _build_move(name, attack_type, keywords.upper().split())
+    keywords = [k.upper() for k in [kw1, kw2, kw3, kw4] if k]
+    built    = _build_move(name, attack_type, keywords)
 
     if built["errors"]:
         await interaction.response.send_message(
@@ -318,24 +356,25 @@ async def kit_add(interaction: discord.Interaction, name: str, attack_type: str,
         )
         return
 
-    if built["remaining"] < 0:
-        await interaction.response.send_message(
-            f"**{name}** is over budget by {-built['remaining']} slot(s). "
-            "Use `/kit preview` to adjust your keywords.",
-            ephemeral=True,
-        )
+    over = built["remaining"] < 0
+    embed = discord.Embed(
+        title=f"{'⚠  Over budget: ' if over else 'Preview: '}{name}  ·  `{attack_type}`",
+        description=_format_built(built),
+        color=0xe05555 if over else 0x1a3f6b,
+    )
+
+    if built["warnings"]:
+        embed.add_field(name="⚠ Warning", value="\n".join(built["warnings"]), inline=False)
+
+    if over:
+        embed.set_footer(text=f"Over budget by {-built['remaining']} slot(s) — adjust your keywords.")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
+    embed.set_footer(text=f"Slot budget: {built['used']}/{SLOTS}  ·  Kit: {len(moves)}/{MAX_MOVES}")
     move_dict = _to_battle_dict(name, attack_type, built)
-    db.add_player_move(uid, move_dict)
-
-    embed = discord.Embed(
-        title=f"✓  Added: {name}  ·  `{attack_type}`",
-        description=_format_built(built),
-        color=0x2d9e5f,
-    )
-    embed.set_footer(text=f"{len(moves) + 1}/{MAX_MOVES} moves in kit")
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    view      = ConfirmMoveView(uid=uid, move_dict=move_dict, built=built, move_count=len(moves))
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 
 @kit_group.command(name="remove", description="Remove a move from your kit")
