@@ -10,6 +10,7 @@ import asyncio
 from typing import Literal
 import csv
 from config import MY_GUILD, GUILD_ID, GAME_ADMIN, GAME_MOD
+from fruits import FRUITS, get_fruit_by_id, fruit_autocomplete
 
 load_dotenv()
 
@@ -346,54 +347,6 @@ async def zelle(interaction: discord.Interaction, target: discord.Member, amount
 
 
 
-
-
-FRUITS = []
- 
-def load_fruits():
-    global FRUITS
-    try:
-        with open("data/fruits.csv", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            FRUITS = [row for row in reader if row.get("id")]
-        print(f"Loaded {len(FRUITS)} devil fruits.")
-    except FileNotFoundError:
-        print("Warning: data/fruits.csv not found.")
- 
-load_fruits()
- 
- 
-def get_fruit_by_id(fruit_id):
-    return next((f for f in FRUITS if f["id"] == fruit_id), None)
- 
- 
-# ── Autocomplete ──────────────────────────────────────────────────────────────
- 
-async def fruit_autocomplete(
-    interaction: discord.Interaction,
-    current: str,
-):
-    current = current.lower().strip()
-    matches = []
-    seen    = set()
- 
-    for f in FRUITS:
-        eng = (f.get("eng") or "").strip()
-        jap = (f.get("jap") or "").strip()
-        fid = f.get("id", "")
- 
-        if fid in seen:
-            continue
-        if current in eng.lower() or current in jap.lower():
-            seen.add(fid)
-            label = jap
-            # Discord Choice name max is 100 chars
-            matches.append(discord.app_commands.Choice(
-                name=label[:100],
-                value=fid,
-            ))
- 
-    return matches[:25]
  
  
 # ── /search command ───────────────────────────────────────────────────────────
