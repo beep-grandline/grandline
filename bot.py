@@ -409,6 +409,8 @@ gm_group = discord.app_commands.Group(
     guild_ids=[MY_GUILD.id],
 )
 
+def is_gm(interaction: discord.Interaction) -> bool:
+    return any(r.name in (GAME_ADMIN, GAME_MOD) for r in interaction.user.roles)
 
 @gm_group.command(name="teleport", description="Move a player to a specific hex")
 @discord.app_commands.describe(target="The player to teleport", q="Hex q coordinate", r="Hex r coordinate")
@@ -542,6 +544,145 @@ async def gm_help(interaction: discord.Interaction):
     for name, desc in commands_list:
         embed.add_field(name=name, value=desc, inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
+class SetStatsModal(discord.ui.Modal, title="Set Fighter Stats"):
+ 
+    atk = discord.ui.TextInput(
+        label="ATK",
+        placeholder="Attack power (integer)",
+        max_length=4,
+        required=False,
+    )
+    defense = discord.ui.TextInput(
+        label="DEF",
+        placeholder="Defence (integer)",
+        max_length=4,
+        required=False,
+    )
+    spd = discord.ui.TextInput(
+        label="SPD",
+        placeholder="Speed (integer)",
+        max_length=4,
+        required=False,
+    )
+    block_name = discord.ui.TextInput(
+        label="Block technique name",
+        placeholder="e.g. Iron Body  (leave blank to clear)",
+        max_length=64,
+        required=False,
+    )
+    dodge_name = discord.ui.TextInput(
+        label="Dodge technique name",
+        placeholder="e.g. Shave  (leave blank to clear)",
+        max_length=64,
+        required=False,
+    )
+ 
+    def __init__(self, player_row, target: discord.Member):
+        super().__init__()
+        self.target = target
+        if player_row["atk"]:
+            self.atk.default      = str(player_row["atk"])
+        if player_row["defense"]:
+            self.defense.default  = str(player_row["defense"])
+        if player_row["spd"]:
+            self.spd.default      = str(player_row["spd"])
+        if player_row["block_name"]:
+            self.block_name.default = player_row["block_name"]
+        if player_row["dodge_name"]:
+            self.dodge_name.default = player_row["dodge_name"]
+ 
+    async def on_submit(self, interaction: discord.Interaction):
+        uid    = str(self.target.id)
+        errors = []
+        kwargs = {}
+ 
+        for field, key in [(self.atk, "atk"), (self.defense, "defense"), (self.spd, "spd")]:
+            val = str(field).strip()
+            if val:
+                try:
+                    kwargs[key] = int(val)
+                except ValueError:
+                    errors.append(f"{field.label} must be a whole number")
+ 
+        if errors:
+            await interaction.response.send_message(
+                "Fix these errors:\n" + "\n".join(f"· {e}" for e in errors),
+                ephemeral=True,
+            )
+            return
+ 
+        block = str(self.block_name).strip() or None
+        dodge = str(self.dodge_name).strip() or None
+ 
+        db.set_fighter_stats(
+            uid,
+            atk        = kwargs.get("atk"),
+            defense    = kwargs.get("defense"),
+            spd        = kwargs.get("spd"),
+            block_name = block,
+            dodge_name = dodge,
+        )
+ 
+        lines = []
+        if "atk"     in kwargs: lines.append(f"ATK → **{kwargs['atk']}**")
+        if "defense" in kwargs: lines.append(f"DEF → **{kwargs['defense']}**")
+        if "spd"     in kwargs: lines.append(f"SPD → **{kwargs['spd']}**")
+        if block is not None: lines.append(f"Block → **{block or 'cleared'}**")
+        if dodge is not None: lines.append(f"Dodge → **{dodge or 'cleared'}**")
+ 
+        await interaction.response.send_message(
+            f"Updated **{self.target.display_name}**:\n" + "\n".join(lines),
+            ephemeral=True,
+        )
+ 
+
+# @gm_group.command(name="setstats", description="Set a player's battle stats")
+# @discord.app_commands.describe(target="The player to update")
+async def gm_setstats(interaction: discord.Interaction, target: discord.Member):
+    if not is_gm(interaction):
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+    uid    = str(target.id)
+    player = db.get_player(uid)
+    if not player:
+        await interaction.response.send_message(
+            f"**{target.display_name}** is not registered.", ephemeral=True
+        )
+        return
+    await interaction.response.send_modal(SetStatsModal(player, target))
+ 
+ 
+# @gm_group.command(name="setfruit", description="Assign a devil fruit to a player")
+# @discord.app_commands.describe(target="The player", fruit="Devil fruit name")
+# @discord.app_commands.autocomplete(fruit=fruit_autocomplete)
+async def gm_setfruit(interaction: discord.Interaction, target: discord.Member, fruit: str):
+    if not is_gm(interaction):
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+    uid    = str(target.id)
+    player = db.get_player(uid)
+    if not player:
+        await interaction.response.send_message(
+            f"**{target.display_name}** is not registered.", ephemeral=True
+        )
+        return
+    row = get_fruit_by_id(fruit)
+    if not row:
+        await interaction.response.send_message(
+            "Fruit not found — select from the autocomplete list.", ephemeral=True
+        )
+        return
+    db.set_player_fruit(uid, fruit)
+    jap = (row.get("jap") or "").strip()
+    eng = (row.get("eng") or "").strip()
+    t1  = row.get("type1") or "Normal"
+    t2  = row.get("type2") or "none"
+    await interaction.response.send_message(
+        f"Gave **{target.display_name}** the **{jap}** ({eng}).\n"
+        f"Type: `{t1}` / Defence modifier: `{t2}`",
+        ephemeral=True,
+    )
 
 
 bot.tree.add_command(gm_group)
