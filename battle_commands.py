@@ -389,18 +389,9 @@ async def challenge_cmd(interaction: discord.Interaction, target: discord.Member
         )
         return
 
-    embed = discord.Embed(
-        title="⚔  Challenge Issued",
-        description=f"{interaction.user.mention} wants to fight {target.mention}!",
-        color=0x1a3f6b,
-    )
-    embed.set_thumbnail(url=interaction.user.display_avatar.url)
-    embed.set_footer(text="This challenge expires in 2 minutes.")
-
     view = ChallengeView(challenger=interaction.user, target=target)
     await interaction.response.send_message(
-        content=f"{target.mention} — you've been challenged!",
-        embed=embed,
+        content=f"{target.mention}, {interaction.user.display_name} has challenged you to a fight ⚔️",
         view=view,
     )
 
