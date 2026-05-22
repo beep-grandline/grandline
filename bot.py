@@ -633,7 +633,7 @@ class SetStatsModal(discord.ui.Modal, title="Set Fighter Stats"):
  
         await interaction.response.send_message(
             f"Updated **{self.target.display_name}**:\n" + "\n".join(lines),
-            ephemeral=True,
+            ephemeral=False,
         )
  
 
