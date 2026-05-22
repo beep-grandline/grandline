@@ -386,12 +386,11 @@ def remove_player_move(player_id, move_name):
 # ── Fighter stat management (called by /gm setstats) ─────────────────────────
  
 def set_fighter_stats(player_id, atk=None, defense=None, spd=None,
-                      type1=None, type2=None, block_name=None, dodge_name=None):
+                      block_name=None, dodge_name=None):
     """Update any combination of fighter stats. None values are skipped."""
     fields = []
     values = []
     for col, val in [("atk", atk), ("defense", defense), ("spd", spd),
-                     ("type1", type1), ("type2", type2),
                      ("block_name", block_name), ("dodge_name", dodge_name)]:
         if val is not None:
             fields.append(f"{col}=?")
@@ -401,6 +400,21 @@ def set_fighter_stats(player_id, atk=None, defense=None, spd=None,
     values.append(player_id)
     db.execute(f"UPDATE players SET {', '.join(fields)} WHERE id=?", values)
     db.commit()
+ 
+ 
+def set_player_fruit(player_id, fruit_id):
+    """Assign a devil fruit to a player by fruit ID."""
+    db.execute("UPDATE players SET fruit_id=? WHERE id=?", (fruit_id, player_id))
+    db.commit()
+ 
+ 
+def get_player_fruit(player_id):
+    """Returns the player's fruit_id string, or None."""
+    row = db.execute(
+        "SELECT fruit_id FROM players WHERE id=?", (player_id,)
+    ).fetchone()
+    return row["fruit_id"] if row else None
+ 
 
 def set_profile(player_id, char_name=None, fighting_style=None, summary=None):
     """Update profile fields. None values are skipped."""
