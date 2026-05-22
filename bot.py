@@ -681,7 +681,7 @@ async def gm_setfruit(interaction: discord.Interaction, target: discord.Member, 
     await interaction.response.send_message(
         f"Gave **{target.display_name}** the **{jap}** ({eng}).\n"
         f"Type: `{t1}` / Defence modifier: `{t2}`",
-        ephemeral=True,
+        ephemeral=False,
     )
 
 
