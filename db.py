@@ -63,6 +63,12 @@ def init_db():
 
     # ── Migrations — safe to run every startup, silently ignored if already applied
     for sql in  [
+        "ALTER TABLE players ADD COLUMN fruit_id    TEXT",
+        "ALTER TABLE players ADD COLUMN atk         INTEGER DEFAULT 10",
+        "ALTER TABLE players ADD COLUMN defense      INTEGER DEFAULT 10",
+        "ALTER TABLE players ADD COLUMN spd         INTEGER DEFAULT 10",
+        "ALTER TABLE players ADD COLUMN block_name  TEXT",
+        "ALTER TABLE players ADD COLUMN dodge_name  TEXT",
         "ALTER TABLE players ADD COLUMN char_name      TEXT",
         "ALTER TABLE players ADD COLUMN fighting_style  TEXT",
         "ALTER TABLE players ADD COLUMN summary         TEXT",
