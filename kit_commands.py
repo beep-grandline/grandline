@@ -195,7 +195,7 @@ async def _kw_autocomplete(interaction: discord.Interaction, current: str):
         if partial and not kw.startswith(partial):
             continue
         choices.append(discord.app_commands.Choice(
-            name=f"{kw} — {entry['desc']}"[:100],
+            name=kw,
             value=kw,
         ))
     return choices[:25]
