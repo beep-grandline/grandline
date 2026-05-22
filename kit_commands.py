@@ -57,12 +57,22 @@ def _build_move(name, attack_type, keywords):
     Build a move from a keyword list.
     Returns a result dict with keys: stats, used, remaining, log, errors, warnings.
     """
-    stats    = dict(BASE)
-    used     = 0
-    log      = []
-    errors   = []
-    warnings = []
+    stats      = dict(BASE)
+    used       = 0
+    log        = []
+    errors     = []
+    warnings   = []
     tiers_seen = []
+
+    # hard check — multiple power tiers can't coexist
+    tiers_in_input = [k.strip().upper() for k in keywords if k.strip().upper() in POWER_TIERS]
+    if len(tiers_in_input) > 1:
+        errors.append(f"Only one power tier allowed — you used: {', '.join(tiers_in_input)}")
+        return {
+            "name": name, "type": attack_type,
+            "stats": stats, "used": 0, "remaining": SLOTS,
+            "log": [], "errors": errors, "warnings": [],
+        }
 
     for kw in keywords:
         key = kw.strip().upper()
@@ -71,8 +81,6 @@ def _build_move(name, attack_type, keywords):
             continue
         if key in POWER_TIERS:
             tiers_seen.append(key)
-            if len(tiers_seen) > 1:
-                warnings.append(f"Multiple power tiers: {tiers_seen}")
         entry = KEYWORDS[key]
         used += entry["slots"]
         log.append((key, entry))
