@@ -265,6 +265,24 @@ class BattleView(discord.ui.View):
         if both_ready:
             await _resolve_and_update(interaction, self.channel_id)
 
+    @discord.ui.button(label="Charge ⚡", style=discord.ButtonStyle.primary, row=1)
+    async def charge(self, interaction: discord.Interaction, button: discord.ui.Button):
+        side = await self._guard(interaction)
+        if not side:
+            return
+        state = db.get_battle_state(self.channel_id)
+        if state and state["fighters"][side].get("charging"):
+            await interaction.response.send_message(
+                "You're already charging! Attack this turn to release it.", ephemeral=True
+            )
+            return
+        both_ready = db.set_pending_action(self.channel_id, side, ["charge", None])
+        await interaction.response.send_message(
+            "Charging up — your next attack will hit twice as hard!", ephemeral=True
+        )
+        if both_ready:
+            await _resolve_and_update(interaction, self.channel_id)
+
 
 # ── Challenge view ────────────────────────────────────────────────────────────
 
