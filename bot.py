@@ -562,6 +562,8 @@ async def gm_help(interaction: discord.Interaction):
         ("/gm disband",   "Disband a crew by name"),
         ("/gm remove",    "Remove a player from the game"),
         ("/gm setberry",  "Set a player's berry (target, amount)"),
+        ("/gm setstats",  "Set a player's battle stats — opens a form with ATK, DEF, SPD, block and dodge technique names"),
+        ("/gm setfruit",  "Assign a devil fruit to a player — sets their elemental type and defence modifier"),
         ("/gm help",      "Show this message"),
     ]
     for name, desc in commands_list:
