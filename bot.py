@@ -30,6 +30,9 @@ bot.tree.add_command(challenge_cmd)
 bot.tree.add_command(forfeit_cmd)
 from profile_commands import profile_group
 bot.tree.add_command(profile_group)
+from inventory_commands import inventory_cmd, eat_cmd
+bot.tree.add_command(inventory_cmd)
+bot.tree.add_command(eat_cmd)
 
 @bot.event
 async def on_ready():
@@ -548,6 +551,158 @@ async def gm_setberry(interaction: discord.Interaction, target: discord.Member, 
         f"Set **{target.display_name}**'s berry to ฿{amount}."
     )
 
+# ── /gm givefruit ─────────────────────────────────────────────────────────────
+ 
+@gm_group.command(name="givefruit", description="Give an uneaten Devil Fruit to a player")
+@discord.app_commands.describe(target="The player", fruit="Devil fruit name")
+@discord.app_commands.autocomplete(fruit=fruit_autocomplete)
+async def gm_givefruit(interaction: discord.Interaction, target: discord.Member, fruit: str):
+    if not is_gm(interaction):
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+ 
+    uid = str(target.id)
+    if not db.get_player(uid):
+        await interaction.response.send_message(
+            f"**{target.display_name}** is not registered.", ephemeral=True
+        )
+        return
+ 
+    if db.get_held_fruit(uid):
+        await interaction.response.send_message(
+            f"**{target.display_name}** already has a fruit in their held slot. "
+            "Use `/gm takefruit` first.", ephemeral=True
+        )
+        return
+ 
+    row = get_fruit_by_id(fruit)
+    if not row:
+        await interaction.response.send_message(
+            "Fruit not found — select from the autocomplete list.", ephemeral=True
+        )
+        return
+ 
+    db.set_held_fruit(uid, fruit)
+    jap = (row.get("jap") or "").strip()
+    eng = (row.get("eng") or "").strip()
+    await interaction.response.send_message(
+        f"Gave **{target.display_name}** the **{jap}** ({eng}). "
+        f"They can use `/eat` to eat it or hold onto it."
+    )
+ 
+ 
+# ── /gm giveitem ──────────────────────────────────────────────────────────────
+ 
+@gm_group.command(name="giveitem", description="Add an item to a player's inventory")
+@discord.app_commands.describe(
+    target="The player",
+    name="Item name",
+    qty="Quantity (default 1)",
+    keywords="Space-separated tags e.g. healing rare (optional)",
+)
+async def gm_giveitem(
+    interaction: discord.Interaction,
+    target: discord.Member,
+    name: str,
+    qty: int = 1,
+    keywords: str = "",
+):
+    if not is_gm(interaction):
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+ 
+    uid = str(target.id)
+    if not db.get_player(uid):
+        await interaction.response.send_message(
+            f"**{target.display_name}** is not registered.", ephemeral=True
+        )
+        return
+ 
+    if qty < 1:
+        await interaction.response.send_message("Quantity must be at least 1.", ephemeral=True)
+        return
+ 
+    kw_list = [k.lower() for k in keywords.split() if k] if keywords else []
+    db.add_inventory_item(uid, name, qty=qty, keywords=kw_list)
+ 
+    kw_str = ", ".join(kw_list) if kw_list else "no tags"
+    await interaction.response.send_message(
+        f"Added **{name}** ×{qty} ({kw_str}) to **{target.display_name}**'s inventory."
+    )
+ 
+ 
+# ── /gm take ─────────────────────────────────────────────────────────────────
+ 
+async def _take_autocomplete(interaction: discord.Interaction, current: str):
+    target = interaction.namespace.target
+    if not target:
+        return []
+    uid     = str(target.id)
+    choices = []
+    held    = db.get_held_fruit(uid)
+    if held:
+        row  = get_fruit_by_id(held)
+        name = (row.get("jap") or held) if row else held
+        choices.append(discord.app_commands.Choice(
+            name=f"[Fruit] {name}", value="__held_fruit__"
+        ))
+    for item in db.get_inventory(uid):
+        if current.lower() in item["name"].lower():
+            choices.append(discord.app_commands.Choice(
+                name=f"{item['name']} ×{item['qty']}", value=item["name"]
+            ))
+    return choices[:25]
+ 
+ 
+@gm_group.command(name="take", description="Remove an item or fruit from a player")
+@discord.app_commands.describe(
+    target="The player",
+    item="What to take",
+    qty="Quantity to remove (items only, default 1)",
+)
+@discord.app_commands.autocomplete(item=_take_autocomplete)
+async def gm_take(
+    interaction: discord.Interaction,
+    target: discord.Member,
+    item: str,
+    qty: int = 1,
+):
+    if not is_gm(interaction):
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+ 
+    uid = str(target.id)
+    if not db.get_player(uid):
+        await interaction.response.send_message(
+            f"**{target.display_name}** is not registered.", ephemeral=True
+        )
+        return
+ 
+    if item == "__held_fruit__":
+        held = db.get_held_fruit(uid)
+        if not held:
+            await interaction.response.send_message(
+                f"**{target.display_name}** has no held fruit.", ephemeral=True
+            )
+            return
+        row  = get_fruit_by_id(held)
+        name = (row.get("jap") or held) if row else held
+        db.clear_held_fruit(uid)
+        await interaction.response.send_message(
+            f"Took the **{name}** from **{target.display_name}**."
+        )
+    else:
+        success, remaining = db.remove_inventory_item(uid, item, qty=qty)
+        if not success:
+            await interaction.response.send_message(
+                f"**{target.display_name}** doesn't have **{item}**.", ephemeral=True
+            )
+            return
+        leftover = f" ({remaining} remaining)" if remaining > 0 else ""
+        await interaction.response.send_message(
+            f"Took **{item}** ×{qty} from **{target.display_name}**{leftover}."
+        )
+
 
 
 @gm_group.command(name="help", description="List all GM commands")
@@ -562,8 +717,11 @@ async def gm_help(interaction: discord.Interaction):
         ("/gm disband",   "Disband a crew by name"),
         ("/gm remove",    "Remove a player from the game"),
         ("/gm setberry",  "Set a player's berry (target, amount)"),
-        ("/gm setstats",  "Set a player's battle stats — opens a form with ATK, DEF, SPD, block and dodge technique names"),
-        ("/gm setfruit",  "Assign a devil fruit to a player — sets their elemental type and defence modifier"),
+        ("/gm setstats",  "Set a player's battle stats — opens a form with ATK, DEF, SPD, block and dodge names"),
+        ("/gm setfruit",  "Set a player's eaten fruit and apply its type (target, fruit)"),
+        ("/gm givefruit", "Give an uneaten fruit to a player's held slot (target, fruit)"),
+        ("/gm giveitem",  "Add an item to a player's inventory (target, name, qty, keywords)"),
+        ("/gm take",      "Remove a held fruit or item from a player (target, item)"),
         ("/gm help",      "Show this message"),
     ]
     for name, desc in commands_list:
