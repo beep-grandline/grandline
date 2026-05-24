@@ -247,9 +247,11 @@ def _resolve_action(actor, target, action, move_name, opp_action):
         else:
             # ── multi-hit (flurry / barrage) ──────────────────────────────────
             # barrage (30 hits) uses a higher scale so full connect is meaningful
-            scale        = 2.0 if hits >= 20 else 1.3
+            scale       = 2.0 if hits >= 20 else 1.3
+            acc_penalty = 0.50 if hits >= 20 else 0.75
             per_hit_move = dict(move)
-            per_hit_move["power"] = move["power"] / hits * scale
+            per_hit_move["power"]    = move["power"] / hits * scale
+            per_hit_move["accuracy"] = move["accuracy"] * acc_penalty
 
             hit_count   = 0
             block_count = 0
