@@ -493,13 +493,13 @@ def get_inventory(player_id):
     ).fetchone()
     if not row or not row["inventory"]:
         return []
-    return _json.loads(row["inventory"])
+    return json.loads(row["inventory"])
  
  
 def set_inventory(player_id, items):
     db.execute(
         "UPDATE players SET inventory=? WHERE id=?",
-        (_json.dumps(items), player_id)
+        (json.dumps(items), player_id)
     )
     db.commit()
  
