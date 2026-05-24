@@ -185,6 +185,9 @@ def _resolve_action(actor, target, action, move_name, opp_action):
         attack_type = move.get("attack_type", "blunt")
         hits        = move.get("hits", 1)
 
+        # consume charge — applies regardless of hit, miss, or dodge
+        charge_mult = 2.0 if actor.pop("charging", False) else 1.0
+
         # hp cost on use — triggers regardless of hit/miss/dodge
         hp_cost = move.get("hp_cost", 0)
         if hp_cost > 0:
@@ -230,8 +233,11 @@ def _resolve_action(actor, target, action, move_name, opp_action):
                 label = _effectiveness_label(e_mod, p_mod)
                 if label:
                     lines.append(label)
+                if charge_mult > 1.0:
+                    dmg = max(1, round(dmg * charge_mult))
                 target["hp"] = max(0, target["hp"] - dmg)
-                lines.append(f"→ {target['name']} took **{dmg}** damage. (e:{e_mod}× p:{p_mod:.2f}×)")
+                charge_tag = " ⚡ Charged!" if charge_mult > 1.0 else ""
+                lines.append(f"→{charge_tag} {target['name']} took **{dmg}** damage. (e:{e_mod}× p:{p_mod:.2f}×)")
 
                 recoil = move.get("recoil", 0.0)
                 if recoil > 0:
@@ -287,8 +293,11 @@ def _resolve_action(actor, target, action, move_name, opp_action):
             if total_dmg == 0:
                 lines.append("→ All hits missed!")
             else:
+                if charge_mult > 1.0:
+                    total_dmg = max(1, round(total_dmg * charge_mult))
                 target["hp"] = max(0, target["hp"] - total_dmg)
-                summary = f"→ {landed}/{hits} connected"
+                charge_tag = " ⚡ Charged!" if charge_mult > 1.0 else ""
+                summary = f"→{charge_tag} {landed}/{hits} connected"
                 if block_count:
                     summary += f", {block_count} blocked"
                 summary += f" — **{total_dmg}** total damage"
@@ -312,6 +321,10 @@ def _resolve_action(actor, target, action, move_name, opp_action):
     elif action == "dodge":
         if opp_action != "attack":
             lines.append(f"{actor['name']} attempts to dodge.")
+
+    elif action == "charge":
+        actor["charging"] = True
+        lines.append(f"⚡ {actor['name']} is charging up — next attack hits twice as hard!")
 
     elif action == "escape":
         ok, pct = _roll_escape(actor, target)
@@ -347,6 +360,7 @@ def create_battle(a_data, b_data):
             "block":    data.get("block"),
             "dodge":    data.get("dodge"),
             "escaped":  False,
+            "charging": False,
         }
 
     return {
