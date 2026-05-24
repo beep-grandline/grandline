@@ -440,4 +440,102 @@ def set_profile(player_id, char_name=None, fighting_style=None, summary=None):
     db.execute(f"UPDATE players SET {', '.join(fields)} WHERE id=?", values)
     db.commit()
 
+def get_held_fruit(player_id):
+    """Returns the fruit_id string of the held (uneaten) fruit, or None."""
+    row = db.execute(
+        "SELECT held_fruit_id FROM players WHERE id=?", (player_id,)
+    ).fetchone()
+    return row["held_fruit_id"] if row else None
+ 
+ 
+def set_held_fruit(player_id, fruit_id):
+    db.execute(
+        "UPDATE players SET held_fruit_id=? WHERE id=?", (fruit_id, player_id)
+    )
+    db.commit()
+ 
+ 
+def clear_held_fruit(player_id):
+    db.execute(
+        "UPDATE players SET held_fruit_id=NULL WHERE id=?", (player_id,)
+    )
+    db.commit()
+ 
+ 
+def eat_fruit(player_id):
+    """
+    Moves held_fruit_id → fruit_id.
+    Returns (True, fruit_id) on success.
+    Returns (False, "no_held_fruit") or (False, "already_eaten") on failure.
+    """
+    row = db.execute(
+        "SELECT fruit_id, held_fruit_id FROM players WHERE id=?", (player_id,)
+    ).fetchone()
+    if not row or not row["held_fruit_id"]:
+        return False, "no_held_fruit"
+    if row["fruit_id"]:
+        return False, "already_eaten"
+    db.execute(
+        "UPDATE players SET fruit_id=?, held_fruit_id=NULL WHERE id=?",
+        (row["held_fruit_id"], player_id)
+    )
+    db.commit()
+    return True, row["held_fruit_id"]
+ 
+ 
+# ── Inventory ─────────────────────────────────────────────────────────────────
+# Each item: {"name": str, "qty": int, "keywords": [str]}
+ 
+def get_inventory(player_id):
+    """Returns the inventory list, or []."""
+    row = db.execute(
+        "SELECT inventory FROM players WHERE id=?", (player_id,)
+    ).fetchone()
+    if not row or not row["inventory"]:
+        return []
+    return _json.loads(row["inventory"])
+ 
+ 
+def set_inventory(player_id, items):
+    db.execute(
+        "UPDATE players SET inventory=? WHERE id=?",
+        (_json.dumps(items), player_id)
+    )
+    db.commit()
+ 
+ 
+def add_inventory_item(player_id, name, qty=1, keywords=None):
+    """
+    Adds qty of an item. Stacks if name already exists.
+    Returns the updated inventory list.
+    """
+    items = get_inventory(player_id)
+    for item in items:
+        if item["name"].lower() == name.lower():
+            item["qty"] += qty
+            set_inventory(player_id, items)
+            return items
+    items.append({"name": name, "qty": qty, "keywords": keywords or []})
+    set_inventory(player_id, items)
+    return items
+ 
+ 
+def remove_inventory_item(player_id, name, qty=1):
+    """
+    Removes qty of an item by name.
+    Removes the entry entirely if qty reaches 0.
+    Returns (True, remaining_qty) or (False, 0) if not found.
+    """
+    items = get_inventory(player_id)
+    for i, item in enumerate(items):
+        if item["name"].lower() == name.lower():
+            item["qty"] -= qty
+            if item["qty"] <= 0:
+                items.pop(i)
+                set_inventory(player_id, items)
+                return True, 0
+            set_inventory(player_id, items)
+            return True, item["qty"]
+    return False, 0
+
 init_db()  # runs on import, creates tables if they don't exist
