@@ -60,6 +60,19 @@ HELP_PAGES = {
             ("/register <faction>", "Enter the game."),
         ]
     },
+    
+    "Battle": {
+        "title": "⚔ Battle",
+        "description": "How to fight other players.",
+        "fields": [
+            ("/kit add",       "Build a move using keywords. Pick a power tier (CHIP → CRUSHER), then add modifiers like QUICK, HOMING, or FLURRY. You get 4 slots and 4 moves max."),
+            ("/kit show",      "View your current moveset."),
+            ("/kit remove",    "Remove a move from your kit."),
+            ("/challenge @user", "Challenge another player to a fight. They'll get Accept and Decline buttons. Both players need a kit before a battle can start."),
+            ("/forfeit",       "Concede your current battle."),
+        ]
+    },
+    
     "Travel": {
         "title": "🗺️ Travel",
         "description": "Navigating the Grand Line.",
@@ -82,7 +95,7 @@ HELP_PAGES = {
 @discord.app_commands.describe(topic="What do you need help with?")
 async def help_command(
     interaction: discord.Interaction,
-    topic: Literal["Starting", "Travel", "Devil Fruits"] = None
+    topic: Literal["Starting", "Travel", "Devil Fruits", "Battle"] = None
 ):
     if topic is None:
         embed = discord.Embed(
@@ -99,6 +112,16 @@ async def help_command(
     embed = discord.Embed(title=page["title"], color=0x3a7ebf)
     for name, value in page["fields"]:
         embed.add_field(name=name, value=value, inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+@bot.tree.command(name="info", description="Game information and references", guild=MY_GUILD)
+async def info_command(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="📖 Game Info",
+        description="⚙️ In progress — check back later for typing tables, mechanics breakdowns, and more.",
+        color=0x3a7ebf,
+    )
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
