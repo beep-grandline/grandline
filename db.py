@@ -79,7 +79,9 @@ def init_db():
         "ALTER TABLE players ADD COLUMN type2     TEXT    DEFAULT 'none'",
         "ALTER TABLE players ADD COLUMN block_name TEXT",
         "ALTER TABLE players ADD COLUMN dodge_name TEXT",
-        "ALTER TABLE players ADD COLUMN moves_json TEXT    DEFAULT '[]'"]:
+        "ALTER TABLE players ADD COLUMN moves_json TEXT    DEFAULT '[]',
+        "ALTER TABLE players ADD COLUMN held_fruit_id TEXT",
+        "ALTER TABLE players ADD COLUMN inventory      TEXT DEFAULT '[]'",]:
         try:
             db.execute(sql)
             db.commit()
