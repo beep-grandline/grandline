@@ -64,6 +64,11 @@ def init_db():
     # ── Migrations — safe to run every startup, silently ignored if already applied
     for sql in  [
         "ALTER TABLE players ADD COLUMN epithet TEXT",
+        "ALTER TABLE crews ADD COLUMN description     TEXT",
+        "ALTER TABLE crews ADD COLUMN jolly_roger_url  TEXT",
+        "ALTER TABLE crews ADD COLUMN ship_name        TEXT",
+        "ALTER TABLE crews ADD COLUMN ship_url         TEXT",
+        "ALTER TABLE crews ADD COLUMN motto            TEXT",
         "ALTER TABLE players ADD COLUMN atk         INTEGER DEFAULT 10",
         "ALTER TABLE players ADD COLUMN defense      INTEGER DEFAULT 10",
         "ALTER TABLE players ADD COLUMN spd         INTEGER DEFAULT 10",
@@ -536,5 +541,20 @@ def remove_inventory_item(player_id, name, qty=1):
             set_inventory(player_id, items)
             return True, item["qty"]
     return False, 0
+
+def set_crew_details(crew_id, description=None, jolly_roger_url=None,
+                          ship_name=None, ship_url=None, motto=None):
+         fields = []; values = []
+         for col, val in [("description", description),
+                          ("jolly_roger_url", jolly_roger_url),
+                          ("ship_name", ship_name),
+                          ("ship_url", ship_url),
+                          ("motto", motto)]:
+             if val is not None:
+                 fields.append(f"{col}=?"); values.append(val)
+         if not fields: return
+         values.append(crew_id)
+         db.execute(f"UPDATE crews SET {', '.join(fields)} WHERE id=?", values)
+         db.commit()
 
 init_db()  # runs on import, creates tables if they don't exist
