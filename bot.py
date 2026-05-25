@@ -26,7 +26,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 from kit_commands import kit_group
 from battle_commands import battle_cmd, forfeit_cmd
 bot.tree.add_command(kit_group)
-bot.tree.add_command(challenge_cmd)
+bot.tree.add_command(battle_cmd)
 bot.tree.add_command(forfeit_cmd)
 from profile_commands import profile_group
 bot.tree.add_command(profile_group)
