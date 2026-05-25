@@ -488,10 +488,21 @@ async def gm_crew(interaction: discord.Interaction, name: str, captain: discord.
             f"**{captain.display_name}** is already in **{existing_name}**.", ephemeral=True
         )
         return
+        
+    # create the role normally first
     role = await interaction.guild.create_role(
         name=name, color=discord.Color(color_int), mentionable=True
     )
-    await interaction.guild.edit_role_positions({role: interaction.guild.me.top_role.position})
+    
+    # find an anchor role to position below
+    # replace "Civilian" with whatever your lowest non-crew role is
+    anchor = discord.utils.get(interaction.guild.roles, name="-- crews --")
+    if anchor:
+        try:
+            await role.edit(position=anchor.position - 1)
+        except discord.HTTPException:
+            pass  # if it fails the role still works, just sits at bottom
+            
     db.upsert_crew(str(role.id), name, captain_id=str(captain.id))
     db.set_player_crew(str(captain.id), str(role.id))
     await captain.add_roles(role)
