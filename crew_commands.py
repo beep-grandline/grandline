@@ -109,10 +109,13 @@ def _crew_embed(crew_row, guild: discord.Guild) -> discord.Embed:
     bounty  = crew_row["bounty"] or 0
     members = db.get_crew_members(crew_row["id"])
 
+    role  = guild.get_role(int(crew_row["id"])) if crew_row["id"].isdigit() else None
+    color = role.color.value if role and role.color.value else 0x1a3f6b
+
     embed = discord.Embed(
         title=name,
         description=crew_row["description"] or "*No description set.*",
-        color=int(crew_row["id"]) & 0xFFFFFF if crew_row["id"].isdigit() else 0x1a3f6b,
+        color=color,
     )
 
     if crew_row["jolly_roger_url"]:
