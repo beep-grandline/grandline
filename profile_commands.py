@@ -26,6 +26,13 @@ class ProfileModal(discord.ui.Modal, title="Set Your Profile"):
         required=True,
     )
 
+    epithet = discord.ui.TextInput(
+        label="Epithet",
+        placeholder='e.g. Pirate King, Hawk-Eye, Dark King...',
+        max_length=48,
+        required=False,
+    )
+
     fighting_style = discord.ui.TextInput(
         label="Fighting Style",
         placeholder="e.g. Santoryu, Black Leg Style, Rokushiki...",
@@ -46,6 +53,7 @@ class ProfileModal(discord.ui.Modal, title="Set Your Profile"):
         db.set_profile(
             uid,
             char_name     = str(self.char_name).strip(),
+            epithet       = str(self.epithet).strip() or None,
             fighting_style= str(self.fighting_style).strip() or None,
             summary       = str(self.summary).strip() or None,
         )
@@ -60,13 +68,16 @@ class ProfileModal(discord.ui.Modal, title="Set Your Profile"):
 
 def _profile_embed(member: discord.Member, player_row) -> discord.Embed:
     char_name     = player_row["char_name"]     or member.display_name
+    epithet       = player_row["epithet"]        if player_row["epithet"] else None
     fighting_style= player_row["fighting_style"]
     summary       = player_row["summary"]
     bounty        = player_row["bounty"]        or 0
     hp            = player_row["hp"]            or 100
 
+    title = f'{char_name}  —  "{epithet}"' if epithet else char_name
+
     embed = discord.Embed(
-        title=char_name,
+        title=title,
         description=summary or "*No summary set.*",
         color=0x1a3f6b,
     )
@@ -75,8 +86,8 @@ def _profile_embed(member: discord.Member, player_row) -> discord.Embed:
     if fighting_style:
         embed.add_field(name="Fighting Style", value=fighting_style, inline=True)
 
-    embed.add_field(name="HP",     value=str(hp),             inline=True)
-    embed.add_field(name="Bounty", value=f"฿{bounty:,}",      inline=True)
+    embed.add_field(name="HP",     value=str(hp),        inline=True)
+    embed.add_field(name="Bounty", value=f"฿{bounty:,}", inline=True)
     embed.set_footer(text=f"Player: {member.display_name}")
     return embed
 
@@ -105,6 +116,8 @@ async def profile_set(interaction: discord.Interaction):
     # pre-fill with existing values so the user only edits what they want
     if player["char_name"]:
         modal.char_name.default = player["char_name"]
+    if player["epithet"]:
+        modal.epithet.default = player["epithet"]
     if player["fighting_style"]:
         modal.fighting_style.default = player["fighting_style"]
     if player["summary"]:
