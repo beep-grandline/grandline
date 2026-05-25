@@ -291,10 +291,19 @@ class ChallengeView(discord.ui.View):
         super().__init__(timeout=120)
         self.challenger = challenger
         self.target     = target
+        self.message    = None   # set after sending so on_timeout can edit it
 
     async def on_timeout(self):
         for child in self.children:
             child.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(
+                    content=f"~~{self.target.mention}, {self.challenger.display_name} has challenged you to a fight ⚔️~~\n*Challenge expired.*",
+                    view=self,
+                )
+            except Exception:
+                pass
 
     async def _start_battle(self, interaction: discord.Interaction):
         cid = str(self.challenger.id)
@@ -370,6 +379,21 @@ class ChallengeView(discord.ui.View):
             embed=None, view=self,
         )
 
+    @discord.ui.button(label="Withdraw", style=discord.ButtonStyle.secondary)
+    async def withdraw(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.challenger.id:
+            await interaction.response.send_message(
+                "Only the challenger can withdraw.", ephemeral=True
+            )
+            return
+        self.stop()
+        for child in self.children:
+            child.disabled = True
+        await interaction.response.edit_message(
+            content=f"{self.challenger.mention} withdrew the challenge.",
+            embed=None, view=self,
+        )
+
 
 # ── /challenge ────────────────────────────────────────────────────────────────
 
@@ -412,6 +436,7 @@ async def challenge_cmd(interaction: discord.Interaction, target: discord.Member
         content=f"{target.mention}, {interaction.user.display_name} has challenged you to a fight ⚔️",
         view=view,
     )
+    view.message = await interaction.original_response()
 
 
 # ── /forfeit ──────────────────────────────────────────────────────────────────
