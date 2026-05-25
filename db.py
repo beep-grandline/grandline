@@ -424,7 +424,7 @@ def get_player_fruit(player_id):
     return row["fruit_id"] if row else None
  
 
-def set_profile(player_id, char_name=None, fighting_style=None, summary=None):
+def set_profile(player_id, char_name=None, fighting_style=None, summary=None, epithet=None):
     """Update profile fields. None values are skipped."""
     fields = []
     values = []
