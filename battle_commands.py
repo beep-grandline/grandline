@@ -2,7 +2,7 @@
 #  battle_commands.py  ·  /challenge and /forfeit
 #  Add to bot.py:
 #      from battle_commands import challenge_cmd, forfeit_cmd
-#      bot.tree.add_command(challenge_cmd)
+#      bot.tree.add_command(battle_cmd)
 #      bot.tree.add_command(forfeit_cmd)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -398,12 +398,12 @@ class ChallengeView(discord.ui.View):
 # ── /challenge ────────────────────────────────────────────────────────────────
 
 @discord.app_commands.command(
-    name="challenge",
+    name="battle",
     description="Challenge another player to a battle",
 )
 @discord.app_commands.describe(target="The player you want to fight")
 @discord.app_commands.guilds(MY_GUILD)
-async def challenge_cmd(interaction: discord.Interaction, target: discord.Member):
+async def battle_cmd(interaction: discord.Interaction, target: discord.Member):
     uid = str(interaction.user.id)
 
     if target.id == interaction.user.id:
