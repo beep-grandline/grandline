@@ -71,7 +71,7 @@ HELP_PAGES = {
             ("/kit add",       "Build a move using keywords. Pick a power tier (CHIP → CRUSHER), then add modifiers like QUICK, HOMING, or FLURRY. You get 4 slots and 4 moves max."),
             ("/kit show",      "View your current moveset."),
             ("/kit remove",    "Remove a move from your kit."),
-            ("/challenge @user", "Challenge another player to a fight. They'll get Accept and Decline buttons. Both players need a kit before a battle can start."),
+            ("/battle @user", "Challenge another player to a fight. They'll get Accept and Decline buttons. Both players need a kit before a battle can start."),
             ("/forfeit",       "Concede your current battle."),
         ]
     },
