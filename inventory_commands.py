@@ -31,42 +31,27 @@ def _fruit_line(fruit_id):
 
 
 def _inventory_embed(member, player):
-    embed = discord.Embed(
-        title=f"🎒  {member.display_name}'s Inventory",
-        color=0x1a3f6b,
-    )
-    embed.set_thumbnail(url=member.display_avatar.url)
+    embed = discord.Embed(title="Your inventory", color=0x1a3f6b)
 
-    # berry
+    # berry — icon inline with bold value, no field title
     berry = player["berry"] or 0
-    embed.add_field(name="🪙  Berry", value=f"฿{berry:,}", inline=False)
+    embed.add_field(name="🪙", value=f"**฿{berry:,}**", inline=True)
 
-    # eaten fruit
+    # eaten fruit — only shown if they have one
     eaten_line = _fruit_line(player["fruit_id"])
-    embed.add_field(
-        name="🍎  Eaten Fruit",
-        value=eaten_line or "*None — eating a fruit sets your type permanently.*",
-        inline=False,
-    )
+    if eaten_line:
+        embed.add_field(name="🍎", value=eaten_line, inline=True)
 
-    # held fruit
-    held_line = _fruit_line(player["held_fruit_id"])
-    embed.add_field(
-        name="🫙  Held Fruit",
-        value=held_line or "*Empty — use `/eat` to eat a held fruit.*",
-        inline=False,
-    )
-
-    # inventory items
+    # items — shown with backpack icon in the field title
     items = db.get_inventory(str(member.id))
     if items:
         lines = []
         for item in items:
             kws  = ", ".join(item.get("keywords", [])) or "no tags"
             lines.append(f"**{item['name']}** · {kws} · ×{item['qty']}")
-        embed.add_field(name="📦  Items", value="\n".join(lines), inline=False)
+        embed.add_field(name="🎒  Items", value="\n".join(lines), inline=False)
     else:
-        embed.add_field(name="📦  Items", value="*Empty.*", inline=False)
+        embed.add_field(name="🎒  Items", value="*Empty.*", inline=False)
 
     return embed
 
