@@ -33,6 +33,8 @@ bot.tree.add_command(profile_group)
 from inventory_commands import inventory_cmd, eat_cmd
 bot.tree.add_command(inventory_cmd)
 bot.tree.add_command(eat_cmd)
+from crew_commands import crew_group
+bot.tree.add_command(crew_group)
 
 @bot.event
 async def on_ready():
