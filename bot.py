@@ -214,7 +214,7 @@ class JoinRequestView(discord.ui.View):
 
 @bot.tree.command(name="join", description="Request to join a crew", guild=MY_GUILD)
 @discord.app_commands.describe(crew="Name of the crew you want to join")
-async def join_cmd(interaction: discord.Interaction, crew: str):
+async def join_cmd(interaction: discord.Interaction, crew: _crew_name_autocomplete):
     await interaction.response.defer()
     uid = str(interaction.user.id)
 
@@ -405,6 +405,14 @@ async def search_cmd(interaction: discord.Interaction, fruit: str):
 
 
 
+async def _crew_name_autocomplete(interaction: discord.Interaction, current: str):
+    crews = db.get_all_crews()
+    return [
+        discord.app_commands.Choice(name=c["name"], value=c["id"])
+        for c in crews
+        if current.lower() in c["name"].lower()
+    ][:25]
+
 
 
 # ── /gm command group — usable by Admin and Mod ───────────────────────────────
@@ -468,14 +476,6 @@ async def gm_moveship(interaction: discord.Interaction, crew: str, q: int, r: in
 
 # ── /gm addrolls — give extra rolls to a crew ─────────────────────────────────
 
-
-async def _crew_name_autocomplete(interaction: discord.Interaction, current: str):
-    crews = db.get_all_crews()
-    return [
-        discord.app_commands.Choice(name=c["name"], value=c["id"])
-        for c in crews
-        if current.lower() in c["name"].lower()
-    ][:25]
 
 @gm_group.command(name="addrolls", description="Add rolls to a crew (or all crews)")
 @discord.app_commands.describe(
