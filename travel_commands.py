@@ -7,10 +7,12 @@
 #      setup_travel_task(bot)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+import asyncio
 import discord
 from discord.ext import tasks
 import db
 import game
+import map_render
 from config import GUILD_ID
 
 # ── Roll regen task ───────────────────────────────────────────────────────────
@@ -264,3 +266,26 @@ async def travel_walkto(interaction: discord.Interaction, direction: str):
     await interaction.response.send_message(
         f"🚶 Moved **{dir_lbl}** → `q={new_q}, r={new_r}`", ephemeral=True
     )
+
+
+@travel_group.command(name="map", description="View your current area")
+@discord.app_commands.describe(view="Map view")
+@discord.app_commands.choices(view=[
+    discord.app_commands.Choice(name="default", value="default"),
+    discord.app_commands.Choice(name="roll",    value="roll"),
+])
+async def travel_map(interaction: discord.Interaction, view: str = "default"):
+    await interaction.response.defer(ephemeral=True)
+    uid  = str(interaction.user.id)
+    loop = asyncio.get_event_loop()
+    buf  = await loop.run_in_executor(None, map_render.render_map, uid, 10, view)
+    if not buf:
+        await interaction.followup.send(
+            "You are not registered yet. Use `/register` first.", ephemeral=True
+        )
+        return
+    title = "Your Position" if view == "default" else "Your Position — Roll"
+    file  = discord.File(buf, filename="map.png")
+    embed = discord.Embed(title=title, color=0x1a3f6b)
+    embed.set_image(url="attachment://map.png")
+    await interaction.followup.send(file=file, embed=embed, ephemeral=True)
