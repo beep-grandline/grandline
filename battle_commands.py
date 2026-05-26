@@ -8,9 +8,11 @@
 
 import discord
 import db
+import game
 import battle as battle_logic
 from config import MY_GUILD
 from fruits import get_fighter_types
+from npcs import get_npc_by_id, get_npcs_at, build_npc_fighter, npc_pick_action
 
 
 # ── Embed builders ────────────────────────────────────────────────────────────
@@ -128,12 +130,15 @@ async def _resolve_and_update(interaction: discord.Interaction, channel_id: str)
     fa = state["fighters"]["a"]
     fb = state["fighters"]["b"]
 
+    # only mention real players
+    def _mention(fid):
+        return f"<@{fid}>" if not str(fid).startswith("npc:") else ""
+
+    pings = " ".join(filter(None, [_mention(fa["id"]), _mention(fb["id"])]))
+
     if battle_logic.is_finished(state):
         embed = _finished_embed(state)
-        await channel.send(
-            content=f"<@{fa['id']}> <@{fb['id']}>",
-            embed=embed,
-        )
+        await channel.send(content=pings or None, embed=embed)
         db.delete_battle(channel_id)
     else:
         db.update_battle_state(channel_id, state)
@@ -144,7 +149,7 @@ async def _resolve_and_update(interaction: discord.Interaction, channel_id: str)
             channel_id=channel_id,
         )
         new_msg = await channel.send(
-            content=f"<@{fa['id']}> <@{fb['id']}>",
+            content=pings or None,
             embed=embed,
             view=view,
         )
@@ -154,7 +159,8 @@ async def _resolve_and_update(interaction: discord.Interaction, channel_id: str)
 # ── Move select ───────────────────────────────────────────────────────────────
 
 class MoveSelect(discord.ui.Select):
-    def __init__(self, moves: list, channel_id: str, side: str):
+    def __init__(self, moves: list, channel_id: str, side: str,
+                 fighter_a_id: str, fighter_b_id: str):
         options = [
             discord.SelectOption(
                 label=m["name"],
@@ -164,28 +170,42 @@ class MoveSelect(discord.ui.Select):
             for m in moves
         ]
         super().__init__(placeholder="Choose a move...", min_values=1, max_values=1, options=options)
-        self.channel_id = channel_id
-        self.side       = side
+        self.channel_id    = channel_id
+        self.side          = side
+        self.fighter_a_id  = fighter_a_id
+        self.fighter_b_id  = fighter_b_id
 
     async def callback(self, interaction: discord.Interaction):
-        move_name   = self.values[0]
-        both_ready  = db.set_pending_action(self.channel_id, self.side, ["attack", move_name])
-
+        move_name = self.values[0]
         for item in self.view.children:
             item.disabled = True
         await interaction.response.edit_message(
-            content=f"You chose **{move_name}**. Waiting for your opponent...",
+            content=f"You chose **{move_name}**." + (
+                "" if self.fighter_b_id.startswith("npc:") else " Waiting for your opponent..."
+            ),
             view=self.view,
         )
+
+        # reuse BattleView._submit_action logic inline
+        both_ready = db.set_pending_action(self.channel_id, self.side, ["attack", move_name])
+        if not both_ready:
+            opp_id = self.fighter_b_id if self.side == "a" else self.fighter_a_id
+            if str(opp_id).startswith("npc:"):
+                npc_id     = str(opp_id)[4:]
+                state      = db.get_battle_state(self.channel_id)
+                npc_side   = "b" if self.side == "a" else "a"
+                npc_action = npc_pick_action(state["fighters"][npc_side])
+                both_ready = db.set_pending_action(self.channel_id, npc_side, npc_action)
 
         if both_ready:
             await _resolve_and_update(interaction, self.channel_id)
 
 
 class MoveSelectView(discord.ui.View):
-    def __init__(self, moves: list, channel_id: str, side: str):
+    def __init__(self, moves: list, channel_id: str, side: str,
+                 fighter_a_id: str = "", fighter_b_id: str = ""):
         super().__init__(timeout=120)
-        self.add_item(MoveSelect(moves, channel_id, side))
+        self.add_item(MoveSelect(moves, channel_id, side, fighter_a_id, fighter_b_id))
 
 
 # ── Battle view ───────────────────────────────────────────────────────────────
@@ -211,6 +231,26 @@ class BattleView(discord.ui.View):
             )
         return side
 
+    async def _submit_action(self, interaction: discord.Interaction, side: str, action: list):
+        """
+        Stores action for this side. If opponent is an NPC, auto-generates
+        their action immediately and resolves the turn.
+        """
+        both_ready = db.set_pending_action(self.channel_id, side, action)
+
+        if not both_ready:
+            opp_id = self.fighter_b_id if side == "a" else self.fighter_a_id
+            if str(opp_id).startswith("npc:"):
+                npc_id     = str(opp_id)[4:]
+                npc_row    = get_npc_by_id(npc_id)
+                state      = db.get_battle_state(self.channel_id)
+                npc_side   = "b" if side == "a" else "a"
+                npc_action = npc_pick_action(state["fighters"][npc_side])
+                both_ready = db.set_pending_action(self.channel_id, npc_side, npc_action)
+
+        if both_ready:
+            await _resolve_and_update(interaction, self.channel_id)
+
     @discord.ui.button(label="Attack", style=discord.ButtonStyle.danger, row=0)
     async def attack(self, interaction: discord.Interaction, button: discord.ui.Button):
         side = await self._guard(interaction)
@@ -224,7 +264,7 @@ class BattleView(discord.ui.View):
         if not moves:
             await interaction.response.send_message("You have no moves!", ephemeral=True)
             return
-        view = MoveSelectView(moves, self.channel_id, side)
+        view = MoveSelectView(moves, self.channel_id, side, self.fighter_a_id, self.fighter_b_id)
         await interaction.response.send_message(
             "Choose your move:", view=view, ephemeral=True
         )
@@ -234,36 +274,33 @@ class BattleView(discord.ui.View):
         side = await self._guard(interaction)
         if not side:
             return
-        both_ready = db.set_pending_action(self.channel_id, side, ["block", None])
         await interaction.response.send_message(
-            "Blocking this turn. Waiting for your opponent...", ephemeral=True
+            "Blocking this turn." + ("" if self.fighter_b_id.startswith("npc:") else " Waiting for your opponent..."),
+            ephemeral=True
         )
-        if both_ready:
-            await _resolve_and_update(interaction, self.channel_id)
+        await self._submit_action(interaction, side, ["block", None])
 
     @discord.ui.button(label="Dodge", style=discord.ButtonStyle.secondary, row=0)
     async def dodge(self, interaction: discord.Interaction, button: discord.ui.Button):
         side = await self._guard(interaction)
         if not side:
             return
-        both_ready = db.set_pending_action(self.channel_id, side, ["dodge", None])
         await interaction.response.send_message(
-            "Dodging this turn. Waiting for your opponent...", ephemeral=True
+            "Dodging this turn." + ("" if self.fighter_b_id.startswith("npc:") else " Waiting for your opponent..."),
+            ephemeral=True
         )
-        if both_ready:
-            await _resolve_and_update(interaction, self.channel_id)
+        await self._submit_action(interaction, side, ["dodge", None])
 
     @discord.ui.button(label="Escape", style=discord.ButtonStyle.secondary, row=0)
     async def escape(self, interaction: discord.Interaction, button: discord.ui.Button):
         side = await self._guard(interaction)
         if not side:
             return
-        both_ready = db.set_pending_action(self.channel_id, side, ["escape", None])
         await interaction.response.send_message(
-            "Attempting to escape. Waiting for your opponent...", ephemeral=True
+            "Attempting to escape." + ("" if self.fighter_b_id.startswith("npc:") else " Waiting for your opponent..."),
+            ephemeral=True
         )
-        if both_ready:
-            await _resolve_and_update(interaction, self.channel_id)
+        await self._submit_action(interaction, side, ["escape", None])
 
     @discord.ui.button(label="Charge ⚡", style=discord.ButtonStyle.primary, row=1)
     async def charge(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -276,12 +313,10 @@ class BattleView(discord.ui.View):
                 "You're already charging! Attack this turn to release it.", ephemeral=True
             )
             return
-        both_ready = db.set_pending_action(self.channel_id, side, ["charge", None])
         await interaction.response.send_message(
             "Charging up — your next attack will hit twice as hard!", ephemeral=True
         )
-        if both_ready:
-            await _resolve_and_update(interaction, self.channel_id)
+        await self._submit_action(interaction, side, ["charge", None])
 
 
 # ── Challenge view ────────────────────────────────────────────────────────────
@@ -395,45 +430,115 @@ class ChallengeView(discord.ui.View):
         )
 
 
-# ── /challenge ────────────────────────────────────────────────────────────────
+# ── /battle ───────────────────────────────────────────────────────────────────
+
+async def _battle_autocomplete(
+    interaction: discord.Interaction, current: str
+) -> list[discord.app_commands.Choice]:
+    uid    = str(interaction.user.id)
+    player = db.get_player(uid)
+    if not player:
+        return []
+
+    q, r    = game.get_position(uid)
+    choices = []
+
+    # NPCs on the same tile
+    for npc in get_npcs_at(q, r):
+        if current.lower() in npc["name"].lower():
+            choices.append(discord.app_commands.Choice(
+                name=f"[NPC] {npc['name']}", value=f"npc:{npc['id']}"
+            ))
+
+    # Players on the same tile
+    for p in game.get_players_at(q, r, exclude_uid=uid):
+        name = p["char_name"] or str(p["id"])
+        if current.lower() in name.lower():
+            choices.append(discord.app_commands.Choice(
+                name=name, value=str(p["id"])
+            ))
+
+    return choices[:25]
+
 
 @discord.app_commands.command(
     name="battle",
-    description="Challenge another player to a battle",
+    description="Challenge a player or NPC to a fight",
 )
-@discord.app_commands.describe(target="The player you want to fight")
+@discord.app_commands.describe(target="Player or NPC to challenge (must be on your tile)")
+@discord.app_commands.autocomplete(target=_battle_autocomplete)
 @discord.app_commands.guilds(MY_GUILD)
-async def battle_cmd(interaction: discord.Interaction, target: discord.Member):
+async def battle_cmd(interaction: discord.Interaction, target: str):
     uid = str(interaction.user.id)
 
-    if target.id == interaction.user.id:
-        await interaction.response.send_message("You can't challenge yourself.", ephemeral=True)
-        return
-    if target.bot:
-        await interaction.response.send_message("You can't challenge a bot.", ephemeral=True)
-        return
     if not db.get_player(uid):
         await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
-        return
-    if not db.get_player(str(target.id)):
-        await interaction.response.send_message(
-            f"{target.display_name} isn't registered yet.", ephemeral=True
-        )
         return
     if db.get_battle_by_player(uid):
         await interaction.response.send_message(
             "You're already in a battle. Use `/forfeit` to end it first.", ephemeral=True
         )
         return
-    if db.get_battle_by_player(str(target.id)):
+
+    # ── NPC battle ─────────────────────────────────────────────────────────────
+    if target.startswith("npc:"):
+        npc_id  = target[4:]
+        npc_row = get_npc_by_id(npc_id)
+        if not npc_row:
+            await interaction.response.send_message("NPC not found.", ephemeral=True)
+            return
+
+        player  = db.get_player(uid)
+        if not db.get_player_moves(uid):
+            await interaction.response.send_message(
+                "You have no moves in your kit yet — use `/kit add` first.", ephemeral=True
+            )
+            return
+
+        a_data     = _build_fighter_data(player, interaction.user)
+        b_data     = build_npc_fighter(npc_row)
+        state      = battle_logic.create_battle(a_data, b_data)
+        channel_id = str(interaction.channel_id)
+
+        db.create_battle(channel_id, uid, f"npc:{npc_id}", state)
+
+        embed   = _battle_embed(state)
+        view    = BattleView(fighter_a_id=uid, fighter_b_id=f"npc:{npc_id}", channel_id=channel_id)
         await interaction.response.send_message(
-            f"{target.display_name} is already in a battle.", ephemeral=True
+            content=f"<@{uid}>",
+            embed=embed,
+            view=view,
+        )
+        msg = await interaction.original_response()
+        db.set_battle_message(channel_id, str(msg.id))
+        return
+
+    # ── PvP battle ─────────────────────────────────────────────────────────────
+    guild  = interaction.guild
+    member = guild.get_member(int(target)) if target.isdigit() else None
+    if not member:
+        await interaction.response.send_message("Player not found.", ephemeral=True)
+        return
+    if member.id == interaction.user.id:
+        await interaction.response.send_message("You can't challenge yourself.", ephemeral=True)
+        return
+    if member.bot:
+        await interaction.response.send_message("You can't challenge a bot.", ephemeral=True)
+        return
+    if not db.get_player(str(member.id)):
+        await interaction.response.send_message(
+            f"{member.display_name} isn't registered yet.", ephemeral=True
+        )
+        return
+    if db.get_battle_by_player(str(member.id)):
+        await interaction.response.send_message(
+            f"{member.display_name} is already in a battle.", ephemeral=True
         )
         return
 
-    view = ChallengeView(challenger=interaction.user, target=target)
+    view = ChallengeView(challenger=interaction.user, target=member)
     await interaction.response.send_message(
-        content=f"{target.mention}, {interaction.user.display_name} has challenged you to a fight ⚔️",
+        content=f"{member.mention}, {interaction.user.display_name} has challenged you to a fight ⚔️",
         view=view,
     )
     view.message = await interaction.original_response()
