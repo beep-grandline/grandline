@@ -8,21 +8,21 @@ import db
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 HEX_DIRECTIONS = {
-    "fw":  ( 1,  0),
-    "bw":  (-1,  0),
-    "rf":  ( 0,  1),
-    "rb":  (-1,  1),
-    "lf":  ( 1, -1),
-    "lb":  ( 0, -1),
+    "f":  ( 1,  0),
+    "b":  (-1,  0),
+    "fr": ( 1, -1),
+    "br": ( 0, -1),
+    "fl": ( 0,  1),
+    "bl": (-1,  1),
 }
 
 DIRECTION_LABELS = {
-    "fw": "Forward",
-    "bw": "Backward",
-    "rf": "Right — Forward",
-    "rb": "Right — Back",
-    "lf": "Left — Forward",
-    "lb": "Left — Back",
+    "f":  "Forward",
+    "b":  "Backward",
+    "fr": "Forward — Starboard",
+    "br": "Backward — Starboard",
+    "fl": "Forward — Port",
+    "bl": "Backward — Port",
 }
 
 ROLL_MAX           = 12
