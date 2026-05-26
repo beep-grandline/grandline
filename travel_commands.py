@@ -14,6 +14,7 @@ import db
 import game
 import map_render
 from config import GUILD_ID
+from npcs import get_npcs_at
 
 # ── Roll regen task ───────────────────────────────────────────────────────────
 
@@ -32,7 +33,20 @@ def setup_travel_task(bot):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _is_captain(interaction: discord.Interaction, crew):
+def _tile_alert(q: int, r: int, uid: str) -> str:
+    """Returns an alert string if there are NPCs or players on the tile, else empty string."""
+    lines = []
+    npcs    = get_npcs_at(q, r)
+    players = game.get_players_at(q, r, exclude_uid=uid)
+    for npc in npcs:
+        lines.append(f"⚠️ **{npc['name']}** is here.")
+    for p in players:
+        name = p["char_name"] or str(p["id"])
+        lines.append(f"⚠️ **{name}** is here.")
+    return "\n".join(lines)
+
+
+
     return crew and str(crew["captain_id"]) == str(interaction.user.id)
 
 
@@ -124,12 +138,14 @@ class HelmView(discord.ui.View):
             return
         crew  = db.get_crew(self.crew_id)
         rolls = crew["roll"] or 0
-        await interaction.response.edit_message(
-            content=(
-                f"⛵ `q={new_q}, r={new_r}`\n"
-                f"`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls"
-            )
+        alert = _tile_alert(new_q, new_r, str(interaction.user.id))
+        msg   = (
+            f"⛵ `q={new_q}, r={new_r}`\n"
+            f"`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls"
         )
+        if alert:
+            msg += f"\n{alert}"
+        await interaction.response.edit_message(content=msg)
 
     @discord.ui.button(emoji="↖️", style=discord.ButtonStyle.secondary, row=0)
     async def btn_bl(self, i, b): await self._move(i, "bl")
@@ -197,10 +213,14 @@ async def travel_auto(interaction: discord.Interaction):
     rolls   = crew["roll"] or 0
     dir_lbl = game.DIRECTION_LABELS.get(reason, reason)
     log     = ((crew["log_pose"] if crew["log_pose"] else game.DEFAULT_LOG_POSE)).title()
-    await interaction.response.send_message(
+    alert   = _tile_alert(new_q, new_r, uid)
+    msg = (
         f"⛵ Heading toward **{log}** — moved **{dir_lbl}** → `q={new_q}, r={new_r}`\n"
         f"`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls remaining."
     )
+    if alert:
+        msg += f"\n{alert}"
+    await interaction.response.send_message(msg)
 
 
 @travel_group.command(name="disembark", description="Leave the ship and move on foot")
