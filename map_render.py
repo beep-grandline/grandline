@@ -12,7 +12,7 @@ from matplotlib.image import imread
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
 import game
-pq, pr = game.get_position(uid)
+
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -415,6 +415,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
 
     # pq = player["q"] if player["q"] is not None else 0
     # pr = player["r"] if player["r"] is not None else 0
+    pq, pr = game.get_position(uid)
 
     MOVE_RANGE = 5  # placeholder — swap for player stat later
 
