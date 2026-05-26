@@ -17,12 +17,12 @@ HEX_DIRECTIONS = {
 }
 
 DIRECTION_LABELS = {
-    "f":  "Forward",
-    "b":  "Backward",
-    "fr": "Forward — Starboard",
-    "br": "Backward — Starboard",
-    "fl": "Forward — Port",
-    "bl": "Backward — Port",
+    "f":  "Forward (East)",
+    "b":  "Backward (West)",
+    "fl": "Forward-Port (NE)",
+    "bl": "Backward-Port (NW)",
+    "fr": "Forward-Starboard (SE)",
+    "br": "Backward-Starboard (SW)",
 }
 
 ROLL_MAX           = 12
