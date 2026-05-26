@@ -67,9 +67,17 @@ def get_position(player_id, _depth=0):
 # ── Passability ───────────────────────────────────────────────────────────────
 
 def is_passable(q, r):
-    """Returns False for calm belt and any other impassable terrain."""
+    """Returns False for calm belt, islands, and redlines."""
     if abs(r) > CALM_BELT_R:
         return False
+    try:
+        from map_render import _cache, _load_map
+        _load_map()
+        terrain = _cache["hex_lookup"].get((q, r), "sea")
+        if terrain not in ("sea", "calm_belt"):
+            return False
+    except Exception:
+        pass
     return True
 
 
