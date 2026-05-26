@@ -103,32 +103,75 @@ async def travel_status(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-@travel_group.command(name="move", description="Move the ship one hex (captain only)")
-@discord.app_commands.describe(direction="Direction to move")
-@discord.app_commands.choices(direction=_DIR_CHOICES)
-async def travel_move(interaction: discord.Interaction, direction: str):
+
+class HelmView(discord.ui.View):
+    def __init__(self, crew_id: str, captain_id: str):
+        super().__init__(timeout=300)
+        self.crew_id    = crew_id
+        self.captain_id = captain_id
+
+    async def _move(self, interaction: discord.Interaction, direction: str):
+        if str(interaction.user.id) != self.captain_id:
+            await interaction.response.send_message(
+                "Only the captain can steer.", ephemeral=True
+            )
+            return
+        new_q, new_r, ok, reason = game.move_ship(self.crew_id, direction)
+        if not ok:
+            await interaction.response.edit_message(
+                content=MOVE_FAILURE.get(reason, reason)
+            )
+            return
+        crew  = db.get_crew(self.crew_id)
+        rolls = crew["roll"] or 0
+        await interaction.response.edit_message(
+            content=(
+                f"⛵ `q={new_q}, r={new_r}`\n"
+                f"`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls"
+            )
+        )
+
+    @discord.ui.button(emoji="↖️", style=discord.ButtonStyle.secondary, row=0)
+    async def btn_lb(self, i, b): await self._move(i, "lb")
+
+    @discord.ui.button(emoji="↗️", style=discord.ButtonStyle.secondary, row=0)
+    async def btn_lf(self, i, b): await self._move(i, "lf")
+
+    @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary, row=1)
+    async def btn_bw(self, i, b): await self._move(i, "bw")
+
+    @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.secondary, row=1)
+    async def btn_fw(self, i, b): await self._move(i, "fw")
+
+    @discord.ui.button(emoji="↙️", style=discord.ButtonStyle.secondary, row=2)
+    async def btn_rb(self, i, b): await self._move(i, "rb")
+
+    @discord.ui.button(emoji="↘️", style=discord.ButtonStyle.secondary, row=2)
+    async def btn_rf(self, i, b): await self._move(i, "rf")
+
+
+@travel_group.command(name="helm", description="Take the helm and steer the ship (captain only)")
+async def travel_helm(interaction: discord.Interaction):
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
     if not player or not player["crew_id"]:
-        await interaction.response.send_message("You need to be in a crew to move the ship.", ephemeral=True)
+        await interaction.response.send_message("You need to be in a crew.", ephemeral=True)
         return
 
     crew = db.get_crew(player["crew_id"])
     if not _is_captain(interaction, crew):
-        await interaction.response.send_message("Only the captain can move the ship.", ephemeral=True)
+        await interaction.response.send_message("Only the captain can take the helm.", ephemeral=True)
         return
 
-    new_q, new_r, ok, reason = game.move_ship(player["crew_id"], direction)
-    if not ok:
-        await interaction.response.send_message(MOVE_FAILURE.get(reason, reason), ephemeral=True)
-        return
-
-    crew    = db.get_crew(player["crew_id"])
-    rolls   = crew["roll"] or 0
-    dir_lbl = game.DIRECTION_LABELS[direction]
+    rolls = crew["roll"] or 0
+    q     = crew["q"] or 0
+    r     = crew["r"] or 0
+    view  = HelmView(crew_id=player["crew_id"], captain_id=uid)
     await interaction.response.send_message(
-        f"⛵ Moved **{dir_lbl}** → `q={new_q}, r={new_r}`\n"
-        f"`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls remaining."
+        f"⛵ `q={q}, r={r}`\n"
+        f"`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls",
+        view=view,
+        ephemeral=True,
     )
 
 
