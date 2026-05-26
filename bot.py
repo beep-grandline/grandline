@@ -444,7 +444,16 @@ async def gm_teleport(interaction: discord.Interaction, target: discord.Member, 
     )
 
 # ── /gm addrolls — give extra rolls to a crew ─────────────────────────────────
- 
+
+
+async def _crew_name_autocomplete(interaction: discord.Interaction, current: str):
+    crews = db.get_all_crews()
+    return [
+        discord.app_commands.Choice(name=c["name"], value=c["id"])
+        for c in crews
+        if current.lower() in c["name"].lower()
+    ][:25]
+
 @gm_group.command(name="addrolls", description="Add rolls to a crew (or all crews)")
 @discord.app_commands.describe(
     amount="Number of rolls to add",
