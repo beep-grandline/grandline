@@ -443,6 +443,29 @@ async def gm_teleport(interaction: discord.Interaction, target: discord.Member, 
         f"They are now moving independently."
     )
 
+@gm_group.command(name="moveship", description="Teleport a crew's ship to a hex")
+@discord.app_commands.describe(
+    crew="Crew name",
+    q="Hex q coordinate",
+    r="Hex r coordinate",
+)
+@discord.app_commands.autocomplete(crew=_crew_name_autocomplete)
+async def gm_moveship(interaction: discord.Interaction, crew: str, q: int, r: int):
+    if not is_gm(interaction):
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+ 
+    crew_row = db.get_crew(crew)
+    if not crew_row:
+        await interaction.response.send_message("Crew not found.", ephemeral=True)
+        return
+ 
+    db.move_crew(crew, q, r)
+    await interaction.response.send_message(
+        f"Moved **{crew_row['name']}**'s ship to `q={q}, r={r}`."
+    )
+
+
 # ── /gm addrolls — give extra rolls to a crew ─────────────────────────────────
 
 
