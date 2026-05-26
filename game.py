@@ -124,7 +124,7 @@ def step_toward_log_pose(crew_id):
     if (crew["roll"] or 0) <= 0:
         return crew["q"] or 0, crew["r"] or 0, False, "no_rolls"
 
-    log_pose = crew.get("log_pose") or DEFAULT_LOG_POSE
+    log_pose = crew["log_pose"] if crew["log_pose"] else DEFAULT_LOG_POSE
 
     # Lazy import to avoid circular dependency with map_render
     try:
