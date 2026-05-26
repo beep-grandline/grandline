@@ -66,7 +66,7 @@ def _status_embed(player, crew, q, r):
 
 MOVE_FAILURE = {
     "no_rolls":          "The ship has no rolls left. Wait for them to recharge.",
-    "impassable":        "That way leads into the Calm Belt — impossible to pass.",
+    "impassable":        "Can't sail there — that's an island or the Calm Belt.",
     "invalid_direction": "Invalid direction.",
     "crew_not_found":    "Crew not found.",
     "island_not_found":  "Log pose island not found on the map.",
