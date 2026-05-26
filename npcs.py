@@ -101,6 +101,8 @@ def build_npc_fighter(npc_row: dict) -> dict:
     block_name = (npc_row.get("block") or "").strip() or "Block"
     dodge_name = (npc_row.get("dodge") or "").strip() or "Dodge"
 
+    print(f"[npc] {npc_row['name']} moves: {[m['name'] for m in moves]}")
+    
     return {
         "id":                 f"npc:{npc_row['id'].strip()}",
         "name":               npc_row["name"].strip(),
