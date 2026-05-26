@@ -11,6 +11,9 @@ from matplotlib.collections import PatchCollection, LineCollection
 from matplotlib.image import imread
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
+import game
+pq, pr = game.get_position(uid)
+
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 MAP_PATH = "map.json"   # path to the exported editor JSON
@@ -410,8 +413,8 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     if not player:
         return None
 
-    pq = player["q"] if player["q"] is not None else 0
-    pr = player["r"] if player["r"] is not None else 0
+    # pq = player["q"] if player["q"] is not None else 0
+    # pr = player["r"] if player["r"] is not None else 0
 
     MOVE_RANGE = 5  # placeholder — swap for player stat later
 
