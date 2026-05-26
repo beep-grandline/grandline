@@ -434,7 +434,7 @@ class ChallengeView(discord.ui.View):
 
 async def _battle_autocomplete(
     interaction: discord.Interaction, current: str
-) -> list[discord.app_commands.Choice]:
+):
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
     if not player:
