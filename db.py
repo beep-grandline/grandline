@@ -63,30 +63,11 @@ def init_db():
 
     # ── Migrations — safe to run every startup, silently ignored if already applied
     for sql in  [
-        "ALTER TABLE players ADD COLUMN epithet TEXT",
-        "ALTER TABLE crews ADD COLUMN description     TEXT",
-        "ALTER TABLE crews ADD COLUMN jolly_roger_url  TEXT",
-        "ALTER TABLE crews ADD COLUMN ship_name        TEXT",
-        "ALTER TABLE crews ADD COLUMN ship_url         TEXT",
-        "ALTER TABLE crews ADD COLUMN motto            TEXT",
-        "ALTER TABLE players ADD COLUMN atk         INTEGER DEFAULT 10",
-        "ALTER TABLE players ADD COLUMN defense      INTEGER DEFAULT 10",
-        "ALTER TABLE players ADD COLUMN spd         INTEGER DEFAULT 10",
-        "ALTER TABLE players ADD COLUMN block_name  TEXT",
-        "ALTER TABLE players ADD COLUMN dodge_name  TEXT",
-        "ALTER TABLE players ADD COLUMN char_name      TEXT",
-        "ALTER TABLE players ADD COLUMN fighting_style  TEXT",
-        "ALTER TABLE players ADD COLUMN summary         TEXT",
-        "ALTER TABLE players ADD COLUMN atk      INTEGER DEFAULT 10",
-        "ALTER TABLE players ADD COLUMN defense   INTEGER DEFAULT 10",
-        "ALTER TABLE players ADD COLUMN spd       INTEGER DEFAULT 10",
-        "ALTER TABLE players ADD COLUMN type1     TEXT    DEFAULT 'Normal'",
-        "ALTER TABLE players ADD COLUMN type2     TEXT    DEFAULT 'none'",
-        "ALTER TABLE players ADD COLUMN block_name TEXT",
-        "ALTER TABLE players ADD COLUMN dodge_name TEXT",
-        "ALTER TABLE players ADD COLUMN moves_json TEXT    DEFAULT '[]'",
-        "ALTER TABLE players ADD COLUMN held_fruit_id TEXT",
-        "ALTER TABLE players ADD COLUMN inventory      TEXT DEFAULT '[]'",]:
+        "ALTER TABLE players ADD COLUMN following_id TEXT DEFAULT 'ship'",
+        "ALTER TABLE crews   ADD COLUMN q            INTEGER DEFAULT 0",
+        "ALTER TABLE crews   ADD COLUMN r            INTEGER DEFAULT 0",
+        "ALTER TABLE crews   ADD COLUMN roll         INTEGER DEFAULT 12",
+        "ALTER TABLE crews   ADD COLUMN log_pose     TEXT    DEFAULT 'alabasta'",]:
         try:
             db.execute(sql)
             db.commit()
@@ -556,5 +537,79 @@ def set_crew_details(crew_id, description=None, jolly_roger_url=None,
          values.append(crew_id)
          db.execute(f"UPDATE crews SET {', '.join(fields)} WHERE id=?", values)
          db.commit()
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  db_game_additions.py  ·  Paste these into db.py
+#
+#  Add to migrations list in init_db():
+#      "ALTER TABLE players ADD COLUMN following_id TEXT DEFAULT 'ship'",
+#      "ALTER TABLE crews   ADD COLUMN q            INTEGER DEFAULT 0",
+#      "ALTER TABLE crews   ADD COLUMN r            INTEGER DEFAULT 0",
+#      "ALTER TABLE crews   ADD COLUMN roll         INTEGER DEFAULT 12",
+#      "ALTER TABLE crews   ADD COLUMN log_pose     TEXT    DEFAULT 'alabasta'",
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ── Player following state ────────────────────────────────────────────────────
+
+def set_following(player_id, following_id):
+    """
+    Set the player's following_id.
+      'ship'     → follows crew ship
+      player_id  → follows a specific player
+      None       → moves independently
+    """
+    db.execute(
+        "UPDATE players SET following_id=? WHERE id=?",
+        (following_id, player_id)
+    )
+    db.commit()
+
+
+# ── Crew movement ─────────────────────────────────────────────────────────────
+
+def move_crew(crew_id, q, r):
+    db.execute(
+        "UPDATE crews SET q=?, r=? WHERE id=?", (q, r, crew_id)
+    )
+    db.commit()
+
+
+def get_crew_position(crew_id):
+    row = db.execute(
+        "SELECT q, r FROM crews WHERE id=?", (crew_id,)
+    ).fetchone()
+    return (row["q"] or 0, row["r"] or 0) if row else (0, 0)
+
+
+# ── Crew rolls ────────────────────────────────────────────────────────────────
+
+def spend_crew_roll(crew_id, amount=1):
+    db.execute(
+        "UPDATE crews SET roll = MAX(0, roll - ?) WHERE id=?",
+        (amount, crew_id)
+    )
+    db.commit()
+
+
+def set_crew_roll(crew_id, amount):
+    db.execute(
+        "UPDATE crews SET roll=? WHERE id=?", (amount, crew_id)
+    )
+    db.commit()
+
+
+def get_all_crews():
+    """Returns all crew rows — used by roll replenishment task."""
+    return db.execute("SELECT * FROM crews").fetchall()
+
+
+# ── Log pose ──────────────────────────────────────────────────────────────────
+
+def set_log_pose(crew_id, island_name):
+    db.execute(
+        "UPDATE crews SET log_pose=? WHERE id=?", (island_name.lower(), crew_id)
+    )
+    db.commit()
 
 init_db()  # runs on import, creates tables if they don't exist
