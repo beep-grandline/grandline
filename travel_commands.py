@@ -56,7 +56,7 @@ def _status_embed(player, crew, q, r):
             value=f"`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX}",
             inline=False,
         )
-        log_pose = crew.get("log_pose") or game.DEFAULT_LOG_POSE
+        log_pose = (crew["log_pose"] if crew["log_pose"] else game.DEFAULT_LOG_POSE)
         embed.add_field(name="Log Pose", value=log_pose.title(), inline=True)
 
     return embed
@@ -151,7 +151,7 @@ async def travel_auto(interaction: discord.Interaction):
     crew    = db.get_crew(player["crew_id"])
     rolls   = crew["roll"] or 0
     dir_lbl = game.DIRECTION_LABELS.get(reason, reason)
-    log     = (crew.get("log_pose") or game.DEFAULT_LOG_POSE).title()
+    log     = ((crew["log_pose"] if crew["log_pose"] else game.DEFAULT_LOG_POSE)).title()
     await interaction.response.send_message(
         f"⛵ Heading toward **{log}** — moved **{dir_lbl}** → `q={new_q}, r={new_r}`\n"
         f"`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls remaining."
