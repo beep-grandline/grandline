@@ -418,23 +418,75 @@ gm_group = discord.app_commands.Group(
 def is_gm(interaction: discord.Interaction) -> bool:
     return any(r.name in (GAME_ADMIN, GAME_MOD) for r in interaction.user.roles)
 
-@gm_group.command(name="teleport", description="Move a player to a specific hex")
-@discord.app_commands.describe(target="The player to teleport", q="Hex q coordinate", r="Hex r coordinate")
+@gm_group.command(name="teleport", description="Teleport a player to a hex (solo at destination)")
+@discord.app_commands.describe(
+    target="The player to move",
+    q="Hex q coordinate",
+    r="Hex r coordinate",
+)
 async def gm_teleport(interaction: discord.Interaction, target: discord.Member, q: int, r: int):
     if not is_gm(interaction):
-        await interaction.response.send_message("You don't have permission to use this.", ephemeral=True)
+        await interaction.response.send_message("No permission.", ephemeral=True)
         return
+ 
     uid = str(target.id)
     if not db.get_player(uid):
         await interaction.response.send_message(
-            f"**{target.display_name}** is not registered yet.", ephemeral=True
+            f"**{target.display_name}** is not registered.", ephemeral=True
         )
         return
+ 
     db.update_player_position(uid, q, r)
+    db.set_following(uid, None)   # detach from ship/captain at new location
     await interaction.response.send_message(
-        f"Teleported **{target.display_name}** to q={q}, r={r}."
+        f"Teleported **{target.display_name}** to `q={q}, r={r}`. "
+        f"They are now moving independently."
     )
 
+# ── /gm addrolls — give extra rolls to a crew ─────────────────────────────────
+ 
+@gm_group.command(name="addrolls", description="Add rolls to a crew (or all crews)")
+@discord.app_commands.describe(
+    amount="Number of rolls to add",
+    crew="Specific crew (leave empty to add to all crews)",
+    cap="Cap at max (12) — default True, set False to allow over max",
+)
+@discord.app_commands.autocomplete(crew=_crew_name_autocomplete)
+async def gm_addrolls(
+    interaction: discord.Interaction,
+    amount: int,
+    crew: str = None,
+    cap: bool = True,
+):
+    if not is_gm(interaction):
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+ 
+    if crew:
+        crew_row = db.get_crew(crew)
+        if not crew_row:
+            await interaction.response.send_message("Crew not found.", ephemeral=True)
+            return
+        current  = crew_row["roll"] or 0
+        new_roll = min(game.ROLL_MAX, current + amount) if cap else current + amount
+        db.set_crew_roll(crew, new_roll)
+        cap_note = f" (capped at {game.ROLL_MAX})" if cap and new_roll == game.ROLL_MAX else ""
+        await interaction.response.send_message(
+            f"Added **{amount}** rolls to **{crew_row['name']}** — "
+            f"now at **{new_roll}**{cap_note}."
+        )
+    else:
+        crews   = db.get_all_crews()
+        updated = 0
+        for c in crews:
+            current  = c["roll"] or 0
+            new_roll = min(game.ROLL_MAX, current + amount) if cap else current + amount
+            db.set_crew_roll(c["id"], new_roll)
+            updated += 1
+        cap_note = f" (capped at {game.ROLL_MAX})" if cap else ""
+        await interaction.response.send_message(
+            f"Added **{amount}** rolls to all **{updated}** crews{cap_note}."
+        )
 
 @gm_group.command(name="crew", description="Create a new crew")
 @discord.app_commands.describe(name="Name of the crew", captain="The crew's captain", color="Hex color (e.g. ff0000)")
@@ -703,12 +755,14 @@ async def gm_help(interaction: discord.Interaction):
         color=0x2d6a9f,
     )
     commands_list = [
-        ("/gm teleport",  "Move a player to a specific hex (target, q, r)"),
+        ("/gm teleport",  "Teleport a player to a hex — they go solo at the destination (target, q, r)"),
+        ("/gm moveship",  "Teleport a crew's entire ship to a hex (crew, q, r)"),
+        ("/gm addrolls",  "Add rolls to a crew for events (crew, amount, optional cap)"),
         ("/gm crew",      "Create a new crew (name, captain, color)"),
         ("/gm disband",   "Disband a crew by name"),
         ("/gm remove",    "Remove a player from the game"),
         ("/gm setberry",  "Set a player's berry (target, amount)"),
-        ("/gm setstats",  "Set a player's battle stats — opens a form with ATK, DEF, SPD, block and dodge names"),
+        ("/gm setstats",  "Set a player's battle stats — ATK, DEF, SPD, block and dodge names"),
         ("/gm setfruit",  "Set a player's eaten fruit and apply its type (target, fruit)"),
         ("/gm givefruit", "Give an uneaten fruit to a player's held slot (target, fruit)"),
         ("/gm giveitem",  "Add an item to a player's inventory (target, name, qty, keywords)"),
