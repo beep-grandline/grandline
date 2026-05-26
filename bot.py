@@ -99,6 +99,7 @@ HELP_PAGES = {
 
 }
 
+
 @bot.tree.command(name="help", description="Help topics", guild=MY_GUILD)
 @discord.app_commands.describe(topic="What do you need help with?")
 async def help_command(
@@ -134,6 +135,15 @@ async def info_command(interaction: discord.Interaction):
 
 
 # ── Player commands ───────────────────────────────────────────────────────────
+
+async def _crew_name_autocomplete(interaction: discord.Interaction, current: str):
+    crews = db.get_all_crews()
+    return [
+        discord.app_commands.Choice(name=c["name"], value=c["id"])
+        for c in crews
+        if current.lower() in c["name"].lower()
+    ][:25]
+
 
 @bot.tree.command(name="register", description="Register your character", guild=MY_GUILD)
 @discord.app_commands.describe(job="Your role (pirate, marine, etc)")
@@ -406,13 +416,6 @@ async def search_cmd(interaction: discord.Interaction, fruit: str):
 
 
 
-async def _crew_name_autocomplete(interaction: discord.Interaction, current: str):
-    crews = db.get_all_crews()
-    return [
-        discord.app_commands.Choice(name=c["name"], value=c["id"])
-        for c in crews
-        if current.lower() in c["name"].lower()
-    ][:25]
 
 
 
