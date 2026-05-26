@@ -214,7 +214,8 @@ class JoinRequestView(discord.ui.View):
 
 @bot.tree.command(name="join", description="Request to join a crew", guild=MY_GUILD)
 @discord.app_commands.describe(crew="Name of the crew you want to join")
-async def join_cmd(interaction: discord.Interaction, crew: _crew_name_autocomplete):
+@discord.app_commands.autocomplete(crew=_crew_name_autocomplete)
+async def join_cmd(interaction: discord.Interaction, crew: str):
     await interaction.response.defer()
     uid = str(interaction.user.id)
 
