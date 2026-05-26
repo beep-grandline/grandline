@@ -254,7 +254,41 @@ def go_solo(player_id):
     db.set_following(str(player_id), None)
 
 
-# ── Roll replenishment (called by background task) ────────────────────────────
+# ── Tile queries ──────────────────────────────────────────────────────────────
+
+def get_players_at(q: int, r: int, exclude_uid: str = None) -> list:
+    """
+    Returns player rows whose resolved position is (q, r).
+    Checks own q/r (solo players) and crew ship position.
+    """
+    import db as _db
+    results = []
+
+    # players with their own q/r (solo / captain on foot)
+    solo = _db.execute(
+        "SELECT * FROM players WHERE following_id IS NULL AND q=? AND r=?",
+        (q, r)
+    ).fetchall()
+
+    # players following their crew ship at this position
+    on_ship = _db.execute(
+        """
+        SELECT p.* FROM players p
+        JOIN crews c ON p.crew_id = c.id
+        WHERE p.following_id = 'ship' AND c.q=? AND c.r=?
+        """,
+        (q, r)
+    ).fetchall()
+
+    seen = set()
+    for row in list(solo) + list(on_ship):
+        uid = str(row["id"])
+        if uid == exclude_uid or uid in seen:
+            continue
+        seen.add(uid)
+        results.append(row)
+
+    return results
 
 def replenish_rolls():
     """
