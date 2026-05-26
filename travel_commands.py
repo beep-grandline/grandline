@@ -132,10 +132,10 @@ class HelmView(discord.ui.View):
         )
 
     @discord.ui.button(emoji="↖️", style=discord.ButtonStyle.secondary, row=0)
-    async def btn_br(self, i, b): await self._move(i, "br")
+    async def btn_bl(self, i, b): await self._move(i, "bl")
 
     @discord.ui.button(emoji="↗️", style=discord.ButtonStyle.secondary, row=0)
-    async def btn_fr(self, i, b): await self._move(i, "fr")
+    async def btn_fl(self, i, b): await self._move(i, "fl")
 
     @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary, row=1)
     async def btn_b(self, i, b):  await self._move(i, "b")
@@ -144,10 +144,10 @@ class HelmView(discord.ui.View):
     async def btn_f(self, i, b):  await self._move(i, "f")
 
     @discord.ui.button(emoji="↙️", style=discord.ButtonStyle.secondary, row=2)
-    async def btn_bl(self, i, b): await self._move(i, "bl")
+    async def btn_br(self, i, b): await self._move(i, "br")
 
     @discord.ui.button(emoji="↘️", style=discord.ButtonStyle.secondary, row=2)
-    async def btn_fl(self, i, b): await self._move(i, "fl")
+    async def btn_fr(self, i, b): await self._move(i, "fr")
 
 
 @travel_group.command(name="helm", description="Take the helm and steer the ship (captain only)")
