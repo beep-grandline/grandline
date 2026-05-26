@@ -261,17 +261,15 @@ def get_players_at(q: int, r: int, exclude_uid: str = None) -> list:
     Returns player rows whose resolved position is (q, r).
     Checks own q/r (solo players) and crew ship position.
     """
-    import db as _db
+    from db import db as con
     results = []
 
-    # players with their own q/r (solo / captain on foot)
-    solo = _db.execute(
+    solo = con.execute(
         "SELECT * FROM players WHERE following_id IS NULL AND q=? AND r=?",
         (q, r)
     ).fetchall()
 
-    # players following their crew ship at this position
-    on_ship = _db.execute(
+    on_ship = con.execute(
         """
         SELECT p.* FROM players p
         JOIN crews c ON p.crew_id = c.id
