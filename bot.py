@@ -11,6 +11,7 @@ from typing import Literal
 import csv
 from config import MY_GUILD, GUILD_ID, GAME_ADMIN, GAME_MOD
 from fruits import FRUITS, get_fruit_by_id, fruit_autocomplete
+from npcs import load_npcs
 
 load_dotenv()
 
@@ -41,6 +42,7 @@ bot.tree.add_command(travel_group)
 @bot.event
 async def on_ready():
     setup_travel_task(bot)
+    load_npcs()
     bot.add_view(RolePicker())
     bot.tree.clear_commands(guild=None)
     await bot.tree.sync()
