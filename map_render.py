@@ -4,6 +4,7 @@ import math
 import os
 from functools import lru_cache
 
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
