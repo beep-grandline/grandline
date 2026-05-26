@@ -239,6 +239,7 @@ def _draw_whirlpools(ax, whirlpool_tiles, pq, pr, radius):
             MPath(verts, codes),
             transform=ax.transData,
         )
+        ax.add_patch(clip_patch)
 
         # Draw rings from outermost inward so inner ones paint over outer
         for i in range(RINGS, 0, -1):
