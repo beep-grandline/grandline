@@ -10,8 +10,12 @@ import numpy as np
 from matplotlib.collections import PatchCollection, LineCollection
 from matplotlib.image import imread
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+import gc
+
 
 import game
+
+matplotlib.use("Agg")  
 
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -651,5 +655,6 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         pad_inches=0,
     )
     plt.close(fig)
+    gc.collect()
     buf.seek(0)
     return buf
