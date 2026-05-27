@@ -16,6 +16,7 @@ from fruits import get_fighter_types
 from npcs import get_npc_by_id, get_npcs_at, build_npc_fighter, npc_pick_action
 
 
+
 # ── Embed builders ────────────────────────────────────────────────────────────
 
 def _battle_embed(state, log=None):
@@ -682,36 +683,32 @@ async def cannons_cmd(interaction: discord.Interaction, target: str):
 
     db.spend_crew_roll(player["crew_id"], game.CANNON_ROLL_COST)
 
-    lines = [
-        f"💥 **{crew['name']}** opened fire on **{target_crew['name']}**! "
-        f"({dist} tile{'s' if dist != 1 else ''} away)"
-    ]
-
     hit_a, dmg_a, chance_a, _ = game.cannon_volley(crew, target_crew)
     t_hp, t_max = db.get_ship_hp(target)
-
+    result_a = f"hit! (-{dmg_a})" if hit_a else "miss"
     if hit_a:
-        new_t_hp = db.damage_ship(target, dmg_a)
-        lines.append(f"→ Hit! **{dmg_a}** damage to {target_crew['name']}'s ship.")
-        lines.append(f"   `{game.cannon_hp_bar(new_t_hp, t_max)}` {new_t_hp}/{t_max} HP")
-        if new_t_hp <= 0:
-            lines.append(f"🔥 **{target_crew['name']}**'s ship is disabled!")
-    else:
-        lines.append(f"→ Missed! ({chance_a}% hit chance)")
+        db.damage_ship(target, dmg_a)
+        if db.get_ship_hp(target)[0] <= 0:
+            result_a += " 🔥 disabled!"
 
     t_hp_now, _ = db.get_ship_hp(target)
+    result_b = ""
     if t_hp_now > 0:
-        lines.append("")
-        lines.append(f"↩️ **{target_crew['name']}** returns fire!")
         hit_b, dmg_b, chance_b, _ = game.cannon_volley(target_crew, crew)
-        m_hp, m_max = db.get_ship_hp(player["crew_id"])
+        result_b = f"hit! (-{dmg_b})" if hit_b else "miss"
         if hit_b:
-            new_m_hp = db.damage_ship(player["crew_id"], dmg_b)
-            lines.append(f"→ Hit! **{dmg_b}** damage to {crew['name']}'s ship.")
-            lines.append(f"   `{game.cannon_hp_bar(new_m_hp, m_max)}` {new_m_hp}/{m_max} HP")
-            if new_m_hp <= 0:
-                lines.append(f"🔥 **{crew['name']}**'s ship is disabled!")
-        else:
-            lines.append(f"→ Missed! ({chance_b}% hit chance)")
+            db.damage_ship(player["crew_id"], dmg_b)
+            if db.get_ship_hp(player["crew_id"])[0] <= 0:
+                result_b += " 🔥 disabled!"
 
-    await interaction.response.send_message("\n".join(lines))
+    ship_name = (target_crew["ship_name"] or "").strip()
+    target_label = f"the **{ship_name}**" if ship_name else f"**{target_crew['name']}**"
+
+    line1 = f"💥 **{crew['name']}** open fire on {target_label}! ({result_a})"
+    line2 = f"↩️ **{target_crew['name']}** return fire! ({result_b})" if result_b else ""
+
+    embed = discord.Embed(
+        description=f"{line1}\n{line2}".strip(),
+        color=0x8a2a1a,
+    )
+    await interaction.response.send_message(embed=embed)
