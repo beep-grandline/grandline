@@ -201,7 +201,7 @@ def move_player(player_id, direction):
         from map_render import _cache, _load_map
         _load_map()
         terrain = _cache["hex_lookup"].get((new_q, new_r), "sea")
-        if terrain in ("sea", "calm_belt"):
+        if terrain not in ("island",):
             return player["q"] or 0, player["r"] or 0, False, "no_walking_on_sea"
     except Exception:
         pass
