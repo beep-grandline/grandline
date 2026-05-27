@@ -15,8 +15,19 @@ POWER_SCALE = 9   # must match kit_commands.POWER_SCALE
 
 ATTACK_TYPE_MAP = {"1": "slash", "2": "pierce", "": "blunt"}
 
-# AI action weights
-_AI_WEIGHTS = {"attack": 60, "block": 20, "dodge": 15, "charge": 5}
+# Aggro level → AI action weights
+AGGRO_WEIGHTS = {
+    1: {"attack": 20, "block": 35, "dodge": 25, "charge": 5, "escape": 15},
+    2: {"attack": 40, "block": 30, "dodge": 20, "charge": 5, "escape":  5},
+    3: {"attack": 60, "block": 20, "dodge": 15, "charge": 5, "escape":  0},
+}
+DEFAULT_AGGRO = 3
+
+# Neutral initiate affiliation rules: npc affiliation → set of player affiliations it attacks
+NEUTRAL_ATTACK_MAP = {
+    "m": {"p"},
+    "b": {"p"},
+}
 
 # ── CSV loader ────────────────────────────────────────────────────────────────
 
@@ -101,8 +112,6 @@ def build_npc_fighter(npc_row: dict) -> dict:
     block_name = (npc_row.get("block") or "").strip() or "Block"
     dodge_name = (npc_row.get("dodge") or "").strip() or "Dodge"
 
-    print(f"[npc] {npc_row['name']} moves: {[m['name'] for m in moves]}")
-    
     return {
         "id":                 f"npc:{npc_row['id'].strip()}",
         "name":               npc_row["name"].strip(),
@@ -116,6 +125,9 @@ def build_npc_fighter(npc_row: dict) -> dict:
         "block":              block_name,
         "dodge":              dodge_name,
         "moves":              moves,
+        "aggro":              int(npc_row.get("aggro") or DEFAULT_AGGRO),
+        "initiate":           int(npc_row.get("initiate") or 0),
+        "affiliation":        (npc_row.get("affiliation") or "").strip().lower(),
         "charging":           False,
         "priority_next_turn": False,
         "escaped":            False,
@@ -124,25 +136,47 @@ def build_npc_fighter(npc_row: dict) -> dict:
 
 # ── NPC AI ────────────────────────────────────────────────────────────────────
 
+def should_npc_initiate(npc_row: dict, player_row: dict) -> bool:
+    """
+    Returns True if the NPC should initiate combat with the player.
+    initiate=0: passive, never initiates.
+    initiate=1: neutral, checks affiliation rules.
+    initiate=2: aggressive, always initiates.
+    """
+    initiate = int(npc_row.get("initiate") or 0)
+    if initiate == 0:
+        return False
+    if initiate == 2:
+        return True
+    # neutral (1): check affiliation
+    npc_aff    = (npc_row.get("affiliation") or "").strip().lower()
+    # player affiliation stored in role column for now — update if you add an affiliation column
+    player_aff = (player_row.get("role") or "").strip().lower()
+    targets    = NEUTRAL_ATTACK_MAP.get(npc_aff, set())
+    return any(t in player_aff for t in targets)
+
+
 def npc_pick_action(fighter_state: dict) -> list:
     """
     Returns an action list [action, move_name_or_None] for an NPC fighter.
-    Weights: attack 60%, block 20%, dodge 15%, charge 5%.
+    Uses aggro level (1-3) to determine action weights.
     If already charging, always attack.
     """
     moves = fighter_state.get("moves", [])
+    aggro = int(fighter_state.get("aggro") or DEFAULT_AGGRO)
+    weights_map = AGGRO_WEIGHTS.get(aggro, AGGRO_WEIGHTS[DEFAULT_AGGRO])
 
-    # if charging, must release — attack
+    # charging must release
     if fighter_state.get("charging") and moves:
         return ["attack", random.choice(moves)["name"]]
 
-    choices = list(_AI_WEIGHTS.keys())
-    weights = list(_AI_WEIGHTS.values())
+    choices = list(weights_map.keys())
+    weights = list(weights_map.values())
     action  = random.choices(choices, weights=weights, k=1)[0]
 
     if action == "attack":
         if moves:
             return ["attack", random.choice(moves)["name"]]
-        return ["block", None]   # no moves fallback
+        return ["block", None]
 
     return [action, None]
