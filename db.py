@@ -248,13 +248,12 @@ def get_battle_by_player(player_id):
  
  
 def create_battle(battle_id, channel_id, fighter_a_id, fighter_b_id, state, message_id=None):
-    """Create a new battle row. state is a dict, serialised to JSON."""
     db.execute("""
         INSERT OR REPLACE INTO battles
-            (battle_id, fighter_a_id, fighter_b_id, state,
+            (battle_id, channel_id, fighter_a_id, fighter_b_id, state,
              pending_a, pending_b, message_id, last_updated)
-        VALUES (?, ?, ?, ?, NULL, NULL, ?, ?)
-    """, (battle_id, fighter_a_id, fighter_b_id,
+        VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?)
+    """, (battle_id, channel_id, fighter_a_id, fighter_b_id,
           json.dumps(state), message_id, time.time()))
     db.commit()
  
