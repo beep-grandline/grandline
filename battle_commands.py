@@ -580,3 +580,129 @@ async def forfeit_cmd(interaction: discord.Interaction):
     await interaction.response.send_message(
         f"**{forfeiter['name']}** forfeited. 🏆 **{winner['name']}** wins!"
     )
+
+
+# ── /cannons ──────────────────────────────────────────────────────────────────
+
+async def _cannon_autocomplete(interaction: discord.Interaction, current: str):
+    uid    = str(interaction.user.id)
+    player = db.get_player(uid)
+    if not player or not player["crew_id"]:
+        return []
+
+    my_crew  = db.get_crew(player["crew_id"])
+    if not my_crew:
+        return []
+    mq, mr   = my_crew["q"] or 0, my_crew["r"] or 0
+    in_range = game.crews_in_cannon_range(player["crew_id"])
+    choices  = []
+    for c in in_range:
+        if current.lower() not in c["name"].lower():
+            continue
+        dist = game._hex_dist(mq, mr, c["q"] or 0, c["r"] or 0)
+        choices.append(discord.app_commands.Choice(
+            name=f"{c['name']}  ({dist} tile{'s' if dist != 1 else ''})",
+            value=c["id"],
+        ))
+    return choices[:25]
+
+
+@discord.app_commands.command(
+    name="cannons",
+    description="Fire cannons at an enemy crew within range (captain only)",
+)
+@discord.app_commands.describe(target="Enemy crew to fire at")
+@discord.app_commands.autocomplete(target=_cannon_autocomplete)
+@discord.app_commands.guilds(MY_GUILD)
+async def cannons_cmd(interaction: discord.Interaction, target: str):
+    uid    = str(interaction.user.id)
+    player = db.get_player(uid)
+
+    if not player or not player["crew_id"]:
+        await interaction.response.send_message("You need to be in a crew.", ephemeral=True)
+        return
+
+    crew = db.get_crew(player["crew_id"])
+    if str(crew["captain_id"]) != uid:
+        await interaction.response.send_message(
+            "Only the captain can give the order to fire.", ephemeral=True
+        )
+        return
+
+    if player["following_id"] != "ship":
+        await interaction.response.send_message(
+            "You need to be on the ship to fire cannons.", ephemeral=True
+        )
+        return
+
+    ship_hp, _ = db.get_ship_hp(player["crew_id"])
+    if ship_hp <= 0:
+        await interaction.response.send_message(
+            "Your ship is disabled — it needs repairs before it can fight.", ephemeral=True
+        )
+        return
+
+    if (crew["roll"] or 0) < game.CANNON_ROLL_COST:
+        await interaction.response.send_message(
+            f"Not enough rolls to fire. Need {game.CANNON_ROLL_COST}.", ephemeral=True
+        )
+        return
+
+    target_crew = db.get_crew(target)
+    if not target_crew:
+        await interaction.response.send_message("Target crew not found.", ephemeral=True)
+        return
+
+    dist = game._hex_dist(
+        crew["q"] or 0, crew["r"] or 0,
+        target_crew["q"] or 0, target_crew["r"] or 0,
+    )
+
+    if dist == 0:
+        await interaction.response.send_message(
+            "You're on the same tile — use `/battle` for close combat.", ephemeral=True
+        )
+        return
+
+    if dist > game.CANNON_RANGE:
+        await interaction.response.send_message(
+            f"**{target_crew['name']}** is out of range "
+            f"({dist} tiles away, max {game.CANNON_RANGE}).", ephemeral=True
+        )
+        return
+
+    db.spend_crew_roll(player["crew_id"], game.CANNON_ROLL_COST)
+
+    lines = [
+        f"💥 **{crew['name']}** opened fire on **{target_crew['name']}**! "
+        f"({dist} tile{'s' if dist != 1 else ''} away)"
+    ]
+
+    hit_a, dmg_a, chance_a, _ = game.cannon_volley(crew, target_crew)
+    t_hp, t_max = db.get_ship_hp(target)
+
+    if hit_a:
+        new_t_hp = db.damage_ship(target, dmg_a)
+        lines.append(f"→ Hit! **{dmg_a}** damage to {target_crew['name']}'s ship.")
+        lines.append(f"   `{game.cannon_hp_bar(new_t_hp, t_max)}` {new_t_hp}/{t_max} HP")
+        if new_t_hp <= 0:
+            lines.append(f"🔥 **{target_crew['name']}**'s ship is disabled!")
+    else:
+        lines.append(f"→ Missed! ({chance_a}% hit chance)")
+
+    t_hp_now, _ = db.get_ship_hp(target)
+    if t_hp_now > 0:
+        lines.append("")
+        lines.append(f"↩️ **{target_crew['name']}** returns fire!")
+        hit_b, dmg_b, chance_b, _ = game.cannon_volley(target_crew, crew)
+        m_hp, m_max = db.get_ship_hp(player["crew_id"])
+        if hit_b:
+            new_m_hp = db.damage_ship(player["crew_id"], dmg_b)
+            lines.append(f"→ Hit! **{dmg_b}** damage to {crew['name']}'s ship.")
+            lines.append(f"   `{game.cannon_hp_bar(new_m_hp, m_max)}` {new_m_hp}/{m_max} HP")
+            if new_m_hp <= 0:
+                lines.append(f"🔥 **{crew['name']}**'s ship is disabled!")
+        else:
+            lines.append(f"→ Missed! ({chance_b}% hit chance)")
+
+    await interaction.response.send_message("\n".join(lines))
