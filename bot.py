@@ -25,7 +25,8 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 from kit_commands import kit_group
-from battle_commands import battle_cmd, forfeit_cmd
+from battle_commands import battle_cmd, forfeit_cmd, cannons_cmd
+bot.tree.add_command(cannons_cmd)
 bot.tree.add_command(kit_group)
 bot.tree.add_command(battle_cmd)
 bot.tree.add_command(forfeit_cmd)
@@ -227,7 +228,7 @@ class JoinRequestView(discord.ui.View):
 @bot.tree.command(name="join", description="Request to join a crew", guild=MY_GUILD)
 @discord.app_commands.describe(crew="Name of the crew you want to join")
 @discord.app_commands.autocomplete(crew=_crew_name_autocomplete)
-async def join_cmd(interaction: discord.Interaction, crew: str):
+async def join_cmd(interaction: discord.Interaction, crew:str):
     await interaction.response.defer()
     uid = str(interaction.user.id)
 
@@ -596,6 +597,35 @@ async def gm_disband(interaction: discord.Interaction, name: str):
     db.delete_crew(crew["id"])
     await interaction.followup.send(f"Crew **{crew['name']}** has been disbanded.")
 
+# ── /gm repair — restore a crew's ship HP ─────────────────────────────────────
+ 
+@gm_group.command(name="repair", description="Repair a crew's ship")
+@discord.app_commands.describe(
+    crew="Crew whose ship to repair",
+    amount="HP to restore (leave empty for full repair)",
+)
+@discord.app_commands.autocomplete(crew=_crew_name_autocomplete)
+async def gm_repair(
+    interaction: discord.Interaction,
+    crew: str,
+    amount: int = None,
+):
+    if not is_gm(interaction):
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+ 
+    crew_row = db.get_crew(crew)
+    if not crew_row:
+        await interaction.response.send_message("Crew not found.", ephemeral=True)
+        return
+ 
+    new_hp   = db.repair_ship(crew, amount)
+    max_hp   = crew_row["ship_max_hp"] or 500
+    note     = f"+{amount} HP" if amount else "fully repaired"
+    await interaction.response.send_message(
+        f"🔧 **{crew_row['name']}**'s ship {note}. "
+        f"HP: **{new_hp}/{max_hp}**"
+    )
 
 @gm_group.command(name="remove", description="Remove a player from the player list")
 @discord.app_commands.describe(target="The player to remove")
