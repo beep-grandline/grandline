@@ -193,10 +193,11 @@ def move_player(player_id, direction):
     new_q   = (player["q"] or 0) + dq
     new_r   = (player["r"] or 0) + dr
 
-    if not is_passable(new_q, new_r):
+    # calm belt is still impassable on foot
+    if abs(new_r) > CALM_BELT_R:
         return player["q"] or 0, player["r"] or 0, False, "impassable"
 
-    # players on foot can't walk into open sea
+    # players on foot can only walk on island tiles
     try:
         from map_render import _cache, _load_map
         _load_map()
