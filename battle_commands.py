@@ -261,7 +261,7 @@ class BattleView(discord.ui.View):
         side = await self._guard(interaction)
         if not side:
             return
-        state = db.get_battle_state(self.channel_id)
+        state = db.get_battle_state(self.battle_id)
         if not state:
             await interaction.response.send_message("Battle not found.", ephemeral=True)
             return
