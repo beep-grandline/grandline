@@ -87,6 +87,7 @@ MOVE_FAILURE = {
     "already_there":     "You're already at your log pose destination.",
     "no_path":           "No navigable path toward the log pose from here.",
     "not_found":         "Player not found.",
+    "no_walking_on_sea": "You can't walk on open sea. Stay on land.",
 }
 
 # ── Travel command group ──────────────────────────────────────────────────────
@@ -297,10 +298,48 @@ async def travel_solo(interaction: discord.Interaction):
     )
 
 
-@travel_group.command(name="walkto", description="Move yourself one hex while on land (solo or captain)")
-@discord.app_commands.describe(direction="Direction to walk")
-@discord.app_commands.choices(direction=_DIR_CHOICES)
-async def travel_walkto(interaction: discord.Interaction, direction: str):
+class WalkView(discord.ui.View):
+    def __init__(self, uid: str):
+        super().__init__(timeout=300)
+        self.uid = uid
+
+    async def _walk(self, interaction: discord.Interaction, direction: str):
+        if str(interaction.user.id) != self.uid:
+            await interaction.response.send_message("This isn't your movement panel.", ephemeral=True)
+            return
+        new_q, new_r, ok, reason = game.move_player(self.uid, direction)
+        if not ok:
+            await interaction.response.edit_message(
+                content=MOVE_FAILURE.get(reason, reason)
+            )
+            return
+        alert = _tile_alert(new_q, new_r, self.uid)
+        msg   = f"🚶 `q={new_q}, r={new_r}`"
+        if alert:
+            msg += f"\n{alert}"
+        await interaction.response.edit_message(content=msg)
+
+    @discord.ui.button(emoji="↖️", style=discord.ButtonStyle.secondary, row=0)
+    async def btn_bl(self, i, b): await self._walk(i, "bl")
+
+    @discord.ui.button(emoji="↗️", style=discord.ButtonStyle.secondary, row=0)
+    async def btn_fl(self, i, b): await self._walk(i, "fl")
+
+    @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary, row=1)
+    async def btn_b(self, i, b):  await self._walk(i, "b")
+
+    @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.secondary, row=1)
+    async def btn_f(self, i, b):  await self._walk(i, "f")
+
+    @discord.ui.button(emoji="↙️", style=discord.ButtonStyle.secondary, row=2)
+    async def btn_br(self, i, b): await self._walk(i, "br")
+
+    @discord.ui.button(emoji="↘️", style=discord.ButtonStyle.secondary, row=2)
+    async def btn_fr(self, i, b): await self._walk(i, "fr")
+
+
+@travel_group.command(name="walk", description="Move on foot — island tiles only")
+async def travel_walk(interaction: discord.Interaction):
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
     if not player:
@@ -309,25 +348,22 @@ async def travel_walkto(interaction: discord.Interaction, direction: str):
 
     if player["following_id"] == "ship":
         await interaction.response.send_message(
-            "You're on the ship. Use `/travel move` to move the ship, "
-            "or `/travel disembark` to go on foot.", ephemeral=True
+            "You're on the ship. Use `/travel disembark` first.", ephemeral=True
         )
         return
 
-    if player["following_id"] and player["following_id"] != str(interaction.user.id):
+    if player["following_id"] and player["following_id"] != uid:
         await interaction.response.send_message(
             "You're following the captain. Use `/travel solo` to move independently.", ephemeral=True
         )
         return
 
-    new_q, new_r, ok, reason = game.move_player(uid, direction)
-    if not ok:
-        await interaction.response.send_message(MOVE_FAILURE.get(reason, reason), ephemeral=True)
-        return
-
-    dir_lbl = game.DIRECTION_LABELS[direction]
+    q, r  = game.get_position(uid)
+    view  = WalkView(uid=uid)
     await interaction.response.send_message(
-        f"🚶 Moved **{dir_lbl}** → `q={new_q}, r={new_r}`", ephemeral=True
+        f"🚶 `q={q}, r={r}`",
+        view=view,
+        ephemeral=True,
     )
 
 
