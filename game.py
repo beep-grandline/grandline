@@ -96,6 +96,10 @@ def move_ship(crew_id, direction):
     if (crew["roll"] or 0) <= 0:
         return crew["q"] or 0, crew["r"] or 0, False, "no_rolls"
 
+    ship_hp = crew["ship_hp"] if crew["ship_hp"] is not None else 500
+    if ship_hp <= 0:
+        return crew["q"] or 0, crew["r"] or 0, False, "ship_disabled"
+
     if direction not in HEX_DIRECTIONS:
         return crew["q"] or 0, crew["r"] or 0, False, "invalid_direction"
 
@@ -312,3 +316,51 @@ def replenish_rolls():
             db.set_crew_roll(crew["id"], min(ROLL_MAX, current + ROLL_REGEN_AMOUNT))
             updated += 1
     return updated
+
+
+# ── Cannon system ─────────────────────────────────────────────────────────────
+
+import random as _random
+
+CANNON_RANGE = 7
+CANNON_DMG_MIN = 40
+CANNON_DMG_MAX = 80
+CANNON_ROLL_COST = 1
+
+
+def cannon_hit_chance(distance: int) -> int:
+    """90% at 1 tile, 30% at 7 tiles."""
+    return max(30, 90 - (distance - 1) * 10)
+
+
+def cannon_volley(attacker_crew, defender_crew) -> tuple:
+    """
+    Roll one cannon volley from attacker at defender.
+    Returns (hit: bool, damage: int, hit_chance: int, distance: int).
+    """
+    aq, ar = attacker_crew["q"] or 0, attacker_crew["r"] or 0
+    dq, dr = defender_crew["q"] or 0, defender_crew["r"] or 0
+    dist   = _hex_dist(aq, ar, dq, dr)
+    chance = cannon_hit_chance(dist)
+    hit    = _random.randint(1, 100) <= chance
+    dmg    = _random.randint(CANNON_DMG_MIN, CANNON_DMG_MAX) if hit else 0
+    return hit, dmg, chance, dist
+
+
+def cannon_hp_bar(hp: int, max_hp: int, width: int = 12) -> str:
+    filled = max(0, round((hp / max(max_hp, 1)) * width))
+    return "█" * filled + "░" * (width - filled)
+
+
+def crews_in_cannon_range(crew_id: str) -> list:
+    """Returns all other crews within CANNON_RANGE tiles."""
+    my_crew = db.get_crew(crew_id)
+    if not my_crew:
+        return []
+    mq, mr    = my_crew["q"] or 0, my_crew["r"] or 0
+    all_crews = db.get_all_crews()
+    return [
+        c for c in all_crews
+        if c["id"] != crew_id
+        and _hex_dist(mq, mr, c["q"] or 0, c["r"] or 0) <= CANNON_RANGE
+    ]
