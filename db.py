@@ -63,6 +63,8 @@ def init_db():
 
     # ── Migrations — safe to run every startup, silently ignored if already applied
     for sql in  [
+        "ALTER TABLE crews ADD COLUMN ship_hp     INTEGER DEFAULT 500",
+        "ALTER TABLE crews ADD COLUMN ship_max_hp INTEGER DEFAULT 500",
         "ALTER TABLE players ADD COLUMN following_id TEXT DEFAULT 'ship'",
         "ALTER TABLE crews   ADD COLUMN q            INTEGER DEFAULT 0",
         "ALTER TABLE crews   ADD COLUMN r            INTEGER DEFAULT 0",
