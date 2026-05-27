@@ -605,6 +605,23 @@ def get_all_crews():
     """Returns all crew rows — used by roll replenishment task."""
     return db.execute("SELECT * FROM crews").fetchall()
 
+def get_ship_hp(crew_id):
+    row = db.execute("SELECT ship_hp, ship_max_hp FROM crews WHERE id=?", (crew_id,)).fetchone()
+    return (row["ship_hp"] or 500, row["ship_max_hp"] or 500) if row else (500, 500)
+
+def damage_ship(crew_id, amount):
+    db.execute("UPDATE crews SET ship_hp = MAX(0, ship_hp - ?) WHERE id=?", (amount, crew_id))
+    db.commit()
+    return db.execute("SELECT ship_hp FROM crews WHERE id=?", (crew_id,)).fetchone()["ship_hp"]
+
+def repair_ship(crew_id, amount=None):
+    if amount is None:
+        db.execute("UPDATE crews SET ship_hp = ship_max_hp WHERE id=?", (crew_id,))
+    else:
+        db.execute("UPDATE crews SET ship_hp = MIN(ship_max_hp, ship_hp + ?) WHERE id=?", (amount, crew_id))
+    db.commit()
+    return db.execute("SELECT ship_hp FROM crews WHERE id=?", (crew_id,)).fetchone()["ship_hp"]
+
 
 # ── Log pose ──────────────────────────────────────────────────────────────────
 
