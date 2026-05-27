@@ -34,15 +34,23 @@ def setup_travel_task(bot):
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _tile_alert(q: int, r: int, uid: str) -> str:
-    """Returns an alert string if there are NPCs or players on the tile, else empty string."""
-    lines = []
+    """Returns an alert string if there are NPCs or players on the tile."""
+    from npcs import get_npcs_at, should_npc_initiate
+    lines   = []
+    player  = db.get_player(uid)
     npcs    = get_npcs_at(q, r)
     players = game.get_players_at(q, r, exclude_uid=uid)
+
     for npc in npcs:
-        lines.append(f"⚠️ **{npc['name']}** is here.")
+        if player and should_npc_initiate(npc, player):
+            lines.append(f"⚔️ **{npc['name']}** is hostile! Use `/battle` to fight.")
+        else:
+            lines.append(f"⚠️ **{npc['name']}** is here.")
+
     for p in players:
         name = p["char_name"] or str(p["id"])
         lines.append(f"⚠️ **{name}** is here.")
+
     return "\n".join(lines)
 
 
@@ -81,6 +89,7 @@ def _status_embed(player, crew, q, r):
 MOVE_FAILURE = {
     "no_rolls":          "The ship has no rolls left. Wait for them to recharge.",
     "impassable":        "Can't sail there — that's an island or the Calm Belt.",
+    "ship_disabled":     "Your ship is disabled — it needs repairs before you can sail.",
     "invalid_direction": "Invalid direction.",
     "crew_not_found":    "Crew not found.",
     "island_not_found":  "Log pose island not found on the map.",
