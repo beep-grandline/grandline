@@ -230,10 +230,10 @@ def get_crew_members(crew_id):
         "SELECT * FROM players WHERE crew_id=?", (crew_id,)
     ).fetchall()
 
-def get_battle(channel_id):
+def get_battle(battle_id):
     """Returns battle row as dict, or None."""
     row = db.execute(
-        "SELECT * FROM battles WHERE channel_id=?", (channel_id,)
+        "SELECT * FROM battles WHERE battle_id=?", (battle_id,)
     ).fetchone()
     return row_to_dict(row)
  
@@ -247,37 +247,37 @@ def get_battle_by_player(player_id):
     return row_to_dict(row)
  
  
-def create_battle(channel_id, fighter_a_id, fighter_b_id, state, message_id=None):
+def create_battle(battle_id, fighter_a_id, fighter_b_id, state, message_id=None):
     """Create a new battle row. state is a dict, serialised to JSON."""
     db.execute("""
         INSERT OR REPLACE INTO battles
-            (channel_id, fighter_a_id, fighter_b_id, state,
+            (battle_id, fighter_a_id, fighter_b_id, state,
              pending_a, pending_b, message_id, last_updated)
         VALUES (?, ?, ?, ?, NULL, NULL, ?, ?)
-    """, (channel_id, fighter_a_id, fighter_b_id,
+    """, (battle_id, fighter_a_id, fighter_b_id,
           json.dumps(state), message_id, time.time()))
     db.commit()
  
  
-def update_battle_state(channel_id, state):
+def update_battle_state(battle_id, state):
     """Persist updated state dict after a turn resolves."""
     db.execute("""
         UPDATE battles SET state=?, pending_a=NULL, pending_b=NULL, last_updated=?
-        WHERE channel_id=?
-    """, (json.dumps(state), time.time(), channel_id))
+        WHERE battle_id=?
+    """, (json.dumps(state), time.time(), battle_id))
     db.commit()
  
  
-def set_battle_message(channel_id, message_id):
+def set_battle_message(battle_id, message_id):
     """Store the Discord message ID so bot.py can edit it each turn."""
     db.execute(
-        "UPDATE battles SET message_id=? WHERE channel_id=?",
-        (message_id, channel_id)
+        "UPDATE battles SET message_id=? WHERE battle_id=?",
+        (message_id, battle_id)
     )
     db.commit()
  
  
-def set_pending_action(channel_id, side, action):
+def set_pending_action(battle_id, side, action):
     """
     Record one player's chosen action for the turn.
     side: "a" | "b"
@@ -286,26 +286,26 @@ def set_pending_action(channel_id, side, action):
     """
     col = "pending_a" if side == "a" else "pending_b"
     db.execute(
-        f"UPDATE battles SET {col}=?, last_updated=? WHERE channel_id=?",
-        (json.dumps(action), time.time(), channel_id)
+        f"UPDATE battles SET {col}=?, last_updated=? WHERE battle_id=?",
+        (json.dumps(action), time.time(), battle_id)
     )
     db.commit()
  
     row = db.execute(
-        "SELECT pending_a, pending_b FROM battles WHERE channel_id=?",
-        (channel_id,)
+        "SELECT pending_a, pending_b FROM battles WHERE battle_id=?",
+        (battle_id,)
     ).fetchone()
     return row is not None and row["pending_a"] is not None and row["pending_b"] is not None
  
  
-def get_pending_actions(channel_id):
+def get_pending_actions(battle_id):
     """
     Returns (action_a, action_b) as Python lists, or None for each if not yet submitted.
     Call after set_pending_action returns True.
     """
     row = db.execute(
-        "SELECT pending_a, pending_b FROM battles WHERE channel_id=?",
-        (channel_id,)
+        "SELECT pending_a, pending_b FROM battles WHERE battle_id=?",
+        (battle_id,)
     ).fetchone()
     if not row:
         return None, None
@@ -314,16 +314,16 @@ def get_pending_actions(channel_id):
     return pa, pb
  
  
-def get_battle_state(channel_id):
+def get_battle_state(battle_id):
     """Returns the state dict for a battle, or None."""
     row = db.execute(
-        "SELECT state FROM battles WHERE channel_id=?", (channel_id,)
+        "SELECT state FROM battles WHERE battle_id=?", (battle_id,)
     ).fetchone()
     return json.loads(row["state"]) if row else None
  
  
-def delete_battle(channel_id):
-    db.execute("DELETE FROM battles WHERE channel_id=?", (channel_id,))
+def delete_battle(battle_id):
+    db.execute("DELETE FROM battles WHERE battle_id=?", (battle_id,))
     db.commit()
  
  
