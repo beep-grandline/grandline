@@ -247,7 +247,7 @@ def get_battle_by_player(player_id):
     return row_to_dict(row)
  
  
-def create_battle(battle_id, fighter_a_id, fighter_b_id, state, message_id=None):
+def create_battle(battle_id, channel_id, fighter_a_id, fighter_b_id, state, message_id=None):
     """Create a new battle row. state is a dict, serialised to JSON."""
     db.execute("""
         INSERT OR REPLACE INTO battles
