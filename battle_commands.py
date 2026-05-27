@@ -6,6 +6,7 @@
 #      bot.tree.add_command(forfeit_cmd)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+import uuid
 import discord
 import db
 import game
@@ -102,23 +103,23 @@ def _build_fighter_data(player_row, member: discord.Member):
 
 # ── Turn resolution ───────────────────────────────────────────────────────────
 
-async def _resolve_and_update(interaction: discord.Interaction, channel_id: str):
+async def _resolve_and_update(interaction: discord.Interaction, battle_id: str):
     """
     Called when both players have pending actions.
     Resolves the turn, updates the battle message, cleans up if finished.
     """
-    action_a, action_b = db.get_pending_actions(channel_id)
+    action_a, action_b = db.get_pending_actions(battle_id)
     if not action_a or not action_b:
         return  # already resolved by the other player's interaction
 
-    state = db.get_battle_state(channel_id)
+    state = db.get_battle_state(battle_id)
     if not state or state["status"] != "active":
         return
 
     state, log = battle_logic.resolve_turn(state, action_a, action_b)
 
-    row     = db.get_battle(channel_id)
-    channel = interaction.client.get_channel(int(channel_id))
+    row     = db.get_battle(battle_id)
+    channel = interaction.client.get_channel(int(row["channel_id"]))
 
     # delete the old message so the channel stays clean
     try:
@@ -139,28 +140,29 @@ async def _resolve_and_update(interaction: discord.Interaction, channel_id: str)
     if battle_logic.is_finished(state):
         embed = _finished_embed(state)
         await channel.send(content=pings or None, embed=embed)
-        db.delete_battle(channel_id)
+        db.delete_battle(battle_id)
     else:
-        db.update_battle_state(channel_id, state)
+        db.update_battle_state(battle_id, state)
         embed = _battle_embed(state, log)
         view  = BattleView(
             fighter_a_id=row["fighter_a_id"],
             fighter_b_id=row["fighter_b_id"],
-            channel_id=channel_id,
+            battle_id=battle_id,
+            channel_id=row["channel_id"],
         )
         new_msg = await channel.send(
             content=pings or None,
             embed=embed,
             view=view,
         )
-        db.set_battle_message(channel_id, str(new_msg.id))
+        db.set_battle_message(battle_id, str(new_msg.id))
 
 
 # ── Move select ───────────────────────────────────────────────────────────────
 
 class MoveSelect(discord.ui.Select):
-    def __init__(self, moves: list, channel_id: str, side: str,
-                 fighter_a_id: str, fighter_b_id: str):
+    def __init__(self, moves: list, battle_id: str, channel_id: str,
+                 side: str, fighter_a_id: str, fighter_b_id: str):
         options = [
             discord.SelectOption(
                 label=m["name"],
@@ -170,6 +172,7 @@ class MoveSelect(discord.ui.Select):
             for m in moves
         ]
         super().__init__(placeholder="Choose a move...", min_values=1, max_values=1, options=options)
+        self.battle_id     = battle_id
         self.channel_id    = channel_id
         self.side          = side
         self.fighter_a_id  = fighter_a_id
@@ -187,34 +190,36 @@ class MoveSelect(discord.ui.Select):
         )
 
         # reuse BattleView._submit_action logic inline
-        both_ready = db.set_pending_action(self.channel_id, self.side, ["attack", move_name])
+        both_ready = db.set_pending_action(self.battle_id, self.side, ["attack", move_name])
         if not both_ready:
             opp_id = self.fighter_b_id if self.side == "a" else self.fighter_a_id
             if str(opp_id).startswith("npc:"):
                 npc_id     = str(opp_id)[4:]
-                state      = db.get_battle_state(self.channel_id)
+                state      = db.get_battle_state(self.battle_id)
                 npc_side   = "b" if self.side == "a" else "a"
                 npc_action = npc_pick_action(state["fighters"][npc_side])
-                both_ready = db.set_pending_action(self.channel_id, npc_side, npc_action)
+                both_ready = db.set_pending_action(self.battle_id, npc_side, npc_action)
 
         if both_ready:
-            await _resolve_and_update(interaction, self.channel_id)
+            await _resolve_and_update(interaction, self.battle_id)
 
 
 class MoveSelectView(discord.ui.View):
-    def __init__(self, moves: list, channel_id: str, side: str,
-                 fighter_a_id: str = "", fighter_b_id: str = ""):
+    def __init__(self, moves: list, battle_id: str, channel_id: str,
+                 side: str, fighter_a_id: str = "", fighter_b_id: str = ""):
         super().__init__(timeout=120)
-        self.add_item(MoveSelect(moves, channel_id, side, fighter_a_id, fighter_b_id))
+        self.add_item(MoveSelect(moves, battle_id, channel_id, side, fighter_a_id, fighter_b_id))
 
 
 # ── Battle view ───────────────────────────────────────────────────────────────
 
 class BattleView(discord.ui.View):
-    def __init__(self, fighter_a_id: str, fighter_b_id: str, channel_id: str):
+    def __init__(self, fighter_a_id: str, fighter_b_id: str,
+                 battle_id: str, channel_id: str):
         super().__init__(timeout=None)
         self.fighter_a_id = fighter_a_id
         self.fighter_b_id = fighter_b_id
+        self.battle_id    = battle_id
         self.channel_id   = channel_id
 
     def _side(self, uid: str):
@@ -236,20 +241,20 @@ class BattleView(discord.ui.View):
         Stores action for this side. If opponent is an NPC, auto-generates
         their action immediately and resolves the turn.
         """
-        both_ready = db.set_pending_action(self.channel_id, side, action)
+        both_ready = db.set_pending_action(self.battle_id, side, action)
 
         if not both_ready:
             opp_id = self.fighter_b_id if side == "a" else self.fighter_a_id
             if str(opp_id).startswith("npc:"):
                 npc_id     = str(opp_id)[4:]
                 npc_row    = get_npc_by_id(npc_id)
-                state      = db.get_battle_state(self.channel_id)
+                state      = db.get_battle_state(self.battle_id)
                 npc_side   = "b" if side == "a" else "a"
                 npc_action = npc_pick_action(state["fighters"][npc_side])
-                both_ready = db.set_pending_action(self.channel_id, npc_side, npc_action)
+                both_ready = db.set_pending_action(self.battle_id, npc_side, npc_action)
 
         if both_ready:
-            await _resolve_and_update(interaction, self.channel_id)
+            await _resolve_and_update(interaction, self.battle_id)
 
     @discord.ui.button(label="Attack", style=discord.ButtonStyle.danger, row=0)
     async def attack(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -264,7 +269,7 @@ class BattleView(discord.ui.View):
         if not moves:
             await interaction.response.send_message("You have no moves!", ephemeral=True)
             return
-        view = MoveSelectView(moves, self.channel_id, side, self.fighter_a_id, self.fighter_b_id)
+        view = MoveSelectView(moves, self.battle_id, self.channel_id, side, self.fighter_a_id, self.fighter_b_id)
         await interaction.response.send_message(
             "Choose your move:", view=view, ephemeral=True
         )
@@ -307,7 +312,7 @@ class BattleView(discord.ui.View):
         side = await self._guard(interaction)
         if not side:
             return
-        state = db.get_battle_state(self.channel_id)
+        state = db.get_battle_state(self.battle_id)
         if state and state["fighters"][side].get("charging"):
             await interaction.response.send_message(
                 "You're already charging! Attack this turn to release it.", ephemeral=True
@@ -369,15 +374,17 @@ class ChallengeView(discord.ui.View):
                 )
                 return
 
-        a_data    = _build_fighter_data(p_a, self.challenger)
-        b_data    = _build_fighter_data(p_b, self.target)
-        state     = battle_logic.create_battle(a_data, b_data)
+        a_data     = _build_fighter_data(p_a, self.challenger)
+        b_data     = _build_fighter_data(p_b, self.target)
+        state      = battle_logic.create_battle(a_data, b_data)
         channel_id = str(interaction.channel_id)
+        battle_id  = str(uuid.uuid4())
 
-        db.create_battle(channel_id, cid, tid, state)
+        db.create_battle(battle_id, channel_id, cid, tid, state)
 
         embed = _battle_embed(state)
-        view  = BattleView(fighter_a_id=cid, fighter_b_id=tid, channel_id=channel_id)
+        view  = BattleView(fighter_a_id=cid, fighter_b_id=tid,
+                           battle_id=battle_id, channel_id=channel_id)
 
         await interaction.response.edit_message(
             content=f"{self.challenger.mention}  {self.target.mention}",
@@ -385,7 +392,7 @@ class ChallengeView(discord.ui.View):
             view=view,
         )
         msg = await interaction.original_response()
-        db.set_battle_message(channel_id, str(msg.id))
+        db.set_battle_message(battle_id, str(msg.id))
 
     @discord.ui.button(label="Accept ⚔", style=discord.ButtonStyle.success)
     async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -499,18 +506,20 @@ async def battle_cmd(interaction: discord.Interaction, target: str):
         b_data     = build_npc_fighter(npc_row)
         state      = battle_logic.create_battle(a_data, b_data)
         channel_id = str(interaction.channel_id)
+        battle_id  = str(uuid.uuid4())
 
-        db.create_battle(channel_id, uid, f"npc:{npc_id}", state)
+        db.create_battle(battle_id, channel_id, uid, f"npc:{npc_id}", state)
 
         embed   = _battle_embed(state)
-        view    = BattleView(fighter_a_id=uid, fighter_b_id=f"npc:{npc_id}", channel_id=channel_id)
+        view    = BattleView(fighter_a_id=uid, fighter_b_id=f"npc:{npc_id}",
+                             battle_id=battle_id, channel_id=channel_id)
         await interaction.response.send_message(
             content=f"<@{uid}>",
             embed=embed,
             view=view,
         )
         msg = await interaction.original_response()
-        db.set_battle_message(channel_id, str(msg.id))
+        db.set_battle_message(battle_id, str(msg.id))
         return
 
     # ── PvP battle ─────────────────────────────────────────────────────────────
@@ -559,7 +568,7 @@ async def forfeit_cmd(interaction: discord.Interaction):
         await interaction.response.send_message("You're not in a battle.", ephemeral=True)
         return
 
-    state     = db.get_battle_state(row["channel_id"])
+    state     = db.get_battle_state(row["battle_id"])
     fa        = state["fighters"]["a"]
     fb        = state["fighters"]["b"]
     forfeiter = fa if fa["id"] == uid else fb
@@ -576,7 +585,7 @@ async def forfeit_cmd(interaction: discord.Interaction):
     except Exception:
         pass
 
-    db.delete_battle(row["channel_id"])
+    db.delete_battle(row["battle_id"])
     await interaction.response.send_message(
         f"**{forfeiter['name']}** forfeited. 🏆 **{winner['name']}** wins!"
     )
