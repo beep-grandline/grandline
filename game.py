@@ -196,6 +196,16 @@ def move_player(player_id, direction):
     if not is_passable(new_q, new_r):
         return player["q"] or 0, player["r"] or 0, False, "impassable"
 
+    # players on foot can't walk into open sea
+    try:
+        from map_render import _cache, _load_map
+        _load_map()
+        terrain = _cache["hex_lookup"].get((new_q, new_r), "sea")
+        if terrain in ("sea", "calm_belt"):
+            return player["q"] or 0, player["r"] or 0, False, "no_walking_on_sea"
+    except Exception:
+        pass
+
     db.update_player_position(str(player_id), new_q, new_r)
     return new_q, new_r, True, "ok"
 
