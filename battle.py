@@ -222,7 +222,7 @@ def _handle_paw_teleport(actor, target, lines):
         return
 
     island, q, r = random.choice(valid)
-    target["teleport_to"] = {"q": q, "r": r, "island": island}
+    target["teleport_to"] = {"q": q, "r": r, "island": island, "by": actor["id"]}
     lines.append(f"✋ {actor['name']} places their Nikyu Nikyu paw on {target['name']}!")
     lines.append(f"→ {target['name']} is sent flying toward **{island}**!")
 
@@ -504,21 +504,28 @@ def resolve_turn(state, action_a, action_b):
         log.append(f"{second['name']} was knocked out before they could act!")
 
     # end conditions
-    a_down = fa["hp"] <= 0 or fa.get("escaped")
-    b_down = fb["hp"] <= 0 or fb.get("escaped")
+    a_escaped = fa.get("escaped")
+    b_escaped = fb.get("escaped")
+    a_down    = fa["hp"] <= 0 or a_escaped
+    b_down    = fb["hp"] <= 0 or b_escaped
 
     if a_down and b_down:
-        state["status"] = "finished"
-        state["winner"] = "draw"
+        state["status"]     = "finished"
+        state["winner"]     = "draw"
+        state["end_reason"] = "draw"
         log.append("Both fighters are down — it's a draw!")
     elif a_down:
-        state["status"] = "finished"
-        state["winner"] = "b"
-        log.append(f"🏆 **{fb['name']}** wins!")
+        state["status"]     = "finished"
+        state["winner"]     = "b"
+        state["end_reason"] = "escape" if a_escaped else "hp"
+        if not a_escaped:
+            log.append(f"🏆 **{fb['name']}** wins!")
     elif b_down:
-        state["status"] = "finished"
-        state["winner"] = "a"
-        log.append(f"🏆 **{fa['name']}** wins!")
+        state["status"]     = "finished"
+        state["winner"]     = "a"
+        state["end_reason"] = "escape" if b_escaped else "hp"
+        if not b_escaped:
+            log.append(f"🏆 **{fa['name']}** wins!")
 
     state["log"] = log
     return state, log
