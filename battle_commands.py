@@ -448,18 +448,21 @@ async def _battle_autocomplete(
     if not player:
         return []
 
-    q, r    = game.get_position(uid)
     choices = []
 
-    # NPCs on the same tile
+    # NPCs — tile restricted
+    q, r = game.get_position(uid)
     for npc in get_npcs_at(q, r):
         if current.lower() in npc["name"].lower():
             choices.append(discord.app_commands.Choice(
                 name=f"[NPC] {npc['name']}", value=f"npc:{npc['id']}"
             ))
 
-    # Players on the same tile
-    for p in game.get_players_at(q, r, exclude_uid=uid):
+    # Players — no tile restriction, show everyone registered
+    all_players = db.get_all_players()
+    for p in all_players:
+        if str(p["id"]) == uid:
+            continue
         name = p["char_name"] or str(p["id"])
         if current.lower() in name.lower():
             choices.append(discord.app_commands.Choice(
