@@ -180,52 +180,52 @@ async def _resolve_and_update(interaction: discord.Interaction, battle_id: str):
             from urls import KUMA_TELEPORT_IMAGE
             victim_id = str(state.get("teleport_target_id", ""))
             mention   = f"<@{victim_id}>" if victim_id and not victim_id.startswith("npc:") else state.get("teleport_target", "Someone")
-            embed = discord.Embed(
-                description=(
-                    f"*\"If you could take a vacation, where would you go?\"*\n\n"
-                    f"{mention} was sent flying far away..."
-                ),
-                color=0x1a2744,
-            )
+        # kuma special final
+        if (state.get("end_reason") == "teleport"
+                and state.get("teleport_by", "").lower() == "npc:kuma"):
+            from urls import KUMA_TELEPORT_IMAGE
+            victim_id = str(state.get("teleport_target_id", ""))
+            mention   = f"<@{victim_id}>" if victim_id and not victim_id.startswith("npc:") else state.get("teleport_target", "Someone")
+            embed = discord.Embed(color=0x1a2744)
             embed.set_image(url=KUMA_TELEPORT_IMAGE)
-            await channel.send(embed=embed)
+            await channel.send(content=f"{mention} was sent flying far away...", embed=embed)
         else:
             embed = _finished_embed(state)
             await channel.send(content=pings or None, embed=embed)
         db.delete_battle(battle_id)
     else:
         db.update_battle_state(battle_id, state)
-        embed = _battle_embed(state, log)
-        view  = BattleView(
+
+        # kuma paw warning — replace normal battle embed with vacation prompt + buttons
+        kuma_warn = next(
+            (state["fighters"][s] for s in ("a", "b")
+             if state["fighters"][s].get("paw_incoming")
+             and state["fighters"][s].get("paw_warning_by", "").lower() == "npc:kuma"),
+            None
+        )
+
+        view = BattleView(
             fighter_a_id=row["fighter_a_id"],
             fighter_b_id=row["fighter_b_id"],
             battle_id=battle_id,
             channel_id=row["channel_id"],
         )
-        new_msg = await channel.send(
-            content=pings or None,
-            embed=embed,
-            view=view,
-        )
-        db.set_battle_message(battle_id, str(new_msg.id))
 
-        # paw warning (phase 1) — post flavor image below the turn embed
-        for side_key in ("a", "b"):
-            f = state["fighters"][side_key]
-            if f.get("paw_incoming") and f.get("paw_warning_by", "").lower() == "npc:kuma":
-                from urls import KUMA_TELEPORT_WARN
-                victim_id = str(f["id"])
-                mention   = f"<@{victim_id}>" if not victim_id.startswith("npc:") else f["name"]
-                warn_embed = discord.Embed(
-                    description=(
-                        f"*\"If you could take a vacation, where would you go?\"*\n\n"
-                        f"{mention}, you have one turn to escape..."
-                    ),
-                    color=0x1a2744,
-                )
-                warn_embed.set_image(url=KUMA_TELEPORT_WARN)
-                await channel.send(embed=warn_embed)
-                break
+        if kuma_warn:
+            from urls import KUMA_TELEPORT_WARN
+            victim_id = str(kuma_warn["id"])
+            mention   = f"<@{victim_id}>" if not victim_id.startswith("npc:") else kuma_warn["name"]
+            warn_embed = discord.Embed(
+                description='*"If you could take a vacation, where would you go?"*',
+                color=0x1a2744,
+            )
+            warn_embed.set_image(url=KUMA_TELEPORT_WARN)
+            new_msg = await channel.send(content=mention, embed=warn_embed, view=view)
+        else:
+            embed   = _battle_embed(state, log)
+            new_msg = await channel.send(content=pings or None, embed=embed, view=view)
+
+        db.set_battle_message(battle_id, str(new_msg.id))
 
 
 # ── Move select ───────────────────────────────────────────────────────────────
