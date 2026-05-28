@@ -172,8 +172,17 @@ def _render_sync(island_name: str):
         return None
 
     overlay = _get_overlay()
-    bg      = bg.resize(overlay.size, Image.LANCZOS)
+    # scale bg slightly larger than overlay before fisheye
+    # so distortion doesn't crop out the edges
+    ow, oh  = overlay.size
+    scale   = 1.0 + FISHEYE_STR * 0.8   # roughly compensates for edge pull
+    padded  = (int(ow * scale), int(oh * scale))
+    bg      = bg.resize(padded, Image.LANCZOS)
     bg_dist = _fisheye(bg)
+    # crop back to overlay size from center
+    left = (bg_dist.width  - ow) // 2
+    top  = (bg_dist.height - oh) // 2
+    bg_dist = bg_dist.crop((left, top, left + ow, top + oh))
 
     result = bg_dist.convert("RGBA")
     result.paste(overlay, (0, 0), overlay)
