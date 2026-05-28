@@ -46,12 +46,12 @@ hoya,Hoya Hoya no Mi,Puff-Puff Fruit,1,fairy,,none,,,,Summon a genie,https://dev
 chihua,"Inu Inu no Mi, Model: Chihuahua","Dog-Dog Fruit, Model: Chihuahua",2,normal,,none,,,,Turn into a chihuahua,https://devilfruit.io/assets/images/unknown_0.svg
 dchsnd,"Inu Inu no Mi, Model: Dachshund","Dog-Dog Fruit, Model: Dachshund",2,normal,,none,,,,Turn into a dachshund,https://devilfruit.io/assets/images/fruits/inu_inu_no_mi_model_dachshund.png
 dalmat,"Inu Inu no Mi, Model: Dalmatian","Dog-Dog Fruit, Model: Dalmation",2,normal,,none,,2,,Turn into a dalmation,https://devilfruit.io/assets/images/unknown_0.svg
-inu-hou,"Inu Inu no Mi, Model: Hound","Dog-Dog Fruit, Model: Hound",2,normal,,none,,2,,Turn into a hound,https://devilfruit.io/assets/images/unknown_0.svg
-inu-jkl,"Inu Inu no Mi, Model: Jackal","Dog-Dog Fruit, Model: Jackal",2,normal,,none,,2,,Turn into a jackal,https://devilfruit.io/assets/images/fruits/inu_inu_no_mi_model_jackal.png
-inu-kit,"Inu Inu no Mi, Model: Kitsune","Dog-Dog Fruit, Model: Nine-tailed Fox",4,dark,,none,,,,Turn into a mythical nine-tailed fox,https://devilfruit.io/assets/images/fruits/inu_inu_no_mi_model_kyubi_no_kitsune.png
-inu-mak,"Inu Inu no Mi, Model: Okuchi no Makami","Dog-Dog Fruit, Model: Okuchi no Makami",4,ice,,none,,,,Turn into a mythical Okuchi no Makami,https://devilfruit.io/assets/images/fruits/inu_inu_no_mi_model_okuchi_no_makami.png
-inu-tnk,"Inu Inu no Mi, Model: Tanuki","Dog-Dog Fruit, Model: Tanuki",2,normal,,none,,,,Turn into a tanuki,https://devilfruit.io/assets/images/fruits/inu_inu_no_mi_model_tanuki.png
-inu-wlf,"Inu Inu no Mi, Model: Wolf","Dog-Dog Fruit, Model: Wolf",2,dark,fighting,none,,2,,Turn into a wolf,https://devilfruit.io/assets/images/fruits/inu_inu_no_mi_model_wolf.png
+hound,"Inu Inu no Mi, Model: Hound","Dog-Dog Fruit, Model: Hound",2,normal,,none,,2,,Turn into a hound,https://devilfruit.io/assets/images/unknown_0.svg
+jackal,"Inu Inu no Mi, Model: Jackal","Dog-Dog Fruit, Model: Jackal",2,normal,,none,,2,,Turn into a jackal,https://devilfruit.io/assets/images/fruits/inu_inu_no_mi_model_jackal.png
+kitsune,"Inu Inu no Mi, Model: Kitsune","Dog-Dog Fruit, Model: Nine-tailed Fox",4,dark,,none,,,,Turn into a mythical nine-tailed fox,https://devilfruit.io/assets/images/fruits/inu_inu_no_mi_model_kyubi_no_kitsune.png
+makumi,"Inu Inu no Mi, Model: Okuchi no Makami","Dog-Dog Fruit, Model: Okuchi no Makami",4,ice,,none,,,,Turn into a mythical Okuchi no Makami,https://devilfruit.io/assets/images/fruits/inu_inu_no_mi_model_okuchi_no_makami.png
+tanuki,"Inu Inu no Mi, Model: Tanuki","Dog-Dog Fruit, Model: Tanuki",2,normal,,none,,,,Turn into a tanuki,https://devilfruit.io/assets/images/fruits/inu_inu_no_mi_model_tanuki.png
+wolf,"Inu Inu no Mi, Model: Wolf","Dog-Dog Fruit, Model: Wolf",2,dark,fighting,none,,2,,Turn into a wolf,https://devilfruit.io/assets/images/fruits/inu_inu_no_mi_model_wolf.png
 ishi,Ishi Ishi no Mi,Stone-Stone Fruit,1,rock,psychic,big,,,,Assimilate and control stone,https://devilfruit.io/assets/images/fruits/ishi_ishi_no_mi.png
 ito,Ito Ito no Mi,String-String Fruit,1,normal,dark,shell,,3,,Create and manipulate strings,https://devilfruit.io/assets/images/fruits/ito_ito_no_mi.png
 jake,Jake Jake no Mi,Jacket-Jacket Fruit,1,normal,,none,,,,Become a jacket that can control wearer,https://devilfruit.io/assets/images/unknown_1.svg
@@ -84,10 +84,10 @@ muchi,Muchi Muchi no Mi,Whip-Whip Fruit,1,dark,,none,,,,Whip things to control t
 kabuto,"Mushi Mushi no Mi, Model: Kabutomushi","Bug-Bug Fruit, Model: Rhinoceros Beetle",2,dark,bug,armor,,,,Turn into a rhinoceros beetle,https://devilfruit.io/assets/images/unknown_0.svg
 suzume,"Mushi Mushi no Mi, Model: Suzumebachi","Bug-Bug Fruit, Model: Hornet",2,poison,bug,none,,,,Turn into a hornet,https://devilfruit.io/assets/images/unknown_0.svg
 nagi,Nagi Nagi no Mi,Calm-Calm Fruit,1,normal,,none,,,,Remove sound from objects or an area,https://devilfruit.io/assets/images/fruits/nagi_nagi_no_mi.png
-leop,"Neko Neko no Mi, Model: Leopard","Cat-Cat Fruit, Model: Leopard",2,normal,,none,,2,,Turn into a leopard,https://devilfruit.io/assets/images/fruits/neko_neko_no_mi_model_leopard.png
+leopard,"Neko Neko no Mi, Model: Leopard","Cat-Cat Fruit, Model: Leopard",2,normal,,none,,2,,Turn into a leopard,https://devilfruit.io/assets/images/fruits/neko_neko_no_mi_model_leopard.png
 saber,"Neko Neko no Mi, Model Saber Tiger","Cat-Cat Fruit, Model: Saber-Toothed Tiger",5,normal,,none,,2,,Turn into a saber-toothed tiger,https://devilfruit.io/assets/images/fruits/neko_neko_no_mi_model_saber_tiger.png
 netsu,Netsu Netsu no Mi,Heat-Heat Fruit,1,fire,,none,,,,Emanate intense heat,https://devilfruit.io/assets/images/unknown_0.svg
-nikyu,Nikyu Nikyu no Mi,Paw-Paw Fruit,1,normal,,deflect,,,,Repel things using paws on hands,https://devilfruit.io/assets/images/fruits/nikyu_nikyu_no_mi.png
+paw,Nikyu Nikyu no Mi,Paw-Paw Fruit,1,normal,,deflect,,,,Repel things using paws on hands,https://devilfruit.io/assets/images/fruits/nikyu_nikyu_no_mi.png
 nomi,Nomi Nomi no Mi,Brain-Brain Fruit,1,psychic,normal,none,,,,Expand brain indefinitely with new knowledge,https://devilfruit.io/assets/images/fruits/nomi_nomi_no_mi.png
 nori,Nori Nori no Mi,Ride-Ride Fruit,1,normal,,none,,,,Control anything by riding,https://devilfruit.io/assets/images/unknown_0.svg
 noro,Noro Noro no Mi,Slow-Slow Fruit,1,normal,,escape,,,,Emit beams that slow down target,https://devilfruit.io/assets/images/fruits/noro_noro_no_mi.png
@@ -104,7 +104,7 @@ poke,Poke Poke no Mi,Pocket-Pocket Fruit,1,normal,,none,,,,Create pockets on bod
 rako,Rako Rako no Mi,Otter-Otter Fruit,2,water,,none,,,,Turn into a sea otter,https://devilfruit.io/assets/images/unknown_0.svg
 riki,Riki Riki no Mi,Strong-Strong Fruit,1,fighting,,none,*dmg,,,Grants immense strength,https://devilfruit.io/assets/images/fruits/riki_riki_no_mi.png
 allo,"Ryu Ryu no Mi, Model: Allosaurus","Dragon-Dragon Fruit, Model: Allosaurus",5,dark,dragon,armor,,,,Turn into an allosaurus,https://devilfruit.io/assets/images/fruits/ryu_ryu_no_mi_model_allosaurus.png
-brachio,"Ryu Ryu no Mi, Model: Brachiosaurus","Dragon-Dragon Fruit, Model: Brachiosaurus",5,dragon,,armor,,,,Turn into a brachiosaurus,https://devilfruit.io/assets/images/unknown_0.svg
+brach,"Ryu Ryu no Mi, Model: Brachiosaurus","Dragon-Dragon Fruit, Model: Brachiosaurus",5,dragon,,armor,,,,Turn into a brachiosaurus,https://devilfruit.io/assets/images/unknown_0.svg
 kirin,"Ryu Ryu no Mi, Model: Kirin","Dragon-Dragon Fruit, Model: Kirin",4,psychic,dragon,none,,,,Turn into a mythical kirin,https://devilfruit.io/assets/images/unknown_0.svg
 pachy,"Ryu Ryu no Mi, Model: Pachycephalosaurus","Dragon-Dragon Fruit, Model: Pachycephalosaurus",5,dragon,,armor,,,,Turn into a pachycephalosaurus,https://devilfruit.io/assets/images/fruits/ryu_ryu_no_mi_model_pachycephalosaurus.png
 ptera,"Ryu Ryu no Mi, Model: Pteranodon","Dragon-Dragon Fruit, Model: Pteranadon",5,dragon,flying,armor,,,,Turn into a pteranadon,https://devilfruit.io/assets/images/fruits/ryu_ryu_no_mi_model_pteranodon.png
@@ -115,7 +115,7 @@ sai,Sai Sai no Mi,Rhino-Rhino Fruit,2,normal,,armor,,,,Turn into a rhinoceros,ht
 sara,"Sara Sara no Mi, Model: Axolotl","Sala-Sala Fruit, Model: Axolotl",2,water,,none,,,,Turn into an axolotl,https://devilfruit.io/assets/images/fruits/sara_sara_no_mi_model_axolotl.png
 shari,Shari Shari no Mi,Wheel-Wheel Fruit,1,normal,,none,,,,Transform arms and feet into wheels,https://devilfruit.io/assets/images/unknown_0.svg
 shibo,Shibo Shibo no Mi,Wring-Wring Fruit,1,water,,none,,,,Wring juice from creatures and objects,https://devilfruit.io/assets/images/fruits/shibo_shibo_no_mi.png
-shiku,Shiku Shiku no Mi,Sick-Sick Fruit,1,poison,dark,none,,,,Create diseases with various effects,https://devilfruit.io/assets/images/unknown_0.svg
+sick,Shiku Shiku no Mi,Sick-Sick Fruit,1,poison,dark,none,,,,Create diseases with various effects,https://devilfruit.io/assets/images/unknown_0.svg
 shima,Shima Shima no Mi,Isle-Isle Fruit,1,ground,,big,,,,Assimilate with an island and manipulate it,https://devilfruit.io/assets/images/unknown_0.svg
 zebra,Shimauma Shimauma no Mi,Zebra-Zebra Fruit,2,normal,,none,,,,Turn into a zebra,https://devilfruit.io/assets/images/unknown_0.svg
 shiro,Shiro Shiro no Mi,Castle-Castle Fruit,1,fairy,rock,big,,,,Body is a castle; can transform into a full-size castle,https://devilfruit.io/assets/images/fruits/shiro_shiro_no_mi.png
@@ -139,8 +139,8 @@ uma,Uma Uma no Mi,Horse-Horse Fruit,2,normal,,none,,,,Turn into a horse,https://
 pegasus,"Uma Uma no Mi, Model: Pegasus","Horse-Horse Fruit, Model: Pegasus",4,fairy,flying,none,,,,Turn into a pegasus,https://devilfruit.io/assets/images/unknown_0.svg
 seiryu,"Uo Uo no Mi, Model: Seiryu","Fish-Fish Fruit, Model: Azure Dragon",4,dragon,fire,armor,,,,Turn into an azure dragon,https://devilfruit.io/assets/images/fruits/uo_uo_no_mi_model_seiryu.png
 bison,"Ushi Ushi no Mi, Model: Bison",Ox-Ox Fruit: Model Bison,2,normal,,none,,,,Turn into a bison,https://devilfruit.io/assets/images/fruits/ushi_ushi_no_mi_model_bison.png
-giraf,"Ushi Ushi no Mi, Model: Giraffe",Ox-Ox Fruit: Model Giraffe,2,normal,,none,,,,Turn into a giraffe,https://devilfruit.io/assets/images/fruits/ushi_ushi_no_mi_model_giraffe.png
-wapu,Wapu Wapu no Mi,Warp-Warp Fruit,1,fairy,,escape,,,,Teleportation; can teleport others with user,https://devilfruit.io/assets/images/fruits/wapu_wapu_no_mi.png
+giraffe,"Ushi Ushi no Mi, Model: Giraffe",Ox-Ox Fruit: Model Giraffe,2,normal,,none,,,,Turn into a giraffe,https://devilfruit.io/assets/images/fruits/ushi_ushi_no_mi_model_giraffe.png
+warp,Wapu Wapu no Mi,Warp-Warp Fruit,1,fairy,,escape,,,,Teleportation; can teleport others with user,https://devilfruit.io/assets/images/fruits/wapu_wapu_no_mi.png
 wara,Wara Wara no Mi,Straw-Straw Fruit,1,normal,,deflect,,,,Create straw; transfer damage to voodoo dolls,https://devilfruit.io/assets/images/fruits/wara_wara_no_mi.png
 woshu,Woshu Woshu no Mi,Wash-Wash Fruit,1,fairy,psychic,none,,,,Wash and hang out targets,https://devilfruit.io/assets/images/unknown_0.svg
 yami,Yami Yami no Mi,Dark-Dark Fruit,3,dark,,none,2x DMG,,,"Create, control, and transform into darkness",https://devilfruit.io/assets/images/fruits/yami_yami_no_mi.png
