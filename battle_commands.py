@@ -209,6 +209,24 @@ async def _resolve_and_update(interaction: discord.Interaction, battle_id: str):
         )
         db.set_battle_message(battle_id, str(new_msg.id))
 
+        # paw warning (phase 1) — post flavor image below the turn embed
+        for side_key in ("a", "b"):
+            f = state["fighters"][side_key]
+            if f.get("paw_incoming") and f.get("paw_warning_by", "").lower() == "npc:kuma":
+                from urls import KUMA_TELEPORT_WARN
+                victim_id = str(f["id"])
+                mention   = f"<@{victim_id}>" if not victim_id.startswith("npc:") else f["name"]
+                warn_embed = discord.Embed(
+                    description=(
+                        f"*\"If you could take a vacation, where would you go?\"*\n\n"
+                        f"{mention}, you have one turn to escape..."
+                    ),
+                    color=0x1a2744,
+                )
+                warn_embed.set_image(url=KUMA_TELEPORT_WARN)
+                await channel.send(embed=warn_embed)
+                break
+
 
 # ── Move select ───────────────────────────────────────────────────────────────
 
