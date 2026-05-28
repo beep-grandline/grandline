@@ -198,10 +198,14 @@ def _handle_paw_teleport(actor, target, lines):
         from map_render import _cache, _load_map
         _load_map()
 
-        # prefer named island origins
+        # prefer named island origins — skip any with None coords
         origins = _cache.get("origins", {})
-        valid   = [(name, q, r) for name, (q, r) in origins.items()
-                   if q is not None and r is not None]
+        valid   = [
+            (name, q, r)
+            for name, coords in origins.items()
+            if coords is not None
+            for q, r in [coords]
+        ]
 
         # fall back to any island hex if no named origins
         if not valid:
