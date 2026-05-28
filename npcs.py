@@ -8,7 +8,7 @@ import random
 
 from fruits import get_fruit_by_id
 
-NPC_CSV_PATH = "npcs.csv"
+NPC_CSV_PATH = "data/npcs.csv"
 NPCS: list = []
 
 POWER_SCALE = 9   # must match kit_commands.POWER_SCALE
