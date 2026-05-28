@@ -440,49 +440,75 @@ class ChallengeView(discord.ui.View):
 
 # ── /battle ───────────────────────────────────────────────────────────────────
 
-async def _battle_autocomplete(
-    interaction: discord.Interaction, current: str
-):
+@discord.app_commands.command(
+    name="battle",
+    description="Challenge another player to a fight",
+)
+@discord.app_commands.describe(target="The player you want to fight")
+@discord.app_commands.guilds(MY_GUILD)
+async def battle_cmd(interaction: discord.Interaction, target: discord.Member):
+    uid = str(interaction.user.id)
+
+    if target.id == interaction.user.id:
+        await interaction.response.send_message("You can't challenge yourself.", ephemeral=True)
+        return
+    if target.bot:
+        await interaction.response.send_message("You can't challenge a bot.", ephemeral=True)
+        return
+    if not db.get_player(uid):
+        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        return
+    if not db.get_player(str(target.id)):
+        await interaction.response.send_message(
+            f"{target.display_name} isn't registered yet.", ephemeral=True
+        )
+        return
+    if db.get_battle_by_player(uid):
+        await interaction.response.send_message(
+            "You're already in a battle. Use `/forfeit` to end it first.", ephemeral=True
+        )
+        return
+    if db.get_battle_by_player(str(target.id)):
+        await interaction.response.send_message(
+            f"{target.display_name} is already in a battle.", ephemeral=True
+        )
+        return
+
+    view = ChallengeView(challenger=interaction.user, target=target)
+    await interaction.response.send_message(
+        content=f"{target.mention}, {interaction.user.display_name} has challenged you to a fight ⚔️",
+        view=view,
+    )
+    view.message = await interaction.original_response()
+
+
+# ── /engage ───────────────────────────────────────────────────────────────────
+
+async def _engage_autocomplete(interaction: discord.Interaction, current: str):
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
     if not player:
         return []
-
-    choices = []
-
-    # NPCs — tile restricted
     q, r = game.get_position(uid)
-    for npc in get_npcs_at(q, r):
-        if current.lower() in npc["name"].lower():
-            choices.append(discord.app_commands.Choice(
-                name=f"[NPC] {npc['name']}", value=f"npc:{npc['id']}"
-            ))
-
-    # Players — no tile restriction, show everyone registered
-    all_players = db.get_all_players()
-    for p in all_players:
-        if str(p["id"]) == uid:
-            continue
-        name = p["char_name"] or str(p["id"])
-        if current.lower() in name.lower():
-            choices.append(discord.app_commands.Choice(
-                name=name, value=str(p["id"])
-            ))
-
-    return choices[:25]
+    return [
+        discord.app_commands.Choice(name=npc["name"], value=f"npc:{npc['id']}")
+        for npc in get_npcs_at(q, r)
+        if current.lower() in npc["name"].lower()
+    ][:25]
 
 
 @discord.app_commands.command(
-    name="battle",
-    description="Challenge a player or NPC to a fight",
+    name="engage",
+    description="Fight an NPC on your current tile",
 )
-@discord.app_commands.describe(target="Player or NPC to challenge (must be on your tile)")
-@discord.app_commands.autocomplete(target=_battle_autocomplete)
+@discord.app_commands.describe(target="NPC to fight")
+@discord.app_commands.autocomplete(target=_engage_autocomplete)
 @discord.app_commands.guilds(MY_GUILD)
-async def battle_cmd(interaction: discord.Interaction, target: str):
-    uid = str(interaction.user.id)
+async def engage_cmd(interaction: discord.Interaction, target: str):
+    uid    = str(interaction.user.id)
+    player = db.get_player(uid)
 
-    if not db.get_player(uid):
+    if not player:
         await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
         return
     if db.get_battle_by_player(uid):
@@ -491,70 +517,40 @@ async def battle_cmd(interaction: discord.Interaction, target: str):
         )
         return
 
-    # ── NPC battle ─────────────────────────────────────────────────────────────
-    if target.startswith("npc:"):
-        npc_id  = target[4:]
-        npc_row = get_npc_by_id(npc_id)
-        if not npc_row:
-            await interaction.response.send_message("NPC not found.", ephemeral=True)
-            return
+    if not target.startswith("npc:"):
+        await interaction.response.send_message("Select an NPC from the list.", ephemeral=True)
+        return
 
-        player  = db.get_player(uid)
-        if not db.get_player_moves(uid):
-            await interaction.response.send_message(
-                "You have no moves in your kit yet — use `/kit add` first.", ephemeral=True
-            )
-            return
+    npc_id  = target[4:]
+    npc_row = get_npc_by_id(npc_id)
+    if not npc_row:
+        await interaction.response.send_message("NPC not found.", ephemeral=True)
+        return
 
-        a_data     = _build_fighter_data(player, interaction.user)
-        b_data     = build_npc_fighter(npc_row)
-        state      = battle_logic.create_battle(a_data, b_data)
-        channel_id = str(interaction.channel_id)
-        battle_id  = str(uuid.uuid4())
-
-        db.create_battle(battle_id, channel_id, uid, f"npc:{npc_id}", state)
-
-        embed   = _battle_embed(state)
-        view    = BattleView(fighter_a_id=uid, fighter_b_id=f"npc:{npc_id}",
-                             battle_id=battle_id, channel_id=channel_id)
+    if not db.get_player_moves(uid):
         await interaction.response.send_message(
-            content=f"<@{uid}>",
-            embed=embed,
-            view=view,
-        )
-        msg = await interaction.original_response()
-        db.set_battle_message(battle_id, str(msg.id))
-        return
-
-    # ── PvP battle ─────────────────────────────────────────────────────────────
-    guild  = interaction.guild
-    member = guild.get_member(int(target)) if target.isdigit() else None
-    if not member:
-        await interaction.response.send_message("Player not found.", ephemeral=True)
-        return
-    if member.id == interaction.user.id:
-        await interaction.response.send_message("You can't challenge yourself.", ephemeral=True)
-        return
-    if member.bot:
-        await interaction.response.send_message("You can't challenge a bot.", ephemeral=True)
-        return
-    if not db.get_player(str(member.id)):
-        await interaction.response.send_message(
-            f"{member.display_name} isn't registered yet.", ephemeral=True
-        )
-        return
-    if db.get_battle_by_player(str(member.id)):
-        await interaction.response.send_message(
-            f"{member.display_name} is already in a battle.", ephemeral=True
+            "You have no moves in your kit yet — use `/kit add` first.", ephemeral=True
         )
         return
 
-    view = ChallengeView(challenger=interaction.user, target=member)
+    a_data     = _build_fighter_data(player, interaction.user)
+    b_data     = build_npc_fighter(npc_row)
+    state      = battle_logic.create_battle(a_data, b_data)
+    channel_id = str(interaction.channel_id)
+    battle_id  = str(uuid.uuid4())
+
+    db.create_battle(battle_id, channel_id, uid, f"npc:{npc_id}", state)
+
+    embed   = _battle_embed(state)
+    view    = BattleView(fighter_a_id=uid, fighter_b_id=f"npc:{npc_id}",
+                         battle_id=battle_id, channel_id=channel_id)
     await interaction.response.send_message(
-        content=f"{member.mention}, {interaction.user.display_name} has challenged you to a fight ⚔️",
+        content=f"<@{uid}>",
+        embed=embed,
         view=view,
     )
-    view.message = await interaction.original_response()
+    msg = await interaction.original_response()
+    db.set_battle_message(battle_id, str(msg.id))
 
 
 # ── /forfeit ──────────────────────────────────────────────────────────────────
