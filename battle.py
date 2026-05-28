@@ -166,6 +166,53 @@ def _find_move(fighter, move_name):
             return m
     return None
 
+# ── Special abilities ─────────────────────────────────────────────────────────
+
+SPECIAL_MOVES = {
+    "paw_teleport": {
+        "name":        "Teleport",
+        "attack_type": "blunt",
+        "power":       0,
+        "accuracy":    90,
+        "priority":    0,
+        "tracking":    5,
+        "hits":        1,
+        "hp_cost":     0,
+        "recoil":      0.0,
+        "special":     "paw_teleport",
+    },
+}
+
+# Map of fruit_id → list of special move keys granted by that fruit
+FRUIT_SPECIALS = {
+    "paw": ["paw_teleport"],
+}
+
+
+def _handle_paw_teleport(actor, target, lines):
+    """
+    Sends target to a random island. Sets target["teleport_to"] so the
+    command layer can persist the position change after the turn.
+    """
+    try:
+        from map_render import _cache, _load_map
+        _load_map()
+        origins = _cache.get("origins", {})
+        valid   = [(name, q, r) for name, (q, r) in origins.items()
+                   if q is not None and r is not None]
+    except Exception:
+        valid = []
+
+    if not valid:
+        lines.append(f"✋ {actor['name']} reaches out — but nowhere to send them!")
+        return
+
+    island, q, r = random.choice(valid)
+    target["teleport_to"] = {"q": q, "r": r, "island": island}
+    lines.append(f"✋ {actor['name']} places their Nikyu Nikyu paw on {target['name']}!")
+    lines.append(f"→ {target['name']} is sent flying toward **{island}**!")
+
+
 # ── Action resolution ─────────────────────────────────────────────────────────
 
 def _resolve_action(actor, target, action, move_name, opp_action):
@@ -184,6 +231,23 @@ def _resolve_action(actor, target, action, move_name, opp_action):
 
         attack_type = move.get("attack_type", "blunt")
         hits        = move.get("hits", 1)
+
+        # special ability — handle before normal damage
+        special = move.get("special")
+        if special:
+            lines.append(f"{actor['name']} used **{move['name']}**!")
+            # dodge still applies
+            if opp_action == "dodge":
+                ok, pct = _roll_dodge(target, actor, move)
+                if ok:
+                    lines.append(f"{target['name']} evades! ({pct}% chance)")
+                    target["priority_next_turn"] = True
+                    return lines
+                else:
+                    lines.append(f"{target['name']} couldn't evade! ({pct}% chance)")
+            if special == "paw_teleport":
+                _handle_paw_teleport(actor, target, lines)
+            return lines
 
         # consume charge — applies regardless of hit, miss, or dodge
         charge_mult = 2.0 if actor.pop("charging", False) else 1.0
