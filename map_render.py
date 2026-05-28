@@ -132,6 +132,12 @@ def _load_map():
         if name:
             island_names[(q, r)] = name
 
+    _cache["island_names"] = {}
+    for hex_data in data.get("hexes", []):
+        name = hex_data.get("island_name")
+        if name:
+            _cache["island_names"][(hex_data["q"], hex_data["r"])] = name
+    
     # Load per-island origins from the islands block if present
     origins = {}
     for name, idata in data.get("islands", {}).items():
