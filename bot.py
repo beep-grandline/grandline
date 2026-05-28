@@ -16,9 +16,9 @@ from npcs import load_npcs
 load_dotenv()
 
 # Bot params
-MY_GUILD   = discord.Object(id=1487526877185704107)
-GAME_ADMIN = "Admin"
-GAME_MOD   = "Mod"
+# MY_GUILD   = discord.Object(id=1487526877185704107)
+# GAME_ADMIN = "Admin"
+# GAME_MOD   = "Mod"
 
 intents = discord.Intents.default()
 intents.message_content = True
