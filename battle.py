@@ -169,24 +169,31 @@ def _find_move(fighter, move_name):
 # ── Special abilities ─────────────────────────────────────────────────────────
 
 SPECIAL_MOVES = {
-    "paw_teleport": {
-        "name":        "Teleport",
+    "paw_warn": {
+        "name":        "✋ Nikyu Nikyu",
         "attack_type": "blunt",
         "power":       0,
-        "accuracy":    90,
+        "accuracy":    100,
         "priority":    0,
         "tracking":    5,
         "hits":        1,
         "hp_cost":     0,
         "recoil":      0.0,
-        "special":     "paw_teleport",
+        "special":     "paw_warn",
     },
 }
 
-# Map of fruit_id → list of special move keys granted by that fruit
 FRUIT_SPECIALS = {
-    "paw": ["paw_teleport"],
+    "paw": ["paw_warn"],
 }
+
+
+def _handle_paw_warn(actor, target, lines):
+    """Phase 1: telegraph the teleport. Target has one turn to escape."""
+    target["paw_incoming"]    = True
+    target["paw_warning_by"]  = str(actor.get("id", ""))
+    lines.append(f"✋ {actor['name']} gently places a glowing paw on {target['name']}...")
+    lines.append("→ *Block and dodge are useless. Only escape can save you now.*")
 
 
 def _handle_paw_teleport(actor, target, lines):
@@ -259,7 +266,9 @@ def _resolve_action(actor, target, action, move_name, opp_action):
                     return lines
                 else:
                     lines.append(f"{target['name']} couldn't evade! ({pct}% chance)")
-            if special == "paw_teleport":
+            if special == "paw_warn":
+                _handle_paw_warn(actor, target, lines)
+            elif special == "paw_teleport":
                 _handle_paw_teleport(actor, target, lines)
             return lines
 
@@ -469,6 +478,32 @@ def resolve_turn(state, action_a, action_b):
 
     state["turn"] += 1
     log = [f"**── Turn {state['turn']} ──**"]
+
+    # ── Phase 2 paw check ─────────────────────────────────────────────────────
+    # If a fighter has paw_incoming, the teleport fires this turn.
+    # Only a successful escape can prevent it.
+    for victim, attacker, victim_action in [
+        (fa, fb, act_a), (fb, fa, act_b)
+    ]:
+        if not victim.pop("paw_incoming", False):
+            continue
+        by = victim.pop("paw_warning_by", "")
+
+        if victim_action == "escape":
+            ok, pct = _roll_escape(victim, attacker)
+            if ok:
+                log.append(f"💨 {victim['name']} breaks free just in time! ({pct:.0f}% chance)")
+                victim["escaped"] = True
+            else:
+                log.append(f"✋ {victim['name']} couldn't escape! ({pct:.0f}% chance)")
+                _handle_paw_teleport(attacker, victim, log)
+        else:
+            log.append(f"✋ Block and dodge are useless. {victim['name']} is helpless...")
+            _handle_paw_teleport(attacker, victim, log)
+
+        state["log"] = log
+        return state, log
+    # ── end paw check ─────────────────────────────────────────────────────────
 
     # dodge priority flip — successful dodge last turn grants initiative
     a_priority = fa.pop("priority_next_turn", False)
