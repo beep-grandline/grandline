@@ -490,11 +490,18 @@ async def _engage_autocomplete(interaction: discord.Interaction, current: str):
     if not player:
         return []
     q, r = game.get_position(uid)
-    return [
-        discord.app_commands.Choice(name=npc["name"], value=f"npc:{npc['id']}")
-        for npc in get_npcs_at(q, r)
-        if current.lower() in npc["name"].lower()
-    ][:25]
+    choices = []
+    for npc in get_npcs_at(q, r):
+        name = (npc.get("name") or "").strip()
+        if not name:
+            continue
+        if current.lower() not in name.lower():
+            continue
+        choices.append(discord.app_commands.Choice(
+            name=name[:100],
+            value=f"npc:{npc['id']}"[:100],
+        ))
+    return choices[:25]
 
 
 @discord.app_commands.command(
