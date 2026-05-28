@@ -191,15 +191,25 @@ FRUIT_SPECIALS = {
 
 def _handle_paw_teleport(actor, target, lines):
     """
-    Sends target to a random island. Sets target["teleport_to"] so the
-    command layer can persist the position change after the turn.
+    Sends target to a random island tile.
+    Tries named island origins first, falls back to any hex with terrain 'island'.
     """
     try:
         from map_render import _cache, _load_map
         _load_map()
+
+        # prefer named island origins
         origins = _cache.get("origins", {})
         valid   = [(name, q, r) for name, (q, r) in origins.items()
                    if q is not None and r is not None]
+
+        # fall back to any island hex if no named origins
+        if not valid:
+            valid = [
+                (f"({q},{r})", q, r)
+                for (q, r), terrain in _cache.get("hex_lookup", {}).items()
+                if terrain == "island"
+            ]
     except Exception:
         valid = []
 
