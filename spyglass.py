@@ -23,10 +23,12 @@
 
 import csv
 import math
+import os
 import asyncio
 import requests
 import numpy as np
 import discord
+from scipy.ndimage import map_coordinates
 
 from io import BytesIO
 from PIL import Image
@@ -40,6 +42,9 @@ SPYGLASS_OVERLAY = "img/spyglass.png"
 SPYGLASS_RANGE   = 7
 FISHEYE_STR      = 0.2
 FISHEYE_POWER    = 3
+CHROMA_SHIFT     = 6
+GRAIN_STR        = 3
+CACHE_DIR        = "data/spyglass_cache"
 
 _SIZE   = 30          # must match SIZE in map_render.py
 _SQRT3  = math.sqrt(3)
@@ -158,11 +163,50 @@ def _fisheye(img: Image.Image, strength: float = FISHEYE_STR) -> Image.Image:
     return Image.fromarray(out.astype(np.uint8))
 
 
+def _chromatic_aberration(img, shift):
+    if shift == 0:
+        return img
+    arr = np.array(img).astype(np.float32)
+    h, w = arr.shape[:2]
+    cx, cy = w / 2, h / 2
+    out = arr.copy()
+    for ch, direction in [(0, shift), (2, -shift)]:
+        y_idx, x_idx = np.mgrid[0:h, 0:w].astype(np.float32)
+        xn = (x_idx - cx) / cx
+        yn = (y_idx - cy) / cy
+        r  = np.sqrt(xn**2 + yn**2)
+        xd = np.clip(x_idx + xn * r * direction, 0, w - 1)
+        yd = np.clip(y_idx + yn * r * direction, 0, h - 1)
+        out[..., ch] = map_coordinates(arr[..., ch], [yd.ravel(), xd.ravel()], order=1).reshape(h, w)
+    return Image.fromarray(out.astype(np.uint8))
+
+
+def _film_grain(img, strength):
+    if strength == 0:
+        return img
+    arr   = np.array(img).astype(np.float32)
+    noise = np.random.normal(0, strength, arr.shape[:2])
+    for ch in range(3):
+        arr[..., ch] = np.clip(arr[..., ch] + noise, 0, 255)
+    return Image.fromarray(arr.astype(np.uint8))
+
+
+def _cache_path(island_name: str) -> str:
+    safe = "".join(c if c.isalnum() or c in " _-" else "_" for c in island_name).strip()
+    return os.path.join(CACHE_DIR, f"{safe}.png")
+
+
 def _render_sync(island_name: str):
     """Blocking render — run in executor."""
     url = _island_urls.get(island_name, "")
     if not url:
         return None
+
+    # check cache first
+    cached = _cache_path(island_name)
+    if os.path.exists(cached):
+        with open(cached, "rb") as f:
+            return BytesIO(f.read())
 
     try:
         r  = requests.get(url, timeout=10)
@@ -196,8 +240,15 @@ def _render_sync(island_name: str):
     top     = (bg_dist.height - oh) // 2
     bg_dist = bg_dist.crop((left, top, left + ow, top + oh))
 
+    bg_dist = _chromatic_aberration(bg_dist, CHROMA_SHIFT)
+    bg_dist = _film_grain(bg_dist, GRAIN_STR)
+
     result = bg_dist.convert("RGBA")
     result.paste(overlay, (0, 0), overlay)
+
+    # save to cache
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    result.convert("RGB").save(cached, format="PNG")
 
     out = BytesIO()
     result.convert("RGB").save(out, format="PNG")
