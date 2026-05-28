@@ -157,7 +157,7 @@ def _fisheye(img: Image.Image, strength: float = FISHEYE_STR) -> Image.Image:
     return Image.fromarray(out.astype(np.uint8))
 
 
-def _render_sync(island_name: str) -> BytesIO | None:
+def _render_sync(island_name: str):
     """Blocking render — run in executor."""
     url = _island_urls.get(island_name, "")
     if not url:
@@ -184,7 +184,7 @@ def _render_sync(island_name: str) -> BytesIO | None:
     return out
 
 
-async def render_spyglass(island_name: str) -> BytesIO | None:
+async def render_spyglass(island_name: str):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _render_sync, island_name)
 
