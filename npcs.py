@@ -8,7 +8,7 @@ import random
 
 from fruits import get_fruit_by_id
 
-NPC_CSV_PATH = "data/npcs.csv"
+NPC_CSV_PATH = "npcs.csv"
 NPCS: list = []
 
 POWER_SCALE = 9   # must match kit_commands.POWER_SCALE
@@ -111,6 +111,13 @@ def build_npc_fighter(npc_row: dict) -> dict:
 
     block_name = (npc_row.get("block") or "").strip() or "Block"
     dodge_name = (npc_row.get("dodge") or "").strip() or "Dodge"
+
+    # inject special moves granted by fruit
+    from battle import SPECIAL_MOVES, FRUIT_SPECIALS
+    for special_key in FRUIT_SPECIALS.get(fruit_id.lower(), []):
+        special_move = SPECIAL_MOVES.get(special_key)
+        if special_move and not any(m["name"] == special_move["name"] for m in moves):
+            moves.append(special_move)
 
     return {
         "id":                 f"npc:{npc_row['id'].strip()}",
