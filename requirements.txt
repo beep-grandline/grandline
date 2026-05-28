@@ -3,3 +3,4 @@ python-dotenv
 Pillow
 matplotlib
 asyncio
+scipy
