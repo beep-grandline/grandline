@@ -529,6 +529,17 @@ async def _engage_autocomplete(interaction: discord.Interaction, current: str):
 @discord.app_commands.autocomplete(target=_engage_autocomplete)
 @discord.app_commands.guilds(MY_GUILD)
 async def engage_cmd(interaction: discord.Interaction, target: str):
+    # paste this temporarily anywhere in battle.py after _load_map() is called
+
+    from map_render import _cache, _load_map
+    _load_map()
+    print("[debug] origins:", list(_cache.get("origins", {}).items())[:5])
+    print("[debug] hex_lookup sample:", [(k,v) for k,v in list(_cache.get("hex_lookup", {}).items())[:10]])
+    print("[debug] total hex_lookup entries:", len(_cache.get("hex_lookup", {})))
+    terrain_values = set(_cache.get("hex_lookup", {}).values())
+    print("[debug] terrain types found:", terrain_values)
+
+    
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
 
