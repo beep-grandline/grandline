@@ -56,23 +56,34 @@ def _finished_embed(state):
     fa = state["fighters"]["a"]
     fb = state["fighters"]["b"]
 
-    winner = state.get("winner")
-    if winner == "draw":
+    end_reason = state.get("end_reason", "hp")
+    winner     = state.get("winner")
+
+    if end_reason == "teleport":
+        target_name = state.get("teleport_target", "Someone")
+        island      = state.get("teleport_island", "somewhere far away")
+        title       = f"Battle Over"
+        desc        = f"*{target_name} was sent flying to {island}...*"
+    elif end_reason == "escape":
+        title = "Battle Over"
+        desc  = "*One fighter fled the scene.*"
+    elif winner == "draw":
         title = "Draw!"
+        desc  = None
     elif winner in ("a", "b"):
         title = f"🏆  {state['fighters'][winner]['name']} wins!"
+        desc  = None
     else:
         title = "Battle Over"
+        desc  = None
 
-    embed = discord.Embed(title=title, color=0x2d9e5f)
+    embed = discord.Embed(title=title, description=desc, color=0x2d9e5f)
     embed.set_author(name=f"⚔  {fa['name']}  vs  {fb['name']}")
-
     embed.add_field(
         name  = "\u200b",
         value = "\n".join(battle_logic.status_block(state)),
         inline= False,
     )
-
     log = state.get("log", [])
     if log:
         lines   = [l for l in log if not l.startswith("**──")]
@@ -81,7 +92,6 @@ def _finished_embed(state):
             log_str = log_str[-1021:] + "..."
         if log_str.strip():
             embed.add_field(name="\u200b", value=log_str, inline=False)
-
     return embed
 
 
@@ -135,6 +145,14 @@ async def _resolve_and_update(interaction: discord.Interaction, battle_id: str):
         if dst and not str(f["id"]).startswith("npc:"):
             db.update_player_position(str(f["id"]), dst["q"], dst["r"])
             db.set_following(str(f["id"]), None)
+            # teleport ends the battle
+            state["status"]          = "finished"
+            state["winner"]          = "draw"
+            state["end_reason"]      = "teleport"
+            state["teleport_target"] = f["name"]
+            state["teleport_target_id"] = str(f["id"])
+            state["teleport_island"] = dst.get("island", "somewhere far away")
+            state["teleport_by"]     = str(dst.get("by", ""))
 
     row     = db.get_battle(battle_id)
     channel = interaction.client.get_channel(int(row["channel_id"]))
@@ -156,8 +174,24 @@ async def _resolve_and_update(interaction: discord.Interaction, battle_id: str):
     pings = " ".join(filter(None, [_mention(fa["id"]), _mention(fb["id"])]))
 
     if battle_logic.is_finished(state):
-        embed = _finished_embed(state)
-        await channel.send(content=pings or None, embed=embed)
+        # kuma-specific teleport flavor
+        if (state.get("end_reason") == "teleport"
+                and state.get("teleport_by", "").lower() == "npc:kuma"):
+            from urls import KUMA_TELEPORT_IMAGE
+            victim_id = str(state.get("teleport_target_id", ""))
+            mention   = f"<@{victim_id}>" if victim_id and not victim_id.startswith("npc:") else state.get("teleport_target", "Someone")
+            embed = discord.Embed(
+                description=(
+                    f"*\"If you could take a vacation, where would you go?\"*\n\n"
+                    f"{mention} was sent flying far away..."
+                ),
+                color=0x1a2744,
+            )
+            embed.set_image(url=KUMA_TELEPORT_IMAGE)
+            await channel.send(embed=embed)
+        else:
+            embed = _finished_embed(state)
+            await channel.send(content=pings or None, embed=embed)
         db.delete_battle(battle_id)
     else:
         db.update_battle_state(battle_id, state)
@@ -529,17 +563,6 @@ async def _engage_autocomplete(interaction: discord.Interaction, current: str):
 @discord.app_commands.autocomplete(target=_engage_autocomplete)
 @discord.app_commands.guilds(MY_GUILD)
 async def engage_cmd(interaction: discord.Interaction, target: str):
-    # paste this temporarily anywhere in battle.py after _load_map() is called
-
-    from map_render import _cache, _load_map
-    _load_map()
-    print("[debug] origins:", list(_cache.get("origins", {}).items())[:5])
-    print("[debug] hex_lookup sample:", [(k,v) for k,v in list(_cache.get("hex_lookup", {}).items())[:10]])
-    print("[debug] total hex_lookup entries:", len(_cache.get("hex_lookup", {})))
-    terrain_values = set(_cache.get("hex_lookup", {}).values())
-    print("[debug] terrain types found:", terrain_values)
-
-    
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
 
