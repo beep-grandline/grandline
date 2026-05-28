@@ -40,11 +40,14 @@ from crew_commands import crew_group
 bot.tree.add_command(crew_group)
 from travel_commands import travel_group, setup_travel_task
 bot.tree.add_command(travel_group)
+from spyglass import spyglass_cmd, load_islands
+bot.tree.add_command(spyglass_cmd)
 
 @bot.event
 async def on_ready():
     setup_travel_task(bot)
     load_npcs()
+    load_islands()
     bot.add_view(RolePicker())
     bot.tree.clear_commands(guild=None)
     await bot.tree.sync()
