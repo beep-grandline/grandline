@@ -38,7 +38,8 @@ from config import GUILD_ID
 ISLANDS_CSV      = "data/islands.csv"
 SPYGLASS_OVERLAY = "img/spyglass.png"
 SPYGLASS_RANGE   = 7
-FISHEYE_STR      = 0.3
+FISHEYE_STR      = 0.2
+FISHEYE_POWER    = 3
 
 _SIZE   = 30          # must match SIZE in map_render.py
 _SQRT3  = math.sqrt(3)
@@ -137,7 +138,7 @@ def _fisheye(img: Image.Image, strength: float = FISHEYE_STR) -> Image.Image:
     yn = (y_idx - h / 2) / (h / 2)
     r  = np.sqrt(xn**2 + yn**2)
 
-    factor = 1 + strength * r**3
+    factor = 1 + strength * r**FISHEYE_POWER
     xd = np.clip((xn / factor + 1) / 2 * (w - 1), 0, w - 1)
     yd = np.clip((yn / factor + 1) / 2 * (h - 1), 0, h - 1)
 
@@ -172,16 +173,27 @@ def _render_sync(island_name: str):
         return None
 
     overlay = _get_overlay()
-    # scale bg slightly larger than overlay before fisheye
-    # so distortion doesn't crop out the edges
     ow, oh  = overlay.size
-    scale   = 1.0 + FISHEYE_STR * 0.8   # roughly compensates for edge pull
-    padded  = (int(ow * scale), int(oh * scale))
-    bg      = bg.resize(padded, Image.LANCZOS)
+    scale   = 1.0 + FISHEYE_STR * 0.1
+    tw, th  = int(ow * scale), int(oh * scale)
+
+    bg_ratio = bg.width / bg.height
+    tg_ratio = tw / th
+    if bg_ratio > tg_ratio:
+        new_h = th
+        new_w = int(bg.width * (th / bg.height))
+    else:
+        new_w = tw
+        new_h = int(bg.height * (tw / bg.width))
+
+    bg = bg.resize((new_w, new_h), Image.LANCZOS)
+    cx = (new_w - tw) // 2
+    cy = (new_h - th) // 2
+    bg = bg.crop((cx, cy, cx + tw, cy + th))
+
     bg_dist = _fisheye(bg)
-    # crop back to overlay size from center
-    left = (bg_dist.width  - ow) // 2
-    top  = (bg_dist.height - oh) // 2
+    left    = (bg_dist.width  - ow) // 2
+    top     = (bg_dist.height - oh) // 2
     bg_dist = bg_dist.crop((left, top, left + ow, top + oh))
 
     result = bg_dist.convert("RGBA")
