@@ -25,7 +25,8 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 from kit_commands import kit_group
-from battle_commands import battle_cmd, forfeit_cmd, cannons_cmd
+from battle_commands import battle_cmd, forfeit_cmd, cannons_cmd, engage_cmd
+bot.tree.add_command(engage_cmd)
 bot.tree.add_command(cannons_cmd)
 bot.tree.add_command(kit_group)
 bot.tree.add_command(battle_cmd)
