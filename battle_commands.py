@@ -87,6 +87,15 @@ def _finished_embed(state):
 
 def _build_fighter_data(player_row, member: discord.Member):
     type1, type2 = get_fighter_types(player_row["fruit_id"] if player_row["fruit_id"] else None)
+    moves = db.get_player_moves(str(member.id))
+
+    # inject special moves granted by fruit
+    fruit_id = (player_row["fruit_id"] or "").strip().lower()
+    for special_key in battle_logic.FRUIT_SPECIALS.get(fruit_id, []):
+        special_move = battle_logic.SPECIAL_MOVES.get(special_key)
+        if special_move and not any(m["name"] == special_move["name"] for m in moves):
+            moves = list(moves) + [special_move]
+
     return {
         "id":      str(member.id),
         "name":    member.display_name,
@@ -98,7 +107,7 @@ def _build_fighter_data(player_row, member: discord.Member):
         "type2":   type2,
         "block":   player_row["block_name"],
         "dodge":   player_row["dodge_name"],
-        "moves":   db.get_player_moves(str(member.id)),
+        "moves":   moves,
     }
 
 
@@ -118,6 +127,14 @@ async def _resolve_and_update(interaction: discord.Interaction, battle_id: str):
         return
 
     state, log = battle_logic.resolve_turn(state, action_a, action_b)
+
+    # apply any post-turn position effects (e.g. paw teleport)
+    for side_key in ("a", "b"):
+        f   = state["fighters"][side_key]
+        dst = f.pop("teleport_to", None)
+        if dst and not str(f["id"]).startswith("npc:"):
+            db.update_player_position(str(f["id"]), dst["q"], dst["r"])
+            db.set_following(str(f["id"]), None)
 
     row     = db.get_battle(battle_id)
     channel = interaction.client.get_channel(int(row["channel_id"]))
