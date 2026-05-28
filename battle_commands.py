@@ -186,9 +186,12 @@ async def _resolve_and_update(interaction: discord.Interaction, battle_id: str):
             from urls import KUMA_TELEPORT_IMAGE
             victim_id = str(state.get("teleport_target_id", ""))
             mention   = f"<@{victim_id}>" if victim_id and not victim_id.startswith("npc:") else state.get("teleport_target", "Someone")
-            embed = discord.Embed(color=0x1a2744)
+            embed = discord.Embed(
+                description=f"{mention} was sent flying far away...",
+                color=0x1a2744,
+            )
             embed.set_image(url=KUMA_TELEPORT_IMAGE)
-            await channel.send(content=f"{mention} was sent flying far away...", embed=embed)
+            await channel.send(embed=embed)
         else:
             embed = _finished_embed(state)
             await channel.send(content=pings or None, embed=embed)
