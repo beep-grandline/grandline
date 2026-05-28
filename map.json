@@ -1,14 +1,14 @@
 {
   "version": 2,
   "format": "grand_line_map_editor",
-  "saved_at": "2026-05-26T06:32:01.239Z",
+  "saved_at": "2026-05-28T19:33:07.196Z",
   "display_origin_old_world": {
     "q": 15,
     "r": 42
   },
   "paint_defaults": {
-    "island_name": "",
-    "hex_type": ""
+    "island_name": "Drum",
+    "hex_type": "island"
   },
   "view": {
     "zoom": 0.4
@@ -33,6 +33,18 @@
       "origin": null
     },
     "Jaya": {
+      "origin": null
+    },
+    "Kyuka": {
+      "origin": null
+    },
+    "Drum": {
+      "origin": null
+    },
+    "Sabaody": {
+      "origin": null
+    },
+    "Water 7": {
       "origin": null
     }
   },
@@ -3309,24 +3321,6 @@
     },
     {
       "q": 15,
-      "r": 27,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 15,
-      "r": 28,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 15,
-      "r": 29,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 15,
       "r": 36,
       "hex_type": "calm_belt",
       "island_name": ""
@@ -3351,48 +3345,6 @@
     },
     {
       "q": 16,
-      "r": 25,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 16,
-      "r": 26,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 16,
-      "r": 27,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 16,
-      "r": 28,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 16,
-      "r": 29,
-      "hex_type": "",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 16,
-      "r": 30,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 16,
-      "r": 31,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 16,
       "r": 36,
       "hex_type": "calm_belt",
       "island_name": ""
@@ -3414,60 +3366,6 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
-    },
-    {
-      "q": 17,
-      "r": 24,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 17,
-      "r": 25,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 17,
-      "r": 26,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 17,
-      "r": 27,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 17,
-      "r": 28,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 17,
-      "r": 29,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 17,
-      "r": 30,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 17,
-      "r": 31,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 17,
-      "r": 32,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
     },
     {
       "q": 17,
@@ -3495,66 +3393,6 @@
     },
     {
       "q": 18,
-      "r": 23,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 18,
-      "r": 24,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 18,
-      "r": 25,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 18,
-      "r": 26,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 18,
-      "r": 27,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 18,
-      "r": 28,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 18,
-      "r": 29,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 18,
-      "r": 30,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 18,
-      "r": 31,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 18,
-      "r": 32,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 18,
       "r": 36,
       "hex_type": "calm_belt",
       "island_name": ""
@@ -3579,66 +3417,6 @@
     },
     {
       "q": 19,
-      "r": 22,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 19,
-      "r": 23,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 19,
-      "r": 24,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 19,
-      "r": 25,
-      "hex_type": "",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 19,
-      "r": 26,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 19,
-      "r": 27,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 19,
-      "r": 28,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 19,
-      "r": 30,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 19,
-      "r": 31,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 19,
-      "r": 32,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 19,
       "r": 36,
       "hex_type": "calm_belt",
       "island_name": ""
@@ -3660,54 +3438,6 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
-    },
-    {
-      "q": 20,
-      "r": 22,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 20,
-      "r": 23,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 20,
-      "r": 24,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 20,
-      "r": 25,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 20,
-      "r": 26,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 20,
-      "r": 29,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 20,
-      "r": 30,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 20,
-      "r": 31,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
     },
     {
       "q": 20,
@@ -3744,42 +3474,6 @@
       "r": -15,
       "hex_type": "island",
       "island_name": "Cactus Island"
-    },
-    {
-      "q": 21,
-      "r": 24,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 21,
-      "r": 27,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 21,
-      "r": 28,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 21,
-      "r": 29,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 21,
-      "r": 30,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 21,
-      "r": 31,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
     },
     {
       "q": 21,
@@ -3831,48 +3525,6 @@
     },
     {
       "q": 22,
-      "r": 23,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 22,
-      "r": 25,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 22,
-      "r": 26,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 22,
-      "r": 27,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 22,
-      "r": 28,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 22,
-      "r": 29,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 22,
-      "r": 30,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 22,
       "r": 36,
       "hex_type": "calm_belt",
       "island_name": ""
@@ -3912,48 +3564,6 @@
       "r": -15,
       "hex_type": "island",
       "island_name": "Cactus Island"
-    },
-    {
-      "q": 23,
-      "r": 24,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 23,
-      "r": 25,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 23,
-      "r": 26,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 23,
-      "r": 27,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 23,
-      "r": 28,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 23,
-      "r": 29,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 23,
-      "r": 30,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
     },
     {
       "q": 23,
@@ -4005,54 +3615,6 @@
     },
     {
       "q": 24,
-      "r": 23,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 24,
-      "r": 24,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 24,
-      "r": 25,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 24,
-      "r": 26,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 24,
-      "r": 27,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 24,
-      "r": 28,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 24,
-      "r": 29,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 24,
-      "r": 30,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 24,
       "r": 36,
       "hex_type": "calm_belt",
       "island_name": ""
@@ -4095,753 +3657,885 @@
     },
     {
       "q": 25,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 25,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 26,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 26,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 26,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 26,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 27,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 27,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 27,
+      "r": 22,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 27,
       "r": 23,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
+      "hex_type": "island",
+      "island_name": "Drum"
     },
     {
-      "q": 25,
+      "q": 27,
       "r": 24,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
+      "hex_type": "island",
+      "island_name": "Drum"
     },
     {
-      "q": 25,
-      "r": 25,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
+      "q": 27,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
     },
     {
-      "q": 25,
+      "q": 27,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 28,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 28,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 28,
+      "r": 0,
+      "hex_type": "island",
+      "island_name": "Kyuka"
+    },
+    {
+      "q": 28,
+      "r": 21,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 28,
+      "r": 22,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 28,
+      "r": 23,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 28,
+      "r": 24,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 28,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 28,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 29,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 29,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 29,
+      "r": -1,
+      "hex_type": "island",
+      "island_name": "Kyuka"
+    },
+    {
+      "q": 29,
+      "r": 0,
+      "hex_type": "island",
+      "island_name": "Kyuka"
+    },
+    {
+      "q": 29,
+      "r": 20,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 29,
+      "r": 21,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 29,
+      "r": 22,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 29,
+      "r": 23,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 29,
+      "r": 24,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 29,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 29,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 30,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 30,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 30,
+      "r": -1,
+      "hex_type": "island",
+      "island_name": "Kyuka"
+    },
+    {
+      "q": 30,
+      "r": 0,
+      "hex_type": "island",
+      "island_name": "Kyuka"
+    },
+    {
+      "q": 30,
+      "r": 20,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 30,
+      "r": 21,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 30,
+      "r": 22,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 30,
+      "r": 23,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 30,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 30,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 31,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 31,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 31,
+      "r": 20,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 31,
+      "r": 21,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 31,
+      "r": 22,
+      "hex_type": "island",
+      "island_name": "Drum"
+    },
+    {
+      "q": 31,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 31,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 32,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 32,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 32,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 32,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 33,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 33,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 33,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 33,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 34,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 34,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 34,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 34,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 35,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 35,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 35,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 35,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 36,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 36,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 36,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 36,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 37,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 37,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 37,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 37,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 38,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 38,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 38,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 38,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 39,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 39,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 39,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 39,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 40,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 40,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 40,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 40,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 41,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 41,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 41,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 41,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 42,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 42,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 42,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 42,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 43,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 43,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 43,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 43,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 44,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 44,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 44,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 44,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 45,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 45,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 45,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 45,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 46,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 46,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 46,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 46,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 47,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 47,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 47,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 47,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 48,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 48,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 48,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 48,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 49,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 49,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 49,
       "r": 26,
       "hex_type": "desert",
       "island_name": "Alabasta"
     },
     {
-      "q": 25,
+      "q": 49,
       "r": 27,
       "hex_type": "desert",
       "island_name": "Alabasta"
     },
     {
-      "q": 25,
+      "q": 49,
       "r": 28,
       "hex_type": "desert",
       "island_name": "Alabasta"
     },
     {
-      "q": 25,
-      "r": 29,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 25,
+      "q": 49,
       "r": 36,
       "hex_type": "calm_belt",
       "island_name": ""
     },
     {
-      "q": 25,
+      "q": 49,
       "r": 37,
       "hex_type": "calm_belt",
       "island_name": ""
     },
     {
-      "q": 26,
+      "q": 50,
       "r": -42,
       "hex_type": "calm_belt",
       "island_name": ""
     },
     {
-      "q": 26,
+      "q": 50,
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
     },
     {
-      "q": 26,
-      "r": 23,
-      "hex_type": "desert",
-      "island_name": "Alabasta"
-    },
-    {
-      "q": 26,
+      "q": 50,
       "r": 24,
       "hex_type": "desert",
       "island_name": "Alabasta"
     },
     {
-      "q": 26,
+      "q": 50,
       "r": 25,
       "hex_type": "desert",
       "island_name": "Alabasta"
     },
     {
-      "q": 26,
+      "q": 50,
+      "r": 26,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 50,
+      "r": 27,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 50,
+      "r": 28,
+      "hex_type": "",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 50,
+      "r": 29,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 50,
+      "r": 30,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 50,
+      "r": 36,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 50,
+      "r": 37,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 51,
+      "r": -42,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 51,
+      "r": -41,
+      "hex_type": "calm_belt",
+      "island_name": ""
+    },
+    {
+      "q": 51,
+      "r": 23,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 51,
+      "r": 24,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 51,
+      "r": 25,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 51,
+      "r": 26,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 51,
+      "r": 27,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 51,
       "r": 28,
       "hex_type": "desert",
       "island_name": "Alabasta"
     },
     {
-      "q": 26,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 26,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 27,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 27,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 27,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 27,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 28,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 28,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 28,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 28,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 29,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 29,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 29,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 29,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 30,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 30,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 30,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 30,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 31,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 31,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 31,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 31,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 32,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 32,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 32,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 32,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 33,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 33,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 33,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 33,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 34,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 34,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 34,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 34,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 35,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 35,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 35,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 35,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 36,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 36,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 36,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 36,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 37,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 37,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 37,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 37,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 38,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 38,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 38,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 38,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 39,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 39,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 39,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 39,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 40,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 40,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 40,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 40,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 41,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 41,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 41,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 41,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 42,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 42,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 42,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 42,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 43,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 43,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 43,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 43,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 44,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 44,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 44,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 44,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 45,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 45,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 45,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 45,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 46,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 46,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 46,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 46,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 47,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 47,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 47,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 47,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 48,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 48,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 48,
-      "r": 2,
-      "hex_type": "island",
-      "island_name": "Jaya"
-    },
-    {
-      "q": 48,
-      "r": 3,
-      "hex_type": "island",
-      "island_name": "Jaya"
-    },
-    {
-      "q": 48,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 48,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 49,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 49,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 49,
-      "r": 0,
-      "hex_type": "island",
-      "island_name": "Jaya"
-    },
-    {
-      "q": 49,
-      "r": 1,
-      "hex_type": "island",
-      "island_name": "Jaya"
-    },
-    {
-      "q": 49,
-      "r": 2,
-      "hex_type": "island",
-      "island_name": "Jaya"
-    },
-    {
-      "q": 49,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 49,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 50,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 50,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 50,
-      "r": -1,
-      "hex_type": "island",
-      "island_name": "Jaya"
-    },
-    {
-      "q": 50,
-      "r": 0,
-      "hex_type": "island",
-      "island_name": "Jaya"
-    },
-    {
-      "q": 50,
-      "r": 36,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 50,
-      "r": 37,
-      "hex_type": "calm_belt",
-      "island_name": ""
+      "q": 51,
+      "r": 29,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 51,
-      "r": -42,
-      "hex_type": "calm_belt",
-      "island_name": ""
+      "r": 30,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 51,
-      "r": -41,
-      "hex_type": "calm_belt",
-      "island_name": ""
-    },
-    {
-      "q": 51,
-      "r": -2,
-      "hex_type": "island",
-      "island_name": "Jaya"
-    },
-    {
-      "q": 51,
-      "r": -1,
-      "hex_type": "island",
-      "island_name": "Jaya"
-    },
-    {
-      "q": 51,
-      "r": 3,
-      "hex_type": "island",
-      "island_name": "Jaya"
+      "r": 31,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 51,
@@ -4869,33 +4563,63 @@
     },
     {
       "q": 52,
-      "r": -2,
-      "hex_type": "island",
-      "island_name": "Jaya"
+      "r": 22,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 52,
-      "r": 0,
-      "hex_type": "island",
-      "island_name": "Jaya"
+      "r": 23,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 52,
-      "r": 1,
-      "hex_type": "island",
-      "island_name": "Jaya"
+      "r": 24,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 52,
-      "r": 2,
-      "hex_type": "island",
-      "island_name": "Jaya"
+      "r": 25,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 52,
-      "r": 3,
-      "hex_type": "island",
-      "island_name": "Jaya"
+      "r": 26,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 52,
+      "r": 27,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 52,
+      "r": 28,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 52,
+      "r": 29,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 52,
+      "r": 30,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 52,
+      "r": 31,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 52,
@@ -4923,27 +4647,63 @@
     },
     {
       "q": 53,
-      "r": -2,
-      "hex_type": "island",
-      "island_name": "Jaya"
+      "r": 21,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 53,
-      "r": -1,
-      "hex_type": "island",
-      "island_name": "Jaya"
+      "r": 22,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 53,
-      "r": 0,
-      "hex_type": "island",
-      "island_name": "Jaya"
+      "r": 23,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 53,
-      "r": 1,
-      "hex_type": "island",
-      "island_name": "Jaya"
+      "r": 24,
+      "hex_type": "",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 53,
+      "r": 25,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 53,
+      "r": 26,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 53,
+      "r": 27,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 53,
+      "r": 29,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 53,
+      "r": 30,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 53,
+      "r": 31,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 53,
@@ -4971,9 +4731,51 @@
     },
     {
       "q": 54,
-      "r": -2,
-      "hex_type": "island",
-      "island_name": "Jaya"
+      "r": 21,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 54,
+      "r": 22,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 54,
+      "r": 23,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 54,
+      "r": 24,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 54,
+      "r": 25,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 54,
+      "r": 28,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 54,
+      "r": 29,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 54,
+      "r": 30,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 54,
@@ -4998,6 +4800,42 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 55,
+      "r": 23,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 55,
+      "r": 26,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 55,
+      "r": 27,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 55,
+      "r": 28,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 55,
+      "r": 29,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 55,
+      "r": 30,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 55,
@@ -5022,6 +4860,48 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 56,
+      "r": 22,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 56,
+      "r": 24,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 56,
+      "r": 25,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 56,
+      "r": 26,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 56,
+      "r": 27,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 56,
+      "r": 28,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 56,
+      "r": 29,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 56,
@@ -5046,6 +4926,48 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 57,
+      "r": 23,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 57,
+      "r": 24,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 57,
+      "r": 25,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 57,
+      "r": 26,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 57,
+      "r": 27,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 57,
+      "r": 28,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 57,
+      "r": 29,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 57,
@@ -5070,6 +4992,54 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 58,
+      "r": 22,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 58,
+      "r": 23,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 58,
+      "r": 24,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 58,
+      "r": 25,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 58,
+      "r": 26,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 58,
+      "r": 27,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 58,
+      "r": 28,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 58,
+      "r": 29,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 58,
@@ -5094,6 +5064,48 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 59,
+      "r": 22,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 59,
+      "r": 23,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 59,
+      "r": 24,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 59,
+      "r": 25,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 59,
+      "r": 26,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 59,
+      "r": 27,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 59,
+      "r": 28,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 59,
@@ -5118,6 +5130,30 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 60,
+      "r": 22,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 60,
+      "r": 23,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 60,
+      "r": 24,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
+    },
+    {
+      "q": 60,
+      "r": 27,
+      "hex_type": "desert",
+      "island_name": "Alabasta"
     },
     {
       "q": 60,
@@ -5670,6 +5706,18 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 83,
+      "r": 13,
+      "hex_type": "island",
+      "island_name": "Jaya"
+    },
+    {
+      "q": 83,
+      "r": 14,
+      "hex_type": "island",
+      "island_name": "Jaya"
     },
     {
       "q": 83,
@@ -5694,6 +5742,24 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 84,
+      "r": 11,
+      "hex_type": "island",
+      "island_name": "Jaya"
+    },
+    {
+      "q": 84,
+      "r": 12,
+      "hex_type": "island",
+      "island_name": "Jaya"
+    },
+    {
+      "q": 84,
+      "r": 13,
+      "hex_type": "island",
+      "island_name": "Jaya"
     },
     {
       "q": 84,
@@ -5718,6 +5784,18 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 85,
+      "r": 10,
+      "hex_type": "island",
+      "island_name": "Jaya"
+    },
+    {
+      "q": 85,
+      "r": 11,
+      "hex_type": "island",
+      "island_name": "Jaya"
     },
     {
       "q": 85,
@@ -5742,6 +5820,24 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 86,
+      "r": 9,
+      "hex_type": "island",
+      "island_name": "Jaya"
+    },
+    {
+      "q": 86,
+      "r": 10,
+      "hex_type": "island",
+      "island_name": "Jaya"
+    },
+    {
+      "q": 86,
+      "r": 14,
+      "hex_type": "island",
+      "island_name": "Jaya"
     },
     {
       "q": 86,
@@ -5766,6 +5862,36 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 87,
+      "r": 9,
+      "hex_type": "island",
+      "island_name": "Jaya"
+    },
+    {
+      "q": 87,
+      "r": 11,
+      "hex_type": "island",
+      "island_name": "Jaya"
+    },
+    {
+      "q": 87,
+      "r": 12,
+      "hex_type": "island",
+      "island_name": "Jaya"
+    },
+    {
+      "q": 87,
+      "r": 13,
+      "hex_type": "island",
+      "island_name": "Jaya"
+    },
+    {
+      "q": 87,
+      "r": 14,
+      "hex_type": "island",
+      "island_name": "Jaya"
     },
     {
       "q": 87,
@@ -5790,6 +5916,30 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 88,
+      "r": 9,
+      "hex_type": "island",
+      "island_name": "Jaya"
+    },
+    {
+      "q": 88,
+      "r": 10,
+      "hex_type": "island",
+      "island_name": "Jaya"
+    },
+    {
+      "q": 88,
+      "r": 11,
+      "hex_type": "island",
+      "island_name": "Jaya"
+    },
+    {
+      "q": 88,
+      "r": 12,
+      "hex_type": "island",
+      "island_name": "Jaya"
     },
     {
       "q": 88,
@@ -5814,6 +5964,12 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 89,
+      "r": 9,
+      "hex_type": "island",
+      "island_name": "Jaya"
     },
     {
       "q": 89,
@@ -7542,6 +7698,18 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 161,
+      "r": 20,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 161,
+      "r": 21,
+      "hex_type": "island",
+      "island_name": "Water 7"
     },
     {
       "q": 161,
@@ -7566,6 +7734,36 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 162,
+      "r": 18,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 162,
+      "r": 19,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 162,
+      "r": 20,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 162,
+      "r": 21,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 162,
+      "r": 22,
+      "hex_type": "island",
+      "island_name": "Water 7"
     },
     {
       "q": 162,
@@ -7590,6 +7788,42 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 163,
+      "r": 17,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 163,
+      "r": 18,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 163,
+      "r": 19,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 163,
+      "r": 20,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 163,
+      "r": 21,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 163,
+      "r": 22,
+      "hex_type": "island",
+      "island_name": "Water 7"
     },
     {
       "q": 163,
@@ -7614,6 +7848,48 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 164,
+      "r": 16,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 164,
+      "r": 17,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 164,
+      "r": 18,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 164,
+      "r": 19,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 164,
+      "r": 20,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 164,
+      "r": 21,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 164,
+      "r": 22,
+      "hex_type": "island",
+      "island_name": "Water 7"
     },
     {
       "q": 164,
@@ -7638,6 +7914,42 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 165,
+      "r": 16,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 165,
+      "r": 17,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 165,
+      "r": 18,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 165,
+      "r": 19,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 165,
+      "r": 20,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 165,
+      "r": 21,
+      "hex_type": "island",
+      "island_name": "Water 7"
     },
     {
       "q": 165,
@@ -7662,6 +7974,48 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 166,
+      "r": 15,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 166,
+      "r": 16,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 166,
+      "r": 17,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 166,
+      "r": 18,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 166,
+      "r": 19,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 166,
+      "r": 20,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 166,
+      "r": 21,
+      "hex_type": "island",
+      "island_name": "Water 7"
     },
     {
       "q": 166,
@@ -7686,6 +8040,42 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 167,
+      "r": 15,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 167,
+      "r": 16,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 167,
+      "r": 17,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 167,
+      "r": 18,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 167,
+      "r": 19,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 167,
+      "r": 20,
+      "hex_type": "island",
+      "island_name": "Water 7"
     },
     {
       "q": 167,
@@ -7710,6 +8100,24 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 168,
+      "r": 16,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 168,
+      "r": 17,
+      "hex_type": "island",
+      "island_name": "Water 7"
+    },
+    {
+      "q": 168,
+      "r": 18,
+      "hex_type": "island",
+      "island_name": "Water 7"
     },
     {
       "q": 168,
@@ -8574,6 +8982,18 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 204,
+      "r": 12,
+      "hex_type": "island",
+      "island_name": "Sabaody"
+    },
+    {
+      "q": 204,
+      "r": 14,
+      "hex_type": "island",
+      "island_name": "Sabaody"
     },
     {
       "q": 204,
@@ -8598,6 +9018,24 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 205,
+      "r": 9,
+      "hex_type": "island",
+      "island_name": "Sabaody"
+    },
+    {
+      "q": 205,
+      "r": 10,
+      "hex_type": "island",
+      "island_name": "Sabaody"
+    },
+    {
+      "q": 205,
+      "r": 13,
+      "hex_type": "island",
+      "island_name": "Sabaody"
     },
     {
       "q": 205,
@@ -8622,6 +9060,18 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 206,
+      "r": 11,
+      "hex_type": "island",
+      "island_name": "Sabaody"
+    },
+    {
+      "q": 206,
+      "r": 13,
+      "hex_type": "island",
+      "island_name": "Sabaody"
     },
     {
       "q": 206,
@@ -8646,6 +9096,24 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 207,
+      "r": 8,
+      "hex_type": "island",
+      "island_name": "Sabaody"
+    },
+    {
+      "q": 207,
+      "r": 9,
+      "hex_type": "island",
+      "island_name": "Sabaody"
+    },
+    {
+      "q": 207,
+      "r": 13,
+      "hex_type": "island",
+      "island_name": "Sabaody"
     },
     {
       "q": 207,
@@ -8670,6 +9138,18 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 208,
+      "r": 7,
+      "hex_type": "island",
+      "island_name": "Sabaody"
+    },
+    {
+      "q": 208,
+      "r": 11,
+      "hex_type": "island",
+      "island_name": "Sabaody"
     },
     {
       "q": 208,
@@ -8694,6 +9174,18 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 209,
+      "r": 8,
+      "hex_type": "island",
+      "island_name": "Sabaody"
+    },
+    {
+      "q": 209,
+      "r": 12,
+      "hex_type": "island",
+      "island_name": "Sabaody"
     },
     {
       "q": 209,
@@ -8718,6 +9210,18 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 210,
+      "r": 9,
+      "hex_type": "island",
+      "island_name": "Sabaody"
+    },
+    {
+      "q": 210,
+      "r": 11,
+      "hex_type": "island",
+      "island_name": "Sabaody"
     },
     {
       "q": 210,
@@ -8742,6 +9246,12 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 211,
+      "r": 7,
+      "hex_type": "island",
+      "island_name": "Sabaody"
     },
     {
       "q": 211,
@@ -8766,6 +9276,18 @@
       "r": -41,
       "hex_type": "calm_belt",
       "island_name": ""
+    },
+    {
+      "q": 212,
+      "r": 8,
+      "hex_type": "island",
+      "island_name": "Sabaody"
+    },
+    {
+      "q": 212,
+      "r": 9,
+      "hex_type": "island",
+      "island_name": "Sabaody"
     },
     {
       "q": 212,
