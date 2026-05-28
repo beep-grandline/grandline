@@ -35,7 +35,14 @@ def load_npcs():
     global NPCS
     try:
         with open(NPC_CSV_PATH, newline="", encoding="utf-8") as f:
-            NPCS = list(csv.DictReader(f))
+            rows = list(csv.DictReader(f))
+        # strip whitespace from all keys/values and drop rows with no id or name
+        cleaned = []
+        for row in rows:
+            row = {k.strip(): (v.strip() if v else "") for k, v in row.items()}
+            if row.get("id") and row.get("name"):
+                cleaned.append(row)
+        NPCS = cleaned
         print(f"[npcs] loaded {len(NPCS)} NPCs")
     except FileNotFoundError:
         NPCS = []
@@ -53,7 +60,9 @@ def get_npcs_at(q: int, r: int) -> list:
     out = []
     for npc in NPCS:
         try:
-            if int(npc.get("q", 0)) == q and int(npc.get("r", 0)) == r:
+            nq = int(npc.get("q") or 0)
+            nr = int(npc.get("r") or 0)
+            if nq == q and nr == r:
                 out.append(npc)
         except (ValueError, TypeError):
             continue
