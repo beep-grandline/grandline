@@ -99,6 +99,10 @@ MOVE_FAILURE = {
     "no_walking_on_sea": "You can't walk on open sea. Stay on land.",
 }
 
+
+def _is_captain(interaction: discord.Interaction, crew) -> bool:
+    return crew and str(crew["captain_id"]) == str(interaction.user.id)
+
 # ── Travel command group ──────────────────────────────────────────────────────
 
 travel_group = discord.app_commands.Group(
