@@ -57,8 +57,8 @@ GRAIN_STR        = 3
 # Re-tune these against your actual overlay dimensions.
 
 FLAG_SCALE      = 0.17   # flag height as fraction of overlay height
-FLAG_ANCHOR_X   = 270    # lower-left x of flag
-FLAG_ANCHOR_Y   = 400    # lower-left y of flag (was 545 in colab — clamped here)
+FLAG_ANCHOR_X   = 565
+FLAG_ANCHOR_Y   = 463
 FLAG_DARKEN     = 0.9
 FLAG_OUTLINE    = 1
 FLAG_ROTATION   = -5
@@ -95,7 +95,6 @@ def load_islands():
         print("[spyglass] data/islands.csv not found")
 
 
-from urls import SHIP_BG as _SHIP_BG_URL
 
 _ship_bg_cache = None
 
@@ -108,18 +107,14 @@ def _get_overlay():
 
 
 def _get_ship_bg(size):
-    """Returns the ship background image resized to the given (w, h)."""
     global _ship_bg_cache
-    if _SHIP_BG_URL:
-        if _ship_bg_cache is None:
-            try:
-                r = requests.get(_SHIP_BG_URL, timeout=10)
-                r.raise_for_status()
-                _ship_bg_cache = Image.open(BytesIO(r.content)).convert("RGBA")
-            except Exception as e:
-                print(f"[spyglass] failed to load SHIP_BG: {e}")
-        if _ship_bg_cache:
-            return _ship_bg_cache.resize(size, Image.LANCZOS)
+    if _ship_bg_cache is None:
+        try:
+            _ship_bg_cache = Image.open("img/ship_bg.png").convert("RGBA")
+        except Exception as e:
+            print(f"[spyglass] failed to load img/ship_bg.png: {e}")
+    if _ship_bg_cache:
+        return _ship_bg_cache.resize(size, Image.LANCZOS)
     return Image.new("RGBA", size, (20, 40, 65, 255))
 
 
