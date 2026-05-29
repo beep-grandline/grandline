@@ -6,7 +6,7 @@ import game
 import os
 import db
 import map_render
-# import asyncio
+import asyncio
 from typing import Literal
 import csv
 from config import MY_GUILD, GUILD_ID, GAME_ADMIN, GAME_MOD
