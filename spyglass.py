@@ -106,7 +106,7 @@ def _get_overlay():
     return _overlay_cache
 
 
-def _get_ship_bg(size):
+def _get_ship_bg():
     global _ship_bg_cache
     if _ship_bg_cache is None:
         try:
@@ -114,8 +114,8 @@ def _get_ship_bg(size):
         except Exception as e:
             print(f"[spyglass] failed to load img/ship_bg.png: {e}")
     if _ship_bg_cache:
-        return _ship_bg_cache.resize(size, Image.LANCZOS)
-    return Image.new("RGBA", size, (20, 40, 65, 255))
+        return _ship_bg_cache.copy()
+    return Image.new("RGBA", (1208, 716), (20, 40, 65, 255))
 
 
 # ── Hex helpers ───────────────────────────────────────────────────────────────
@@ -297,10 +297,7 @@ def _outline_flag(img, thickness):
 
 
 def _build_flag_image(jolly_roger_url):
-    """Renders flag onto a sea background. Returns RGBA image at overlay size."""
-    overlay = _get_overlay()
-    ow, oh  = overlay.size
-
+    """Renders flag onto full-size sea background. Pipeline resizes to overlay later."""
     try:
         r    = requests.get(jolly_roger_url, timeout=10)
         r.raise_for_status()
@@ -309,7 +306,11 @@ def _build_flag_image(jolly_roger_url):
         print(f"[spyglass] failed to load flag: {e}")
         return None
 
-    fh   = max(1, int(oh * FLAG_SCALE))
+    # use full-size background — anchor coords tuned for this resolution
+    bg     = _get_ship_bg()
+    bw, bh = bg.size
+
+    fh   = max(1, int(bh * FLAG_SCALE))
     fw   = max(1, int(flag.width * (fh / flag.height)))
     flag = flag.resize((fw, fh), Image.LANCZOS)
 
@@ -324,11 +325,8 @@ def _build_flag_image(jolly_roger_url):
     if FLAG_ROTATION != 0:
         flag = flag.rotate(FLAG_ROTATION, resample=Image.BILINEAR, expand=True)
 
-    # ship background
-    bg = _get_ship_bg((ow, oh))
-    ax = min(FLAG_ANCHOR_X, ow - 1)
-    ay = min(FLAG_ANCHOR_Y, oh) - flag.height
-    print(f"[spyglass flag] canvas={ow}x{oh} flag={flag.size} anchor=({ax},{ay})")
+    ax = min(FLAG_ANCHOR_X, bw - 1)
+    ay = min(FLAG_ANCHOR_Y, bh) - flag.height
     bg.paste(flag, (ax, ay), flag)
     return bg
 
@@ -388,10 +386,8 @@ def _render_island_sync(island_name):
 
 def _render_flag_sync(jolly_roger_url):
     if not jolly_roger_url:
-        overlay = _get_overlay()
-        ow, oh  = overlay.size
-        bg      = _get_ship_bg((ow, oh))
-        result  = _apply_spyglass_pipeline(bg)
+        bg     = _get_ship_bg()
+        result = _apply_spyglass_pipeline(bg)
         out = BytesIO()
         result.convert("RGB").save(out, format="PNG")
         out.seek(0)
