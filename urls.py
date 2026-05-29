@@ -1,2 +1,3 @@
 KUMA_TELEPORT_WARN  = "https://cdn.discordapp.com/attachments/799885743451144205/1509454174448914453/image.png?ex=6a193c3f&is=6a17eabf&hm=84de21517d515efaf94645d9fb13b42c318fccfc31615793d59fa14df7d262b0"
 KUMA_TELEPORT_IMAGE = "https://cdn.discordapp.com/attachments/799885743451144205/1509588467112218634/image.png?ex=6a19b951&is=6a1867d1&hm=04ea42751bc55df0e17db48a79735362b8061d3b2661a047db4dd8ef73d7bcda"
+SHIP_BG = "https://cdn.discordapp.com/attachments/799885743451144205/1509738652954005725/image_6.png?ex=6a1a4530&is=6a18f3b0&hm=f9f3d44be18b6dcdc35e09de5b2d0591af8a651b7d80c79f51556f2bace55a20"
