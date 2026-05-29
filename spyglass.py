@@ -57,7 +57,7 @@ GRAIN_STR        = 3
 # Re-tune these against your actual overlay dimensions.
 
 FLAG_SCALE      = 0.17   # flag height as fraction of overlay height
-FLAG_ANCHOR_X   = 486    # lower-left x of flag
+FLAG_ANCHOR_X   = 270    # lower-left x of flag
 FLAG_ANCHOR_Y   = 400    # lower-left y of flag (was 545 in colab — clamped here)
 FLAG_DARKEN     = 0.9
 FLAG_OUTLINE    = 1
