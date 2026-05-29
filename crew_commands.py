@@ -31,6 +31,7 @@
 import discord
 import db
 from config import GUILD_ID
+from spyglass import invalidate_flag_cache
 
 
 # ── Modal ─────────────────────────────────────────────────────────────────────
@@ -88,10 +89,17 @@ class CrewDetailsModal(discord.ui.Modal, title="Crew Details"):
             self.motto.default          = crew_row["motto"]
 
     async def on_submit(self, interaction: discord.Interaction):
+        old_crew = db.get_crew(self.crew_id)
+        new_jr   = str(self.jolly_roger).strip() or None
+
+        # if jolly roger URL changed, drop the cached render
+        if old_crew and old_crew["jolly_roger_url"] != new_jr:
+            invalidate_flag_cache(old_crew["jolly_roger_url"] or "")
+
         db.set_crew_details(
             self.crew_id,
             description     = str(self.description).strip()  or None,
-            jolly_roger_url = str(self.jolly_roger).strip()   or None,
+            jolly_roger_url = new_jr,
             ship_name       = str(self.ship_name).strip()     or None,
             ship_url        = str(self.ship_url).strip()       or None,
             motto           = str(self.motto).strip()          or None,
