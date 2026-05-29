@@ -410,8 +410,8 @@ async def prerender_all_flags():
     crews   = db.get_all_crews()
     pending = [
         c for c in crews
-        if (c.get("jolly_roger_url") or "").strip()
-        and not os.path.exists(_flag_cache_path(c["jolly_roger_url"].strip()))
+        if (c["jolly_roger_url"] or "").strip()
+        and not os.path.exists(_flag_cache_path((c["jolly_roger_url"] or "").strip()))
     ]
     if not pending:
         return
@@ -438,7 +438,7 @@ async def _spyglass_autocomplete(interaction: discord.Interaction, current: str)
             name=f"⚓ {hour} o'clock", value=name
         ))
 
-    crew_id = player.get("crew_id")
+    crew_id = player["crew_id"]
     for crew, hour in _get_ship_sightings(q, r, crew_id):
         choices.append(discord.app_commands.Choice(
             name=f"🏴 {hour} o'clock", value=f"ship:{crew['id']}"
@@ -488,7 +488,7 @@ async def spyglass_cmd(interaction: discord.Interaction, target: str):
         if not crew:
             await interaction.followup.send("Ship not found.", ephemeral=True)
             return
-        url        = (crew.get("jolly_roger_url") or "").strip()
+        url        = (crew["jolly_roger_url"] or "").strip()
         image_data = await render_flag_spyglass(url)
     else:
         image_data = await render_spyglass(target)
