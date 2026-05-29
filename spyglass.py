@@ -99,6 +99,14 @@ from urls import SHIP_BG as _SHIP_BG_URL
 
 _ship_bg_cache = None
 
+
+def _get_overlay():
+    global _overlay_cache
+    if _overlay_cache is None:
+        _overlay_cache = Image.open(SPYGLASS_OVERLAY).convert("RGBA")
+    return _overlay_cache
+
+
 def _get_ship_bg(size):
     """Returns the ship background image resized to the given (w, h)."""
     global _ship_bg_cache
@@ -112,12 +120,7 @@ def _get_ship_bg(size):
                 print(f"[spyglass] failed to load SHIP_BG: {e}")
         if _ship_bg_cache:
             return _ship_bg_cache.resize(size, Image.LANCZOS)
-    # fallback: plain ocean colour
     return Image.new("RGBA", size, (20, 40, 65, 255))
-    global _overlay_cache
-    if _overlay_cache is None:
-        _overlay_cache = Image.open(SPYGLASS_OVERLAY).convert("RGBA")
-    return _overlay_cache
 
 
 # ── Hex helpers ───────────────────────────────────────────────────────────────
