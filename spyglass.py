@@ -95,7 +95,25 @@ def load_islands():
         print("[spyglass] data/islands.csv not found")
 
 
-def _get_overlay():
+from urls import SHIP_BG as _SHIP_BG_URL
+
+_ship_bg_cache = None
+
+def _get_ship_bg(size):
+    """Returns the ship background image resized to the given (w, h)."""
+    global _ship_bg_cache
+    if _SHIP_BG_URL:
+        if _ship_bg_cache is None:
+            try:
+                r = requests.get(_SHIP_BG_URL, timeout=10)
+                r.raise_for_status()
+                _ship_bg_cache = Image.open(BytesIO(r.content)).convert("RGBA")
+            except Exception as e:
+                print(f"[spyglass] failed to load SHIP_BG: {e}")
+        if _ship_bg_cache:
+            return _ship_bg_cache.resize(size, Image.LANCZOS)
+    # fallback: plain ocean colour
+    return Image.new("RGBA", size, (20, 40, 65, 255))
     global _overlay_cache
     if _overlay_cache is None:
         _overlay_cache = Image.open(SPYGLASS_OVERLAY).convert("RGBA")
@@ -308,8 +326,8 @@ def _build_flag_image(jolly_roger_url):
     if FLAG_ROTATION != 0:
         flag = flag.rotate(FLAG_ROTATION, resample=Image.BILINEAR, expand=True)
 
-    # dark ocean background
-    bg = Image.new("RGBA", (ow, oh), (20, 40, 65, 255))
+    # ship background
+    bg = _get_ship_bg((ow, oh))
     ax = min(FLAG_ANCHOR_X, ow - 1)
     ay = min(FLAG_ANCHOR_Y, oh) - flag.height
     bg.paste(flag, (ax, ay), flag)
@@ -371,7 +389,14 @@ def _render_island_sync(island_name):
 
 def _render_flag_sync(jolly_roger_url):
     if not jolly_roger_url:
-        return None
+        overlay = _get_overlay()
+        ow, oh  = overlay.size
+        bg      = _get_ship_bg((ow, oh))
+        result  = _apply_spyglass_pipeline(bg)
+        out = BytesIO()
+        result.convert("RGB").save(out, format="PNG")
+        out.seek(0)
+        return out
 
     cached = _flag_cache_path(jolly_roger_url)
     if os.path.exists(cached):
