@@ -333,6 +333,7 @@ def _build_flag_image(jolly_roger_url):
     bg = _get_ship_bg((ow, oh))
     ax = min(FLAG_ANCHOR_X, ow - 1)
     ay = min(FLAG_ANCHOR_Y, oh) - flag.height
+    print(f"[spyglass flag] canvas={ow}x{oh} flag={flag.size} anchor=({ax},{ay})")
     bg.paste(flag, (ax, ay), flag)
     return bg
 
