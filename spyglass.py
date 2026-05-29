@@ -58,7 +58,7 @@ GRAIN_STR        = 3
 
 FLAG_SCALE      = 0.17   # flag height as fraction of overlay height
 FLAG_ANCHOR_X   = 486
-FLAG_ANCHOR_Y   = 585
+FLAG_ANCHOR_Y   = 570
 FLAG_DARKEN     = 0.9
 FLAG_OUTLINE    = 1
 FLAG_ROTATION   = -5
