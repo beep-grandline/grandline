@@ -570,7 +570,7 @@ async def gm_crew(interaction: discord.Interaction, name: str, captain: discord.
     
     # find an anchor role to position below
     # replace "Civilian" with whatever your lowest non-crew role is
-    anchor = discord.utils.get(interaction.guild.roles, name="crewanchor")
+    anchor = discord.utils.get(interaction.guild.roles, name="crewanchordontdelete")
     if anchor:
         try:
             await role.edit(position=anchor.position - 1)
