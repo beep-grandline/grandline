@@ -248,7 +248,7 @@ async def join_cmd(interaction: discord.Interaction, crew:str):
         await interaction.followup.send(f"You are already in **{name}**. Use `/leave` first.")
         return
 
-    crew_row = db.get_crew_by_name(crew)
+    crew_row = db.get_crew(crew)
     if not crew_row:
         await interaction.followup.send(f"No crew named **{crew}** found.")
         return
