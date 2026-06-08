@@ -9,21 +9,20 @@ import map_render
 import asyncio
 from typing import Literal
 import csv
+
+# Configuration scripts
 from config import MY_GUILD, GUILD_ID, GAME_ADMIN, GAME_MOD
 from fruits import FRUITS, get_fruit_by_id, fruit_autocomplete
 from npcs import load_npcs
 
 load_dotenv()
 
-# Bot params
-# MY_GUILD   = discord.Object(id=1487526877185704107)
-# GAME_ADMIN = "Admin"
-# GAME_MOD   = "Mod"
-
+# Create bot instance
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# Import commands
 from kit_commands import kit_group
 from battle_commands import battle_cmd, forfeit_cmd, cannons_cmd, engage_cmd
 bot.tree.add_command(engage_cmd)
