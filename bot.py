@@ -42,6 +42,13 @@ bot.tree.add_command(travel_group)
 from spyglass import spyglass_cmd, load_islands, prerender_all_flags
 bot.tree.add_command(spyglass_cmd)
 
+# Battles don't survive restarts (embed buttons die with the process),
+# so clear any leftovers once per process start — not in on_ready, which
+# re-fires on gateway reconnects and would wipe live battles.
+_cleared = db.clear_all_battles()
+if _cleared:
+    print(f"[battles] cleared {_cleared} stale battle(s) from previous run")
+
 @bot.event
 async def on_ready():
     setup_travel_task(bot)

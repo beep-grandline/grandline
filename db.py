@@ -361,6 +361,14 @@ def get_battle_state(battle_id):
 def delete_battle(battle_id):
     db.execute("DELETE FROM battles WHERE battle_id=?", (battle_id,))
     db.commit()
+
+
+def clear_all_battles():
+    """Wipe every battle. Called once at bot startup — battle embeds and
+    their buttons don't survive a restart, so the rows are dead weight."""
+    cur = db.execute("DELETE FROM battles")
+    db.commit()
+    return cur.rowcount
  
  
 def get_stale_battles(timeout_seconds=1800):
