@@ -380,6 +380,67 @@ async def travel_walk(interaction: discord.Interaction):
     )
 
 
+async def _eternal_pose_autocomplete(interaction: discord.Interaction, current: str):
+    uid   = str(interaction.user.id)
+    items = db.get_inventory(uid)
+    choices = []
+    for item in items:
+        kws = [k.lower() for k in item.get("keywords", [])]
+        if "eternal" not in kws:
+            continue
+        # destination is the first non-"eternal" keyword, fallback to item name
+        dest = next((k for k in kws if k != "eternal"), item["name"].lower())
+        label = f"{item['name']} → {dest.title()}"
+        if current.lower() in label.lower():
+            choices.append(discord.app_commands.Choice(name=label, value=dest))
+    return choices[:25]
+
+
+@travel_group.command(name="pose", description="Set your log pose destination (captain only)")
+@discord.app_commands.describe(type="Log Pose or Eternal Pose")
+@discord.app_commands.choices(type=[
+    discord.app_commands.Choice(name="Log Pose",     value="log"),
+    discord.app_commands.Choice(name="Eternal Pose", value="eternal"),
+])
+@discord.app_commands.describe(destination="Eternal Pose item from your inventory")
+@discord.app_commands.autocomplete(destination=_eternal_pose_autocomplete)
+async def travel_pose(
+    interaction: discord.Interaction,
+    type: str,
+    destination: str = None,
+):
+    uid    = str(interaction.user.id)
+    player = db.get_player(uid)
+    if not player or not player["crew_id"]:
+        await interaction.response.send_message("You need to be in a crew.", ephemeral=True)
+        return
+
+    crew = db.get_crew(player["crew_id"])
+    if not _is_captain(interaction, crew):
+        await interaction.response.send_message("Only the captain can set the pose.", ephemeral=True)
+        return
+
+    if type == "log":
+        island = (crew["log_pose"] or game.DEFAULT_LOG_POSE).lower()
+        db.set_log_pose(player["crew_id"], island)
+        await interaction.response.send_message(
+            f"🧭 Log Pose set — navigating toward **{island.title()}**.", ephemeral=True
+        )
+
+    elif type == "eternal":
+        if not destination:
+            await interaction.response.send_message(
+                "Select an Eternal Pose from your inventory using the `destination` option.",
+                ephemeral=True,
+            )
+            return
+        db.set_log_pose(player["crew_id"], destination)
+        await interaction.response.send_message(
+            f"🧭 Eternal Pose activated — destination locked to **{destination.title()}**.",
+            ephemeral=True,
+        )
+
+
 @travel_group.command(name="map", description="View your current area")
 @discord.app_commands.describe(view="Map view")
 @discord.app_commands.choices(view=[
