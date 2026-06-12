@@ -55,10 +55,6 @@ def _tile_alert(q: int, r: int, uid: str) -> str:
     return "\n".join(lines)
 
 
-
-    return crew and str(crew["captain_id"]) == str(interaction.user.id)
-
-
 def _roll_bar(current, max_rolls=game.ROLL_MAX, width=12):
     filled = round((current / max_rolls) * width)
     return "█" * filled + "░" * (width - filled)
@@ -435,29 +431,32 @@ async def travel_walk(interaction: discord.Interaction):
 
 
 async def _pose_autocomplete(interaction: discord.Interaction, current: str):
-    choices = []
+    try:
+        choices = []
 
-    # Always offer Log Pose first
-    if "log pose".startswith(current.lower()) or not current:
-        choices.append(discord.app_commands.Choice(name="Log Pose", value="log"))
+        # Always offer Log Pose first
+        if "log pose".startswith(current.lower()) or not current:
+            choices.append(discord.app_commands.Choice(name="Log Pose", value="log"))
 
-    # Eternal Poses from inventory
-    uid   = str(interaction.user.id)
-    items = db.get_inventory(uid)
-    for item in items:
-        kws = item.get("keywords", [])
-        if "Eternal Pose" not in item.get("name", "") and not any(k.lower() == "eternal" for k in kws):
-            continue
-        # destination island: first keyword that isn't "eternal"
-        dest = next((k for k in kws if k.lower() != "eternal"), None)
-        if not dest:
-            continue
-        label = f"Eternal Pose → {dest}"
-        value = f"eternal:{dest}"
-        if current.lower() in label.lower():
-            choices.append(discord.app_commands.Choice(name=label, value=value))
+        # Eternal Poses from inventory
+        uid   = str(interaction.user.id)
+        items = db.get_inventory(uid)
+        for item in items:
+            kws = item.get("keywords", [])
+            if "Eternal Pose" not in item.get("name", "") and not any(k.lower() == "eternal" for k in kws):
+                continue
+            # destination island: first keyword that isn't "eternal"
+            dest = next((k for k in kws if k.lower() != "eternal"), None)
+            if not dest:
+                continue
+            label = f"Eternal Pose → {dest}"
+            value = f"eternal:{dest}"
+            if current.lower() in label.lower():
+                choices.append(discord.app_commands.Choice(name=label, value=value))
 
-    return choices[:25]
+        return choices[:25]
+    except (discord.NotFound, Exception):
+        return []
 
 
 @travel_group.command(name="pose", description="Set your navigation destination (captain only)")

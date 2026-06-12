@@ -200,35 +200,41 @@ def _format_stored(move):
 # ── Autocomplete handlers ─────────────────────────────────────────────────────
 
 async def _kw_autocomplete(interaction: discord.Interaction, current: str):
-    ns = interaction.namespace
-    already = {
-        (getattr(ns, "kw1", "") or "").upper(),
-        (getattr(ns, "kw2", "") or "").upper(),
-        (getattr(ns, "kw3", "") or "").upper(),
-        (getattr(ns, "kw4", "") or "").upper(),
-    } - {""}
+    try:
+        ns = interaction.namespace
+        already = {
+            (getattr(ns, "kw1", "") or "").upper(),
+            (getattr(ns, "kw2", "") or "").upper(),
+            (getattr(ns, "kw3", "") or "").upper(),
+            (getattr(ns, "kw4", "") or "").upper(),
+        } - {""}
 
-    partial = current.upper()
-    choices = []
-    for kw, entry in KEYWORDS.items():
-        if kw in already:
-            continue
-        if partial and not kw.startswith(partial):
-            continue
-        choices.append(discord.app_commands.Choice(
-            name=kw,
-            value=kw,
-        ))
-    return choices[:25]
+        partial = current.upper()
+        choices = []
+        for kw, entry in KEYWORDS.items():
+            if kw in already:
+                continue
+            if partial and not kw.startswith(partial):
+                continue
+            choices.append(discord.app_commands.Choice(
+                name=kw,
+                value=kw,
+            ))
+        return choices[:25]
+    except (discord.NotFound, Exception):
+        return []
 
 
 async def _move_name_autocomplete(interaction: discord.Interaction, current: str):
-    moves = db.get_player_moves(str(interaction.user.id))
-    return [
-        discord.app_commands.Choice(name=m["name"], value=m["name"])
-        for m in moves
-        if current.lower() in m["name"].lower()
-    ][:25]
+    try:
+        moves = db.get_player_moves(str(interaction.user.id))
+        return [
+            discord.app_commands.Choice(name=m["name"], value=m["name"])
+            for m in moves
+            if current.lower() in m["name"].lower()
+        ][:25]
+    except (discord.NotFound, Exception):
+        return []
 
 
 # ── Kit command group ─────────────────────────────────────────────────────────

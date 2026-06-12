@@ -436,26 +436,29 @@ async def prerender_all_flags():
 # ── Autocomplete ──────────────────────────────────────────────────────────────
 
 async def _spyglass_autocomplete(interaction: discord.Interaction, current: str):
-    uid    = str(interaction.user.id)
-    player = db.get_player(uid)
-    if not player:
+    try:
+        uid    = str(interaction.user.id)
+        player = db.get_player(uid)
+        if not player:
+            return []
+
+        q, r    = game.get_position(uid)
+        choices = []
+
+        for name, hour in _get_island_sightings(q, r):
+            choices.append(discord.app_commands.Choice(
+                name=f"⚓ {hour} o'clock", value=name
+            ))
+
+        crew_id = player["crew_id"]
+        for crew, hour in _get_ship_sightings(q, r, crew_id):
+            choices.append(discord.app_commands.Choice(
+                name=f"🏴 {hour} o'clock", value=f"ship:{crew['id']}"
+            ))
+
+        return choices[:25]
+    except (discord.NotFound, Exception):
         return []
-
-    q, r    = game.get_position(uid)
-    choices = []
-
-    for name, hour in _get_island_sightings(q, r):
-        choices.append(discord.app_commands.Choice(
-            name=f"⚓ {hour} o'clock", value=name
-        ))
-
-    crew_id = player["crew_id"]
-    for crew, hour in _get_ship_sightings(q, r, crew_id):
-        choices.append(discord.app_commands.Choice(
-            name=f"🏴 {hour} o'clock", value=f"ship:{crew['id']}"
-        ))
-
-    return choices[:25]
 
 
 # ── /spyglass ─────────────────────────────────────────────────────────────────

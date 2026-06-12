@@ -40,19 +40,22 @@ def get_fighter_types(fruit_id):
 
 
 async def fruit_autocomplete(interaction: discord.Interaction, current: str):
-    current = current.lower().strip()
-    matches = []
-    seen    = set()
-    for f in FRUITS:
-        eng = (f.get("eng") or "").strip()
-        jap = (f.get("jap") or "").strip()
-        fid = f.get("id", "")
-        if fid in seen:
-            continue
-        if current in eng.lower() or current in jap.lower():
-            seen.add(fid)
-            matches.append(discord.app_commands.Choice(name=jap[:100], value=fid))
-    return matches[:25]
+    try:
+        current = current.lower().strip()
+        matches = []
+        seen    = set()
+        for f in FRUITS:
+            eng = (f.get("eng") or "").strip()
+            jap = (f.get("jap") or "").strip()
+            fid = f.get("id", "")
+            if fid in seen:
+                continue
+            if current in eng.lower() or current in jap.lower():
+                seen.add(fid)
+                matches.append(discord.app_commands.Choice(name=jap[:100], value=fid))
+        return matches[:25]
+    except (discord.NotFound, Exception):
+        return []
 
 
 load_fruits()

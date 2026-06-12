@@ -171,12 +171,15 @@ async def info_command(
 # ── Player commands ───────────────────────────────────────────────────────────
 
 async def _crew_name_autocomplete(interaction: discord.Interaction, current: str):
-    crews = db.get_all_crews()
-    return [
-        discord.app_commands.Choice(name=c["name"], value=c["id"])
-        for c in crews
-        if current.lower() in c["name"].lower()
-    ][:25]
+    try:
+        crews = db.get_all_crews()
+        return [
+            discord.app_commands.Choice(name=c["name"], value=c["id"])
+            for c in crews
+            if current.lower() in c["name"].lower()
+        ][:25]
+    except (discord.NotFound, Exception):
+        return []
 
 
 @bot.tree.command(name="register", description="Register your character", guild=MY_GUILD)
@@ -309,15 +312,18 @@ async def join_cmd(interaction: discord.Interaction, crew:str):
 
 
 async def leave_confirm_autocomplete(interaction: discord.Interaction, current: str):
-    player = db.get_player(str(interaction.user.id))
-    if not player or not player["crew_id"]:
-        return [discord.app_commands.Choice(name="You are not in a crew.", value="no")]
-    crew = db.get_crew(player["crew_id"])
-    name = crew["name"] if crew else "your crew"
-    return [discord.app_commands.Choice(
-        name=f"⚠ This will remove you from {name} — select to confirm",
-        value="yes",
-    )]
+    try:
+        player = db.get_player(str(interaction.user.id))
+        if not player or not player["crew_id"]:
+            return [discord.app_commands.Choice(name="You are not in a crew.", value="no")]
+        crew = db.get_crew(player["crew_id"])
+        name = crew["name"] if crew else "your crew"
+        return [discord.app_commands.Choice(
+            name=f"⚠ This will remove you from {name} — select to confirm",
+            value="yes",
+        )]
+    except (discord.NotFound, Exception):
+        return []
 
 
 @bot.tree.command(name="leave", description="Leave your current crew", guild=MY_GUILD)
@@ -794,24 +800,27 @@ async def gm_giveitem(
 # ── /gm take ─────────────────────────────────────────────────────────────────
  
 async def _take_autocomplete(interaction: discord.Interaction, current: str):
-    target = interaction.namespace.target
-    if not target:
-        return []
-    uid     = str(target.id)
-    choices = []
-    held    = db.get_held_fruit(uid)
-    if held:
-        row  = get_fruit_by_id(held)
-        name = (row.get("jap") or held) if row else held
-        choices.append(discord.app_commands.Choice(
-            name=f"[Fruit] {name}", value="__held_fruit__"
-        ))
-    for item in db.get_inventory(uid):
-        if current.lower() in item["name"].lower():
+    try:
+        target = interaction.namespace.target
+        if not target:
+            return []
+        uid     = str(target.id)
+        choices = []
+        held    = db.get_held_fruit(uid)
+        if held:
+            row  = get_fruit_by_id(held)
+            name = (row.get("jap") or held) if row else held
             choices.append(discord.app_commands.Choice(
-                name=f"{item['name']} ×{item['qty']}", value=item["name"]
+                name=f"[Fruit] {name}", value="__held_fruit__"
             ))
-    return choices[:25]
+        for item in db.get_inventory(uid):
+            if current.lower() in item["name"].lower():
+                choices.append(discord.app_commands.Choice(
+                    name=f"{item['name']} ×{item['qty']}", value=item["name"]
+                ))
+        return choices[:25]
+    except (discord.NotFound, Exception):
+        return []
  
  
 @gm_group.command(name="take", description="Remove an item or fruit from a player")

@@ -568,23 +568,28 @@ async def battle_cmd(interaction: discord.Interaction, target: discord.Member):
 # ── /engage ───────────────────────────────────────────────────────────────────
 
 async def _engage_autocomplete(interaction: discord.Interaction, current: str):
-    uid    = str(interaction.user.id)
-    player = db.get_player(uid)
-    if not player:
+    try:
+        uid    = str(interaction.user.id)
+        player = db.get_player(uid)
+        if not player:
+            return []
+        q, r = game.get_position(uid)
+        choices = []
+        for npc in get_npcs_at(q, r):
+            name = (npc.get("name") or "").strip()
+            if not name:
+                continue
+            if current.lower() not in name.lower():
+                continue
+            choices.append(discord.app_commands.Choice(
+                name=name[:100],
+                value=f"npc:{npc['id']}"[:100],
+            ))
+        return choices[:25]
+    except discord.NotFound:
         return []
-    q, r = game.get_position(uid)
-    choices = []
-    for npc in get_npcs_at(q, r):
-        name = (npc.get("name") or "").strip()
-        if not name:
-            continue
-        if current.lower() not in name.lower():
-            continue
-        choices.append(discord.app_commands.Choice(
-            name=name[:100],
-            value=f"npc:{npc['id']}"[:100],
-        ))
-    return choices[:25]
+    except Exception:
+        return []
 
 
 @discord.app_commands.command(
@@ -722,26 +727,29 @@ async def forfeit_cmd(interaction: discord.Interaction):
 # ── /cannons ──────────────────────────────────────────────────────────────────
 
 async def _cannon_autocomplete(interaction: discord.Interaction, current: str):
-    uid    = str(interaction.user.id)
-    player = db.get_player(uid)
-    if not player or not player["crew_id"]:
-        return []
+    try:
+        uid    = str(interaction.user.id)
+        player = db.get_player(uid)
+        if not player or not player["crew_id"]:
+            return []
 
-    my_crew  = db.get_crew(player["crew_id"])
-    if not my_crew:
+        my_crew  = db.get_crew(player["crew_id"])
+        if not my_crew:
+            return []
+        mq, mr   = my_crew["q"] or 0, my_crew["r"] or 0
+        in_range = game.crews_in_cannon_range(player["crew_id"])
+        choices  = []
+        for c in in_range:
+            if current.lower() not in c["name"].lower():
+                continue
+            dist = game._hex_dist(mq, mr, c["q"] or 0, c["r"] or 0)
+            choices.append(discord.app_commands.Choice(
+                name=f"{c['name']}  ({dist} tile{'s' if dist != 1 else ''})",
+                value=c["id"],
+            ))
+        return choices[:25]
+    except (discord.NotFound, Exception):
         return []
-    mq, mr   = my_crew["q"] or 0, my_crew["r"] or 0
-    in_range = game.crews_in_cannon_range(player["crew_id"])
-    choices  = []
-    for c in in_range:
-        if current.lower() not in c["name"].lower():
-            continue
-        dist = game._hex_dist(mq, mr, c["q"] or 0, c["r"] or 0)
-        choices.append(discord.app_commands.Choice(
-            name=f"{c['name']}  ({dist} tile{'s' if dist != 1 else ''})",
-            value=c["id"],
-        ))
-    return choices[:25]
 
 
 @discord.app_commands.command(
