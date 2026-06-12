@@ -540,10 +540,10 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     log_pose_targets = []
     crew = db.get_crew(player["crew_id"]) if player["crew_id"] else None
     if crew:
-        target_name = crew.get("log_pose") or game.DEFAULT_LOG_POSE
+        target_name = crew["log_pose"] or game.DEFAULT_LOG_POSE
         island_data = islands_mod.get_island(target_name)
-        tq = (island_data or {}).get("q")
-        tr = (island_data or {}).get("r")
+        tq = island_data["q"] if island_data else None
+        tr = island_data["r"] if island_data else None
         if tq is not None and tr is not None:
             # Only draw arrow if no tiles of the target island are in the viewport
             target_visible = any(
