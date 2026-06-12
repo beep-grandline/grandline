@@ -538,7 +538,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
 
     # Determine log pose arrow target from crew db
     log_pose_targets = []
-    crew = db.get_crew(player["crew_id"]) if player.get("crew_id") else None
+    crew = db.get_crew(player["crew_id"]) if player["crew_id"] else None
     if crew:
         target_name = crew.get("log_pose") or game.DEFAULT_LOG_POSE
         island_data = islands_mod.get_island(target_name)
