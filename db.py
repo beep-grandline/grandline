@@ -382,12 +382,13 @@ def remove_player_move(player_id, move_name):
 # ── Fighter stat management (called by /gm setstats) ─────────────────────────
  
 def set_fighter_stats(player_id, atk=None, defense=None, spd=None,
-                      block_name=None, dodge_name=None):
+                      block_name=None, dodge_name=None, hp=None):
     """Update any combination of fighter stats. None values are skipped."""
     fields = []
     values = []
     for col, val in [("atk", atk), ("defense", defense), ("spd", spd),
-                     ("block_name", block_name), ("dodge_name", dodge_name)]:
+                     ("block_name", block_name), ("dodge_name", dodge_name),
+                     ("hp", hp)]:
         if val is not None:
             fields.append(f"{col}=?")
             values.append(val)

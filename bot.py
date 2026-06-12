@@ -873,7 +873,7 @@ async def gm_help(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 class SetStatsModal(discord.ui.Modal, title="Set Fighter Stats"):
- 
+
     atk = discord.ui.TextInput(
         label="ATK",
         placeholder="Attack power (integer)",
@@ -892,19 +892,19 @@ class SetStatsModal(discord.ui.Modal, title="Set Fighter Stats"):
         max_length=4,
         required=False,
     )
+    hp = discord.ui.TextInput(
+        label="HP",
+        placeholder="Hit points (integer)",
+        max_length=6,
+        required=False,
+    )
     block_name = discord.ui.TextInput(
         label="Block technique name",
         placeholder="e.g. Iron Body  (leave blank to clear)",
         max_length=64,
         required=False,
     )
-    dodge_name = discord.ui.TextInput(
-        label="Dodge technique name",
-        placeholder="e.g. Shave  (leave blank to clear)",
-        max_length=64,
-        required=False,
-    )
- 
+
     def __init__(self, player_row, target: discord.Member):
         super().__init__()
         self.target = target
@@ -914,50 +914,49 @@ class SetStatsModal(discord.ui.Modal, title="Set Fighter Stats"):
             self.defense.default  = str(player_row["defense"])
         if player_row["spd"]:
             self.spd.default      = str(player_row["spd"])
+        if player_row["hp"]:
+            self.hp.default       = str(player_row["hp"])
         if player_row["block_name"]:
             self.block_name.default = player_row["block_name"]
-        if player_row["dodge_name"]:
-            self.dodge_name.default = player_row["dodge_name"]
- 
+
     async def on_submit(self, interaction: discord.Interaction):
         uid    = str(self.target.id)
         errors = []
         kwargs = {}
- 
-        for field, key in [(self.atk, "atk"), (self.defense, "defense"), (self.spd, "spd")]:
+
+        for field, key in [(self.atk, "atk"), (self.defense, "defense"), (self.spd, "spd"), (self.hp, "hp")]:
             val = str(field).strip()
             if val:
                 try:
                     kwargs[key] = int(val)
                 except ValueError:
                     errors.append(f"{field.label} must be a whole number")
- 
+
         if errors:
             await interaction.response.send_message(
                 "Fix these errors:\n" + "\n".join(f"· {e}" for e in errors),
                 ephemeral=True,
             )
             return
- 
+
         block = str(self.block_name).strip() or None
-        dodge = str(self.dodge_name).strip() or None
- 
+
         db.set_fighter_stats(
             uid,
             atk        = kwargs.get("atk"),
             defense    = kwargs.get("defense"),
             spd        = kwargs.get("spd"),
+            hp         = kwargs.get("hp"),
             block_name = block,
-            dodge_name = dodge,
         )
- 
+
         lines = []
         if "atk"     in kwargs: lines.append(f"ATK → **{kwargs['atk']}**")
         if "defense" in kwargs: lines.append(f"DEF → **{kwargs['defense']}**")
         if "spd"     in kwargs: lines.append(f"SPD → **{kwargs['spd']}**")
+        if "hp"      in kwargs: lines.append(f"HP → **{kwargs['hp']}**")
         if block is not None: lines.append(f"Block → **{block or 'cleared'}**")
-        if dodge is not None: lines.append(f"Dodge → **{dodge or 'cleared'}**")
- 
+
         await interaction.response.send_message(
             f"Updated **{self.target.display_name}**:\n" + "\n".join(lines),
             ephemeral=False,
