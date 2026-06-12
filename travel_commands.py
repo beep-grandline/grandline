@@ -21,9 +21,9 @@ from npcs import get_npcs_at
 
 @tasks.loop(minutes=game.ROLL_REGEN_MINUTES)
 async def _roll_regen():
-    updated = game.replenish_rolls()
+    updated = game.hourly_regen()
     if updated:
-        print(f"[rolls] +{game.ROLL_REGEN_AMOUNT} roll to {updated} crew(s)")
+        print(f"[rolls] +{game.ROLL_REGEN_AMOUNT} roll to {updated} crew(s); walk rolls and HP regenerated")
 
 
 def setup_travel_task(bot):
@@ -94,6 +94,7 @@ MOVE_FAILURE = {
     "no_path":           "No navigable path toward the log pose from here.",
     "not_found":         "Player not found.",
     "no_walking_on_sea": "You can't walk on open sea. Stay on land.",
+    "no_walk_rolls":     "You're out of stamina. Rest a while — or get the cook to make a stamina meal.",
 }
 
 
@@ -376,8 +377,10 @@ class WalkView(discord.ui.View):
                 content=MOVE_FAILURE.get(reason, reason)
             )
             return
-        alert = _tile_alert(new_q, new_r, self.uid)
-        msg   = f"🚶 `q={new_q}, r={new_r}`"
+        alert  = _tile_alert(new_q, new_r, self.uid)
+        p      = db.get_player(self.uid)
+        rolls  = p["walk_roll"] if p and p["walk_roll"] is not None else 0
+        msg    = f"🚶 `q={new_q}, r={new_r}` — {rolls} stamina left"
         if alert:
             msg += f"\n{alert}"
         await interaction.response.edit_message(content=msg)
@@ -422,9 +425,10 @@ async def travel_walk(interaction: discord.Interaction):
         return
 
     q, r  = game.get_position(uid)
+    rolls = player["walk_roll"] if player["walk_roll"] is not None else game.WALK_ROLL_MAX
     view  = WalkView(uid=uid)
     await interaction.response.send_message(
-        f"🚶 `q={q}, r={r}`",
+        f"🚶 `q={q}, r={r}` — {rolls} stamina left",
         view=view,
         ephemeral=True,
     )

@@ -29,6 +29,17 @@ ROLL_MAX           = 12
 ROLL_REGEN_MINUTES = 60   # one roll added per interval
 ROLL_REGEN_AMOUNT  = 1
 
+# Walk rolls — on-foot stamina, regenerates like ship rolls
+WALK_ROLL_MAX      = 4    # natural regen cap
+WALK_ROLL_OVERFILL = 8    # hard cap with stamina meals
+STAMINA_MEAL_ROLLS = 4    # walk rolls granted by a stamina meal
+
+# Meal effects
+HEARTY_BUFF_MULT     = 1.10   # +10% atk/def/spd for the next battle
+HP_REGEN_PER_HOUR    = 5      # natural recovery
+HP_REGEN_BOOSTED     = 15     # with an active recovery meal
+RECOVERY_MEAL_HOURS  = 4      # how long a recovery meal lasts
+
 CALM_BELT_R = 36          # abs(r) > this is impassable calm belt
 
 # Hard-blocked tiles — never passable regardless of terrain
@@ -199,6 +210,10 @@ def move_player(player_id, direction):
     if direction not in HEX_DIRECTIONS:
         return player["q"] or 0, player["r"] or 0, False, "invalid_direction"
 
+    walk_rolls = player["walk_roll"] if player["walk_roll"] is not None else WALK_ROLL_MAX
+    if walk_rolls <= 0:
+        return player["q"] or 0, player["r"] or 0, False, "no_walk_rolls"
+
     dq, dr  = HEX_DIRECTIONS[direction]
     new_q   = (player["q"] or 0) + dq
     new_r   = (player["r"] or 0) + dr
@@ -218,6 +233,7 @@ def move_player(player_id, direction):
         pass
 
     db.update_player_position(str(player_id), new_q, new_r)
+    db.spend_walk_roll(str(player_id))
     return new_q, new_r, True, "ok"
 
 
@@ -348,6 +364,14 @@ def replenish_rolls():
         if current < ROLL_MAX:
             db.set_crew_roll(crew["id"], min(ROLL_MAX, current + ROLL_REGEN_AMOUNT))
             updated += 1
+    return updated
+
+
+def hourly_regen():
+    """One tick of all hourly regeneration: ship rolls, walk rolls, HP."""
+    updated = replenish_rolls()
+    db.regen_walk_rolls(WALK_ROLL_MAX, 1)
+    db.regen_hp(HP_REGEN_PER_HOUR, HP_REGEN_BOOSTED)
     return updated
 
 

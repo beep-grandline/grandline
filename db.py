@@ -73,6 +73,10 @@ def init_db():
         "ALTER TABLE crews   ADD COLUMN log_pose     TEXT    DEFAULT 'alabasta'",
         "ALTER TABLE crews   ADD COLUMN pose_type    TEXT    DEFAULT 'log'",
         "ALTER TABLE players ADD COLUMN max_hp       INTEGER DEFAULT 100",
+        "ALTER TABLE players ADD COLUMN walk_roll    INTEGER DEFAULT 4",
+        "ALTER TABLE players ADD COLUMN hearty_buff  INTEGER DEFAULT 0",
+        "ALTER TABLE players ADD COLUMN recovery_until REAL  DEFAULT 0",
+        "ALTER TABLE players ADD COLUMN recipes_json TEXT",
     ]:
         try:
             db.execute(sql)
@@ -172,6 +176,84 @@ def get_player_hp(player_id: str) -> tuple:
     if not row:
         return 100, 100
     return row["hp"] or 100, row["max_hp"] or 100
+
+
+# ── Walk rolls / meal effects ─────────────────────────────────────────────────
+
+def spend_walk_roll(player_id: str, amount: int = 1):
+    db.execute(
+        "UPDATE players SET walk_roll = MAX(0, COALESCE(walk_roll, 4) - ?) WHERE id=?",
+        (amount, str(player_id))
+    )
+    db.commit()
+
+
+def add_walk_rolls(player_id: str, amount: int, cap: int):
+    """Add walk rolls up to cap (stamina meals may overfill past the natural cap)."""
+    db.execute(
+        "UPDATE players SET walk_roll = MIN(?, COALESCE(walk_roll, 4) + ?) WHERE id=?",
+        (cap, amount, str(player_id))
+    )
+    db.commit()
+
+
+def regen_walk_rolls(natural_cap: int = 4, amount: int = 1):
+    """Hourly: +1 walk roll for everyone under the natural cap.
+    Overfilled players (above cap, from stamina meals) are left alone."""
+    db.execute(
+        "UPDATE players SET walk_roll = COALESCE(walk_roll, 4) + ? "
+        "WHERE COALESCE(walk_roll, 4) < ?",
+        (amount, natural_cap)
+    )
+    db.commit()
+
+
+def set_hearty_buff(player_id: str, value: int):
+    db.execute("UPDATE players SET hearty_buff=? WHERE id=?", (value, str(player_id)))
+    db.commit()
+
+
+def set_recovery_until(player_id: str, ts: float):
+    db.execute("UPDATE players SET recovery_until=? WHERE id=?", (ts, str(player_id)))
+    db.commit()
+
+
+def regen_hp(base_amount: int, boosted_amount: int):
+    """Hourly natural HP regen for everyone below max_hp.
+    Players with an active recovery meal regen at the boosted rate."""
+    now = time.time()
+    db.execute(
+        "UPDATE players SET hp = MIN(COALESCE(max_hp, 100), COALESCE(hp, 100) + ?) "
+        "WHERE COALESCE(hp, 100) < COALESCE(max_hp, 100) AND COALESCE(recovery_until, 0) >= ?",
+        (boosted_amount, now)
+    )
+    db.execute(
+        "UPDATE players SET hp = MIN(COALESCE(max_hp, 100), COALESCE(hp, 100) + ?) "
+        "WHERE COALESCE(hp, 100) < COALESCE(max_hp, 100) AND COALESCE(recovery_until, 0) < ?",
+        (base_amount, now)
+    )
+    db.commit()
+
+
+# ── Cook recipes ──────────────────────────────────────────────────────────────
+
+def get_recipes(player_id: str) -> list:
+    row = db.execute(
+        "SELECT recipes_json FROM players WHERE id=?", (str(player_id),)
+    ).fetchone()
+    if not row or not row["recipes_json"]:
+        return []
+    return json.loads(row["recipes_json"])
+
+
+def add_recipe(player_id: str, recipe: dict):
+    recipes = get_recipes(player_id)
+    recipes.append(recipe)
+    db.execute(
+        "UPDATE players SET recipes_json=? WHERE id=?",
+        (json.dumps(recipes), str(player_id))
+    )
+    db.commit()
 
 
 # ── Island queries ────────────────────────────────────────────────────────────

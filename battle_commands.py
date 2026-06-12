@@ -108,14 +108,26 @@ def _build_fighter_data(player_row, member: discord.Member):
 
     current_hp = player_row["hp"]  or 100
     max_hp     = player_row["max_hp"] or current_hp
+
+    atk = player_row["atk"]     or 10
+    dfn = player_row["defense"] or 10
+    spd = player_row["spd"]     or 10
+
+    # hearty meal — +10% stats for one battle, consumed on use
+    if player_row["hearty_buff"]:
+        atk = round(atk * game.HEARTY_BUFF_MULT)
+        dfn = round(dfn * game.HEARTY_BUFF_MULT)
+        spd = round(spd * game.HEARTY_BUFF_MULT)
+        db.set_hearty_buff(str(member.id), 0)
+
     return {
         "id":      str(member.id),
         "name":    member.display_name,
         "hp":      current_hp,
         "max_hp":  max_hp,
-        "atk":     player_row["atk"]     or 10,
-        "defense": player_row["defense"] or 10,
-        "spd":     player_row["spd"]     or 10,
+        "atk":     atk,
+        "defense": dfn,
+        "spd":     spd,
         "type1":   type1,
         "type2":   type2,
         "block":   player_row["block_name"],
