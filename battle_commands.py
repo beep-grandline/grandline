@@ -642,6 +642,17 @@ async def engage_cmd(interaction: discord.Interaction, target: str):
         )
         msg = await interaction.original_response()
         db.set_battle_message(battle_id, str(msg.id))
+    except discord.NotFound:
+        # interaction token expired (bot lagged past the 3s window) —
+        # post the battle straight to the channel instead
+        try:
+            msg = await interaction.channel.send(
+                content=f"<@{uid}>", embed=embed, view=view
+            )
+            db.set_battle_message(battle_id, str(msg.id))
+        except Exception:
+            db.delete_battle(battle_id)
+            raise
     except Exception:
         # message never reached the channel — don't leave an orphaned battle
         db.delete_battle(battle_id)
@@ -698,9 +709,14 @@ async def forfeit_cmd(interaction: discord.Interaction):
             db.update_player_hp(fid, max(0, f["hp"]))
 
     db.delete_battle(row["battle_id"])
-    await interaction.response.send_message(
-        f"**{forfeiter['name']}** forfeited. 🏆 **{winner['name']}** wins!"
-    )
+    result_msg = f"**{forfeiter['name']}** forfeited. 🏆 **{winner['name']}** wins!"
+    try:
+        await interaction.response.send_message(result_msg)
+    except discord.NotFound:
+        try:
+            await interaction.channel.send(result_msg)
+        except Exception:
+            pass
 
 
 # ── /cannons ──────────────────────────────────────────────────────────────────
