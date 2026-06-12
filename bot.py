@@ -764,7 +764,7 @@ async def gm_giveitem(
         await interaction.response.send_message("Quantity must be at least 1.", ephemeral=True)
         return
  
-    kw_list = [k.lower() for k in keywords.split() if k] if keywords else []
+    kw_list = [k for k in keywords.split() if k] if keywords else []
     db.add_inventory_item(uid, name, qty=qty, keywords=kw_list)
  
     kw_str = ", ".join(kw_list) if kw_list else "no tags"
