@@ -258,12 +258,29 @@ def get_battle(battle_id):
     return row_to_dict(row)
  
  
+BATTLE_TIMEOUT_SECONDS = 1800  # battles inactive this long are considered dead
+
+
 def get_battle_by_player(player_id):
-    """Returns any active battle involving this player, or None."""
+    """
+    Returns any active battle involving this player, or None.
+    Battles inactive for over BATTLE_TIMEOUT_SECONDS are deleted on sight
+    so an orphaned row can't block /engage or /battle forever.
+    """
     row = db.execute(
         "SELECT * FROM battles WHERE fighter_a_id=? OR fighter_b_id=?",
         (player_id, player_id)
     ).fetchone()
+    if row is None:
+        return None
+    if (time.time() - (row["last_updated"] or 0)) > BATTLE_TIMEOUT_SECONDS:
+        if row["battle_id"]:
+            delete_battle(row["battle_id"])
+        else:
+            # legacy row without a battle_id — delete by channel (primary key)
+            db.execute("DELETE FROM battles WHERE channel_id=?", (row["channel_id"],))
+            db.commit()
+        return None
     return row_to_dict(row)
  
  

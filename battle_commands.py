@@ -184,28 +184,25 @@ async def _resolve_and_update(interaction: discord.Interaction, battle_id: str):
             if not fid.startswith("npc:"):
                 db.update_player_hp(fid, max(0, f["hp"]))
 
-        # kuma-specific teleport flavor
-        if (state.get("end_reason") == "teleport"
-                and state.get("teleport_by", "").lower() == "npc:kuma"):
-            from urls import KUMA_TELEPORT_IMAGE
-            victim_id = str(state.get("teleport_target_id", ""))
-            mention   = f"<@{victim_id}>" if victim_id and not victim_id.startswith("npc:") else state.get("teleport_target", "Someone")
-        # kuma special final
-        if (state.get("end_reason") == "teleport"
-                and state.get("teleport_by", "").lower() == "npc:kuma"):
-            from urls import KUMA_TELEPORT_IMAGE
-            victim_id = str(state.get("teleport_target_id", ""))
-            mention   = f"<@{victim_id}>" if victim_id and not victim_id.startswith("npc:") else state.get("teleport_target", "Someone")
-            embed = discord.Embed(
-                description=f"{mention} was sent flying far away...",
-                color=0x1a2744,
-            )
-            embed.set_image(url=KUMA_TELEPORT_IMAGE)
-            await channel.send(embed=embed)
-        else:
-            embed = _finished_embed(state)
-            await channel.send(content=pings or None, embed=embed)
-        db.delete_battle(battle_id)
+        # send the result message, but never let a send failure (e.g. channel
+        # not in cache) keep the finished battle row alive in the DB
+        try:
+            if (state.get("end_reason") == "teleport"
+                    and state.get("teleport_by", "").lower() == "npc:kuma"):
+                from urls import KUMA_TELEPORT_IMAGE
+                victim_id = str(state.get("teleport_target_id", ""))
+                mention   = f"<@{victim_id}>" if victim_id and not victim_id.startswith("npc:") else state.get("teleport_target", "Someone")
+                embed = discord.Embed(
+                    description=f"{mention} was sent flying far away...",
+                    color=0x1a2744,
+                )
+                embed.set_image(url=KUMA_TELEPORT_IMAGE)
+                await channel.send(embed=embed)
+            else:
+                embed = _finished_embed(state)
+                await channel.send(content=pings or None, embed=embed)
+        finally:
+            db.delete_battle(battle_id)
     else:
         db.update_battle_state(battle_id, state)
 
@@ -469,13 +466,17 @@ class ChallengeView(discord.ui.View):
         view  = BattleView(fighter_a_id=cid, fighter_b_id=tid,
                            battle_id=battle_id, channel_id=channel_id)
 
-        await interaction.response.edit_message(
-            content=f"{self.challenger.mention}  {self.target.mention}",
-            embed=embed,
-            view=view,
-        )
-        msg = await interaction.original_response()
-        db.set_battle_message(battle_id, str(msg.id))
+        try:
+            await interaction.response.edit_message(
+                content=f"{self.challenger.mention}  {self.target.mention}",
+                embed=embed,
+                view=view,
+            )
+            msg = await interaction.original_response()
+            db.set_battle_message(battle_id, str(msg.id))
+        except Exception:
+            db.delete_battle(battle_id)
+            raise
 
     @discord.ui.button(label="Accept ⚔", style=discord.ButtonStyle.success)
     async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -633,13 +634,18 @@ async def engage_cmd(interaction: discord.Interaction, target: str):
     embed   = _battle_embed(state)
     view    = BattleView(fighter_a_id=uid, fighter_b_id=f"npc:{npc_id}",
                          battle_id=battle_id, channel_id=channel_id)
-    await interaction.response.send_message(
-        content=f"<@{uid}>",
-        embed=embed,
-        view=view,
-    )
-    msg = await interaction.original_response()
-    db.set_battle_message(battle_id, str(msg.id))
+    try:
+        await interaction.response.send_message(
+            content=f"<@{uid}>",
+            embed=embed,
+            view=view,
+        )
+        msg = await interaction.original_response()
+        db.set_battle_message(battle_id, str(msg.id))
+    except Exception:
+        # message never reached the channel — don't leave an orphaned battle
+        db.delete_battle(battle_id)
+        raise
 
 
 # ── /forfeit ──────────────────────────────────────────────────────────────────
@@ -657,7 +663,19 @@ async def forfeit_cmd(interaction: discord.Interaction):
         await interaction.response.send_message("You're not in a battle.", ephemeral=True)
         return
 
-    state     = db.get_battle_state(row["battle_id"])
+    state = db.get_battle_state(row["battle_id"]) if row.get("battle_id") else None
+    if not state:
+        # corrupt or legacy row — just clear it so the player is unblocked
+        if row.get("battle_id"):
+            db.delete_battle(row["battle_id"])
+        else:
+            db.db.execute("DELETE FROM battles WHERE channel_id=?", (row["channel_id"],))
+            db.db.commit()
+        await interaction.response.send_message(
+            "Cleared a stuck battle — you're free to fight again.", ephemeral=True
+        )
+        return
+
     fa        = state["fighters"]["a"]
     fb        = state["fighters"]["b"]
     forfeiter = fa if fa["id"] == uid else fb
@@ -673,6 +691,11 @@ async def forfeit_cmd(interaction: discord.Interaction):
         await channel.send(embed=embed)
     except Exception:
         pass
+
+    for f in (fa, fb):
+        fid = str(f["id"])
+        if not fid.startswith("npc:"):
+            db.update_player_hp(fid, max(0, f["hp"]))
 
     db.delete_battle(row["battle_id"])
     await interaction.response.send_message(
