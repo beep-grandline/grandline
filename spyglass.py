@@ -37,6 +37,7 @@ from scipy.ndimage import map_coordinates, binary_dilation
 
 import db
 import game
+import islands as islands_mod
 from config import GUILD_ID
 
 # ── Spyglass constants ────────────────────────────────────────────────────────
@@ -75,24 +76,13 @@ POLE_FALLOFF    = 2.0
 _SIZE   = 30
 _SQRT3  = math.sqrt(3)
 
-_island_urls: dict = {}
-_overlay_cache     = None
+_overlay_cache = None
 
 
 # ── CSV / overlay loaders ─────────────────────────────────────────────────────
 
 def load_islands():
-    global _island_urls
-    try:
-        with open(ISLANDS_CSV, newline="", encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                name = (row.get("island") or "").strip()
-                url  = (row.get("url")    or "").strip()
-                if name:
-                    _island_urls[name] = url
-        print(f"[spyglass] loaded {len(_island_urls)} island entries")
-    except FileNotFoundError:
-        print("[spyglass] data/islands.csv not found")
+    islands_mod.load_islands()
 
 
 
@@ -356,7 +346,8 @@ def invalidate_flag_cache(old_url):
 # ── Sync render functions ─────────────────────────────────────────────────────
 
 def _render_island_sync(island_name):
-    url = _island_urls.get(island_name, "")
+    island = islands_mod.get_island(island_name)
+    url = island["url"] if island else ""
     if not url:
         return None
 

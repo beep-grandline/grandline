@@ -15,6 +15,7 @@ import gc
 
 
 import game
+import islands as islands_mod
 
 matplotlib.use("Agg")  
 
@@ -47,10 +48,6 @@ CALM_BELT_R = 36
 
 # Calm belt overlay — translucent white drawn above the sea texture
 CALM_BELT_COLOR = (1.0, 1.0, 1.0, 0.38)
-
-# Log pose targets — (q, r) tuples the arrow points toward.
-# Replace with dynamic data later (e.g. from db or game state).
-LOG_POSE_TARGETS = [(32, 10)]
 
 # Whirlpool tiles — list of (q, r) that get the concentric-ring effect
 WHIRLPOOL_TILES = [(-3, 5)]
@@ -536,17 +533,26 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                     seen.add((wq, wr))
                     wind_centers.append(_hex_to_pixel(wq, wr))
 
-    # ── Resolve island name label positions ──────────────────────────────────
-    # Use the stored origin if set, otherwise use centroid of visible hexes
+    # Island names are intentionally not shown — players discover islands via /spyglass
     island_label_data = []
-    for name, pts in island_accum.items():
-        origin = origins.get(name)
-        if origin:
-            lx, ly = _hex_to_pixel(origin[0], origin[1])
-        else:
-            lx = sum(p[0] for p in pts) / len(pts)
-            ly = sum(p[1] for p in pts) / len(pts)
-        island_label_data.append((lx, ly, name))
+
+    # Determine log pose arrow target from crew db
+    log_pose_targets = []
+    crew = db.get_crew(player["crew_id"]) if player.get("crew_id") else None
+    if crew:
+        target_name = crew.get("log_pose") or game.DEFAULT_LOG_POSE
+        island_data = islands_mod.get_island(target_name)
+        tq = (island_data or {}).get("q")
+        tr = (island_data or {}).get("r")
+        if tq is not None and tr is not None:
+            # Only draw arrow if no tiles of the target island are in the viewport
+            target_visible = any(
+                n == target_name
+                for (q2, r2), n in island_names.items()
+                if _hex_distance(q2, r2, pq, pr) <= radius
+            )
+            if not target_visible:
+                log_pose_targets = [(tq, tr)]
 
     # ── Build figure ──────────────────────────────────────────────────────────
     px, py  = _hex_to_pixel(pq, pr)
@@ -619,13 +625,6 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     # Whirlpool effects — drawn above sea, below labels and player
     # _draw_whirlpools(ax, WHIRLPOOL_TILES, pq, pr, radius)
 
-    # Island name labels — one per island, at origin or centroid
-    for (lx, ly, text) in island_label_data:
-        ax.text(lx, ly, text,
-                ha="center", va="center",
-                fontsize=8, color="#1a2a3a",
-                fontweight="bold", clip_on=True, zorder=7)
-
     # Per-hex labels (hex_label field — e.g. "Royal Palace")
     for (lx, ly, text) in hex_label_data:
         ax.text(lx, ly, text,
@@ -652,7 +651,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     ax.set_xlim(px - margin, px + margin)
     ax.set_ylim(py - margin, py + margin)
 
-    _draw_log_pose_arrows(ax, px, py, margin, LOG_POSE_TARGETS)
+    _draw_log_pose_arrows(ax, px, py, margin, log_pose_targets)
 
     # ── Render to buffer and clean up ─────────────────────────────────────────
     buf = io.BytesIO()

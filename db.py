@@ -70,7 +70,8 @@ def init_db():
         "ALTER TABLE crews   ADD COLUMN q            INTEGER DEFAULT 0",
         "ALTER TABLE crews   ADD COLUMN r            INTEGER DEFAULT 0",
         "ALTER TABLE crews   ADD COLUMN roll         INTEGER DEFAULT 12",
-        "ALTER TABLE crews   ADD COLUMN log_pose     TEXT    DEFAULT 'alabasta'",]:
+        "ALTER TABLE crews   ADD COLUMN log_pose     TEXT    DEFAULT 'alabasta'",
+        "ALTER TABLE crews   ADD COLUMN pose_type    TEXT    DEFAULT 'log'",]:
         try:
             db.execute(sql)
             db.commit()
@@ -626,9 +627,10 @@ def repair_ship(crew_id, amount=None):
 
 # ── Log pose ──────────────────────────────────────────────────────────────────
 
-def set_log_pose(crew_id, island_name):
+def set_log_pose(crew_id, island_name, pose_type="log"):
     db.execute(
-        "UPDATE crews SET log_pose=? WHERE id=?", (island_name.lower(), crew_id)
+        "UPDATE crews SET log_pose=?, pose_type=? WHERE id=?",
+        (island_name, pose_type, crew_id)
     )
     db.commit()
 
