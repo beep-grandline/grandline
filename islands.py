@@ -1,5 +1,7 @@
 import csv
 
+from typing import Optional
+
 ISLANDS_CSV = "data/islands.csv"
 
 # name -> {url, next, logduration, q, r}
@@ -28,7 +30,7 @@ def load_islands():
         print("[islands] data/islands.csv not found")
 
 
-def get_island(name: str) -> dict | None:
+def get_island(name: str) -> Optional[dict]:
     return _islands.get(name)
 
 
