@@ -58,6 +58,7 @@ SHIP_ROTATION  = 3  # 3 × 90° CCW = 270° CCW = 90° clockwise
 SHIP_ICON_SIZE = 28   # display size in pixels — tweak to taste
 
 _SHIP_ICON = None
+_SHIP_ICON_RAW = None
 
 def _get_ship_icon():
     global _SHIP_ICON
@@ -70,6 +71,18 @@ def _get_ship_icon():
         except FileNotFoundError:
             pass
     return _SHIP_ICON
+
+
+def _get_other_ship_icon():
+    """Ship icon for other crews — random 90° rotation each render."""
+    import random
+    global _SHIP_ICON_RAW
+    if _SHIP_ICON_RAW is None:
+        try:
+            _SHIP_ICON_RAW = imread("img/boat.png")
+        except FileNotFoundError:
+            return None
+    return np.rot90(_SHIP_ICON_RAW, k=random.randint(0, 3))
 
 # Edge index pairs for each axial neighbour direction (flat-top orientation)
 HEX_DIRS = [(1,0),(-1,0),(0,1),(0,-1),(1,-1),(-1,1)]
@@ -177,6 +190,37 @@ def _hex_corners(q, r):
 
 def _hex_distance(q1, r1, q2, r2):
     return max(abs(q1-q2), abs(r1-r2), abs((q1+r1)-(q2+r2)))
+
+
+def _reachable_sea(pq, pr, move_range, hex_lookup):
+    """
+    BFS from (pq, pr) over navigable sea, up to move_range steps.
+    Tiles behind islands/blocked tiles are excluded — only hexes a ship
+    can actually sail to count. Returns a set of (q, r), origin excluded.
+    """
+    visited  = {(pq, pr)}
+    frontier = {(pq, pr)}
+    for _ in range(move_range):
+        nxt = set()
+        for (q, r) in frontier:
+            for dq, dr in HEX_DIRS:
+                n = (q + dq, r + dr)
+                if n in visited:
+                    continue
+                if n in game.BLOCKED_TILES:
+                    continue
+                if abs(n[1]) > CALM_BELT_R:
+                    continue
+                terrain = hex_lookup.get(n, "sea")
+                if terrain == "calm_belt":
+                    terrain = "sea"
+                if terrain != "sea":
+                    continue
+                visited.add(n)
+                nxt.add(n)
+        frontier = nxt
+    visited.discard((pq, pr))
+    return visited
 
 
 # ── Wind field ────────────────────────────────────────────────────────────────
@@ -430,6 +474,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
 
     _load_map()
     hex_lookup    = _cache["hex_lookup"]
+    reachable_set = _reachable_sea(pq, pr, MOVE_RANGE, hex_lookup) if view == "roll" else set()
     labels        = _cache["labels"]
     island_names  = _cache["island_names"]
     origins       = _cache["origins"]
@@ -484,8 +529,8 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                             p1, p2 = corners[i1], corners[i2]
                             sea_segs.append([p1, p2])
 
-                # Roll dots: only on navigable sea, never in calm belt
-                if view == "roll" and _hex_distance(q, r, pq, pr) <= MOVE_RANGE:
+                # Roll dots: only tiles actually reachable by sailing (BFS)
+                if view == "roll" and (q, r) in reachable_set:
                     reachable_centers.append((cx, cy))
                 continue
 
@@ -517,11 +562,8 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     # ── Wind-boosted hexes for roll view ─────────────────────────────────────
     if view == "roll":
         wdq, wdr = get_wind(pq, pr)
-        # base reachable set as axial coords for fast lookup
-        base_set = {(q, r)
-                    for q in range(pq - MOVE_RANGE, pq + MOVE_RANGE + 1)
-                    for r in range(pr - MOVE_RANGE, pr + MOVE_RANGE + 1)
-                    if _hex_distance(q, r, pq, pr) <= MOVE_RANGE}
+        # base reachable set — actual sailable tiles from BFS
+        base_set = reachable_set | {(pq, pr)}
         seen = set()
         for step in (1, 2):
             for (bq, br) in base_set:
@@ -529,7 +571,9 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                 if (wq, wr) in seen or (wq, wr) in base_set:
                     continue
                 # Wind dots never land in calm belt
-                if hex_lookup.get((wq, wr), "sea") == "sea" and abs(wr) <= CALM_BELT_R:
+                if (hex_lookup.get((wq, wr), "sea") == "sea"
+                        and abs(wr) <= CALM_BELT_R
+                        and (wq, wr) not in game.BLOCKED_TILES):
                     seen.add((wq, wr))
                     wind_centers.append(_hex_to_pixel(wq, wr))
 
@@ -647,6 +691,27 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                 ha="center", va="center",
                 fontsize=7, color="black", fontweight="bold",
                 zorder=6)
+
+    # Other crews' ships in viewport — same icon, random rotation
+    own_crew_id = player["crew_id"]
+    for other in db.get_all_crews():
+        if own_crew_id and other["id"] == own_crew_id:
+            continue
+        oq, orr = other["q"] or 0, other["r"] or 0
+        if _hex_distance(oq, orr, pq, pr) > radius:
+            continue
+        ox, oy = _hex_to_pixel(oq, orr)
+        oicon  = _get_other_ship_icon()
+        if oicon is not None:
+            ooi = OffsetImage(oicon, zoom=SHIP_ICON_SIZE / max(oicon.shape[:2]))
+            ooi.image.axes = ax
+            oab = AnnotationBbox(ooi, (ox, oy), frameon=False, pad=0, zorder=4)
+            ax.add_artist(oab)
+        else:
+            ax.plot(ox, oy, "o",
+                    color="#b0b0b0", markersize=12,
+                    markeredgecolor="#000", markeredgewidth=0.8,
+                    zorder=4)
 
     ax.set_xlim(px - margin, px + margin)
     ax.set_ylim(py - margin, py + margin)

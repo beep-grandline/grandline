@@ -31,6 +31,10 @@ ROLL_REGEN_AMOUNT  = 1
 
 CALM_BELT_R = 36          # abs(r) > this is impassable calm belt
 
+# Hard-blocked tiles — never passable regardless of terrain
+# (-1, 0) plugs the Reverse Mountain waterfall.
+BLOCKED_TILES = {(-1, 0)}
+
 DEFAULT_LOG_POSE = "alabasta"
 
 # ── Position resolver ─────────────────────────────────────────────────────────
@@ -67,7 +71,9 @@ def get_position(player_id, _depth=0):
 # ── Passability ───────────────────────────────────────────────────────────────
 
 def is_passable(q, r):
-    """Returns False for calm belt, islands, and redlines."""
+    """Returns False for calm belt, islands, redlines, and blocked tiles."""
+    if (q, r) in BLOCKED_TILES:
+        return False
     if abs(r) > CALM_BELT_R:
         return False
     try:

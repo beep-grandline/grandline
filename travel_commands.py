@@ -89,7 +89,7 @@ def _status_embed(player, crew, q, r):
 
 MOVE_FAILURE = {
     "no_rolls":          "The ship has no rolls left. Wait for them to recharge.",
-    "impassable":        "Can't sail there — that's an island or the Calm Belt.",
+    "impassable":        "Can't move there.",
     "ship_disabled":     "Your ship is disabled — it needs repairs before you can sail.",
     "invalid_direction": "Invalid direction.",
     "crew_not_found":    "Crew not found.",

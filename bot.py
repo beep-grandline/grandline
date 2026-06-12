@@ -481,7 +481,18 @@ async def gm_teleport(interaction: discord.Interaction, target: discord.Member, 
             f"**{target.display_name}** is not registered.", ephemeral=True
         )
         return
- 
+
+    # Players can't be dropped in open water — destination must be land
+    from map_render import _cache, _load_map
+    _load_map()
+    terrain = _cache["hex_lookup"].get((q, r), "sea")
+    if terrain != "island":
+        await interaction.response.send_message(
+            "Can't teleport a player into open sea — destination must be an island tile.",
+            ephemeral=True,
+        )
+        return
+
     db.update_player_position(uid, q, r)
     db.set_following(uid, None)   # detach from ship/captain at new location
     await interaction.response.send_message(
@@ -505,7 +516,14 @@ async def gm_moveship(interaction: discord.Interaction, crew: str, q: int, r: in
     if not crew_row:
         await interaction.response.send_message("Crew not found.", ephemeral=True)
         return
- 
+
+    if not game.is_passable(q, r):
+        await interaction.response.send_message(
+            "Can't move a ship there — that tile is an island, Red Line, Calm Belt, or blocked.",
+            ephemeral=True,
+        )
+        return
+
     db.move_crew(crew, q, r)
     await interaction.response.send_message(
         f"Moved **{crew_row['name']}**'s ship to `q={q}, r={r}`."
