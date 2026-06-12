@@ -437,7 +437,7 @@ def create_battle(a_data, b_data):
             "id":       str(data["id"]),
             "name":     data["name"],
             "hp":       data["hp"],
-            "max_hp":   data["hp"],
+            "max_hp":   data.get("max_hp") or data["hp"],
             "atk":      data.get("atk", 10),
             "defense":  data.get("defense", 10),
             "spd":      data.get("spd", 10),

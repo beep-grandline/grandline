@@ -681,21 +681,29 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                 fontsize=6, color=LABEL_COLOR,
                 fontweight="bold", clip_on=True, zorder=6)
 
-    icon = _get_ship_icon()
-    if icon is not None:
-        oi = OffsetImage(icon, zoom=SHIP_ICON_SIZE / max(icon.shape[:2]))
-        oi.image.axes = ax
-        ab = AnnotationBbox(oi, (px, py), frameon=False, pad=0, zorder=5)
-        ax.add_artist(ab)
-    else:
+    player_on_land = hex_lookup.get((pq, pr)) == "island"
+
+    if player_on_land:
         ax.plot(px, py, "o",
-                color=PLAYER_COLOR, markersize=14,
+                color=PLAYER_COLOR, markersize=10,
                 markeredgecolor="#000", markeredgewidth=0.8,
                 zorder=5)
-        ax.text(px, py, "S",
-                ha="center", va="center",
-                fontsize=7, color="black", fontweight="bold",
-                zorder=6)
+    else:
+        icon = _get_ship_icon()
+        if icon is not None:
+            oi = OffsetImage(icon, zoom=SHIP_ICON_SIZE / max(icon.shape[:2]))
+            oi.image.axes = ax
+            ab = AnnotationBbox(oi, (px, py), frameon=False, pad=0, zorder=5)
+            ax.add_artist(ab)
+        else:
+            ax.plot(px, py, "o",
+                    color=PLAYER_COLOR, markersize=14,
+                    markeredgecolor="#000", markeredgewidth=0.8,
+                    zorder=5)
+            ax.text(px, py, "S",
+                    ha="center", va="center",
+                    fontsize=7, color="black", fontweight="bold",
+                    zorder=6)
 
     # Other crews' ships in viewport — same icon, random rotation
     own_crew_id = player["crew_id"]

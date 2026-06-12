@@ -106,10 +106,13 @@ def _build_fighter_data(player_row, member: discord.Member):
         if special_move and not any(m["name"] == special_move["name"] for m in moves):
             moves = list(moves) + [special_move]
 
+    current_hp = player_row["hp"]  or 100
+    max_hp     = player_row["max_hp"] or current_hp
     return {
         "id":      str(member.id),
         "name":    member.display_name,
-        "hp":      player_row["hp"]      or 100,
+        "hp":      current_hp,
+        "max_hp":  max_hp,
         "atk":     player_row["atk"]     or 10,
         "defense": player_row["defense"] or 10,
         "spd":     player_row["spd"]     or 10,
@@ -174,6 +177,13 @@ async def _resolve_and_update(interaction: discord.Interaction, battle_id: str):
     pings = " ".join(filter(None, [_mention(fa["id"]), _mention(fb["id"])]))
 
     if battle_logic.is_finished(state):
+        # persist HP for real players
+        for side_key in ("a", "b"):
+            f = state["fighters"][side_key]
+            fid = str(f["id"])
+            if not fid.startswith("npc:"):
+                db.update_player_hp(fid, max(0, f["hp"]))
+
         # kuma-specific teleport flavor
         if (state.get("end_reason") == "teleport"
                 and state.get("teleport_by", "").lower() == "npc:kuma"):

@@ -71,7 +71,9 @@ def init_db():
         "ALTER TABLE crews   ADD COLUMN r            INTEGER DEFAULT 0",
         "ALTER TABLE crews   ADD COLUMN roll         INTEGER DEFAULT 12",
         "ALTER TABLE crews   ADD COLUMN log_pose     TEXT    DEFAULT 'alabasta'",
-        "ALTER TABLE crews   ADD COLUMN pose_type    TEXT    DEFAULT 'log'",]:
+        "ALTER TABLE crews   ADD COLUMN pose_type    TEXT    DEFAULT 'log'",
+        "ALTER TABLE players ADD COLUMN max_hp       INTEGER DEFAULT 100",
+    ]:
         try:
             db.execute(sql)
             db.commit()
@@ -154,6 +156,23 @@ def update_player_position(player_id, q, r):
         "UPDATE players SET q=?, r=? WHERE id=?", (q, r, player_id)
     )
     db.commit()
+
+
+def update_player_hp(player_id: str, hp: int):
+    """Persist a player's current HP after battle."""
+    db.execute("UPDATE players SET hp=? WHERE id=?", (hp, str(player_id)))
+    db.commit()
+
+
+def get_player_hp(player_id: str) -> tuple:
+    """Returns (hp, max_hp) for the player, defaulting to (100, 100)."""
+    row = db.execute(
+        "SELECT hp, max_hp FROM players WHERE id=?", (str(player_id),)
+    ).fetchone()
+    if not row:
+        return 100, 100
+    return row["hp"] or 100, row["max_hp"] or 100
+
 
 # ── Island queries ────────────────────────────────────────────────────────────
 

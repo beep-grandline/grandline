@@ -8,6 +8,17 @@ import random
 
 from fruits import get_fruit_by_id
 
+# ── Style: Rokushiki ──────────────────────────────────────────────────────────
+
+ROKUSHIKI_MOVES = [
+    # Tempest Kick
+    ("Tempest Kick", "1", "SLASH HEAVY PRECISE"),
+    # Finger Pistol
+    ("Finger Pistol", "2", "MEDIUM PRECISE HOMING"),
+]
+
+ROKUSHIKI_DODGES = ["Paper Art", "Moonwalk", "Shave"]
+
 NPC_CSV_PATH = "data/npcs.csv"
 NPCS: list = []
 
@@ -120,6 +131,14 @@ def build_npc_fighter(npc_row: dict) -> dict:
 
     block_name = (npc_row.get("block") or "").strip() or "Block"
     dodge_name = (npc_row.get("dodge") or "").strip() or "Dodge"
+
+    # inject Rokushiki techniques
+    style = (npc_row.get("style") or "").strip().lower()
+    if style == "rokushiki":
+        for r_name, r_type, r_tags in ROKUSHIKI_MOVES:
+            if not any(m["name"] == r_name for m in moves):
+                moves.append(_build_npc_move(r_name, r_type, r_tags))
+        dodge_name = random.choice(ROKUSHIKI_DODGES)
 
     # inject special moves granted by fruit
     from battle import SPECIAL_MOVES, FRUIT_SPECIALS
