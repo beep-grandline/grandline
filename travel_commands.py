@@ -238,37 +238,51 @@ async def travel_auto(interaction: discord.Interaction):
     await interaction.response.send_message(msg)
 
 
-@travel_group.command(name="disembark", description="Leave the ship and move on foot")
+@travel_group.command(name="disembark", description="Leave the ship onto an adjacent island tile")
 async def travel_disembark(interaction: discord.Interaction):
-    uid = str(interaction.user.id)
-    if not db.get_player(uid):
+    uid    = str(interaction.user.id)
+    player = db.get_player(uid)
+    if not player:
         await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
         return
 
-    player = db.get_player(uid)
     if player["following_id"] != "ship":
         await interaction.response.send_message("You're not on the ship.", ephemeral=True)
         return
 
-    ok = game.disembark(uid)
-    if not ok:
+    crew = db.get_crew(player["crew_id"]) if player["crew_id"] else None
+    if not crew:
         await interaction.response.send_message("Couldn't disembark — are you in a crew?", ephemeral=True)
         return
 
-    player = db.get_player(uid)
-    fid    = player["following_id"]
-    if fid:
+    sq, sr = crew["q"] or 0, crew["r"] or 0
+    land_tile = game.adjacent_island_tile(sq, sr)
+    if not land_tile:
         await interaction.response.send_message(
-            "You disembarked. You're now following the captain on land.\n"
-            "Use `/travel solo` to move independently.", ephemeral=True
+            "The ship isn't next to any island. Sail closer to shore first.", ephemeral=True
+        )
+        return
+
+    lq, lr = land_tile
+    db.update_player_position(uid, lq, lr)
+
+    is_captain = str(crew["captain_id"]) == uid
+    if is_captain:
+        db.set_following(uid, None)
+        await interaction.response.send_message(
+            f"You stepped ashore at `q={lq}, r={lr}`. Crew members will follow you on land.",
+            ephemeral=True,
         )
     else:
+        db.set_following(uid, str(crew["captain_id"]))
         await interaction.response.send_message(
-            "You disembarked as captain. Crew members will follow you.", ephemeral=True
+            f"You stepped ashore at `q={lq}, r={lr}` and are following the captain.\n"
+            "Use `/travel solo` to move independently.",
+            ephemeral=True,
         )
 
 
-@travel_group.command(name="reboard", description="Return to the ship")
+@travel_group.command(name="reboard", description="Board the ship — must be on an adjacent tile")
 async def travel_reboard(interaction: discord.Interaction):
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
@@ -280,15 +294,54 @@ async def travel_reboard(interaction: discord.Interaction):
         await interaction.response.send_message("You're already on the ship.", ephemeral=True)
         return
 
-    ok = game.reboard(uid)
-    if not ok:
+    crew = db.get_crew(player["crew_id"]) if player["crew_id"] else None
+    if not crew:
         await interaction.response.send_message("Couldn't reboard — are you in a crew?", ephemeral=True)
         return
 
-    crew  = db.get_crew(player["crew_id"])
-    q, r  = crew["q"] or 0, crew["r"] or 0
+    sq, sr = crew["q"] or 0, crew["r"] or 0
+    pq, pr = game.get_position(uid)
+
+    if not game.is_adjacent(pq, pr, sq, sr):
+        await interaction.response.send_message(
+            f"You're too far from the ship (`q={sq}, r={sr}`). Move to an adjacent tile first.",
+            ephemeral=True,
+        )
+        return
+
+    db.update_player_position(uid, sq, sr)
+    db.set_following(uid, "ship")
     await interaction.response.send_message(
-        f"You reboarded the ship at `q={q}, r={r}`.", ephemeral=True
+        f"You're back on the ship at `q={sq}, r={sr}`.", ephemeral=True
+    )
+
+
+@travel_group.command(name="rejoin", description="Teleport back to the captain's position")
+async def travel_rejoin(interaction: discord.Interaction):
+    uid    = str(interaction.user.id)
+    player = db.get_player(uid)
+    if not player:
+        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        return
+
+    if player["following_id"] == "ship":
+        await interaction.response.send_message("You're already on the ship.", ephemeral=True)
+        return
+
+    crew = db.get_crew(player["crew_id"]) if player["crew_id"] else None
+    if not crew:
+        await interaction.response.send_message("You're not in a crew.", ephemeral=True)
+        return
+
+    if str(crew["captain_id"]) == uid:
+        await interaction.response.send_message("You're the captain — there's no one to rejoin.", ephemeral=True)
+        return
+
+    cq, cr = game.get_position(str(crew["captain_id"]))
+    db.update_player_position(uid, cq, cr)
+    db.set_following(uid, str(crew["captain_id"]))
+    await interaction.response.send_message(
+        f"You rejoined the captain at `q={cq}, r={cr}`.", ephemeral=True
     )
 
 

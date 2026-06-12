@@ -470,7 +470,12 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     # pr = player["r"] if player["r"] is not None else 0
     pq, pr = game.get_position(uid)
 
-    MOVE_RANGE = 5  # placeholder — swap for player stat later
+    crew_rolls = 0
+    if player["crew_id"]:
+        crew = db.get_crew(player["crew_id"])
+        if crew:
+            crew_rolls = crew["roll"] or 0
+    MOVE_RANGE = max(1, crew_rolls)
 
     _load_map()
     hex_lookup    = _cache["hex_lookup"]

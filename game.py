@@ -221,6 +221,33 @@ def move_player(player_id, direction):
     return new_q, new_r, True, "ok"
 
 
+# ── Adjacency helpers ─────────────────────────────────────────────────────────
+
+def adjacent_hexes(q: int, r: int) -> list:
+    """Returns list of (q, r) for all 6 neighbours."""
+    return [(q + dq, r + dr) for dq, dr in HEX_DIRECTIONS.values()]
+
+
+def adjacent_island_tile(q: int, r: int):
+    """
+    Returns the first adjacent (q, r) that is an island tile, or None.
+    """
+    try:
+        from map_render import _cache, _load_map
+        _load_map()
+        hex_lookup = _cache["hex_lookup"]
+    except Exception:
+        return None
+    for nq, nr in adjacent_hexes(q, r):
+        if hex_lookup.get((nq, nr)) == "island":
+            return nq, nr
+    return None
+
+
+def is_adjacent(q1: int, r1: int, q2: int, r2: int) -> bool:
+    return (q2, r2) in adjacent_hexes(q1, r1)
+
+
 # ── Boarding state changes ────────────────────────────────────────────────────
 
 def disembark(player_id):
