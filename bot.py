@@ -131,13 +131,40 @@ async def help_command(
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
+INFO_PAGES = {
+    "Factions": {
+        "title": "⚑ Factions",
+        "description": "The three factions of the Grand Line.",
+        "fields": [
+            ("Pirate",         "Sail, fight, plunder, and find your way to the One Piece."),
+            ("Marine",         "Represent justice."),
+            ("Bounty Hunter",  "Collect bounties on wanted persons."),
+        ]
+    },
+}
+
+
 @bot.tree.command(name="info", description="Game information and references", guild=MY_GUILD)
-async def info_command(interaction: discord.Interaction):
-    embed = discord.Embed(
-        title="📖 Game Info",
-        description="⚙️ In progress — check back later for typing tables, mechanics breakdowns, and more.",
-        color=0x3a7ebf,
-    )
+@discord.app_commands.describe(topic="What do you want to know about?")
+async def info_command(
+    interaction: discord.Interaction,
+    topic: Literal["Factions"] = None
+):
+    if topic is None:
+        embed = discord.Embed(
+            title="📖 Game Info",
+            description="Use `/info <topic>` to learn about the world. More topics coming soon!",
+            color=0x3a7ebf,
+        )
+        for key, page in INFO_PAGES.items():
+            embed.add_field(name=page["title"], value=page["description"], inline=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+
+    page = INFO_PAGES[topic]
+    embed = discord.Embed(title=page["title"], color=0x3a7ebf)
+    for name, value in page["fields"]:
+        embed.add_field(name=name, value=value, inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
