@@ -28,9 +28,9 @@ ATTACK_TYPE_MAP = {"1": "slash", "2": "pierce", "": "blunt"}
 
 # Aggro level → AI action weights
 AGGRO_WEIGHTS = {
-    1: {"attack": 20, "block": 35, "dodge": 25, "charge": 5, "escape": 15},
-    2: {"attack": 40, "block": 30, "dodge": 20, "charge": 5, "escape":  5},
-    3: {"attack": 60, "block": 20, "dodge": 15, "charge": 5, "escape":  0},
+    1: {"attack": 30, "block": 30, "dodge": 22, "charge": 5, "escape": 13},
+    2: {"attack": 55, "block": 20, "dodge": 15, "charge": 5, "escape":  5},
+    3: {"attack": 78, "block":  9, "dodge":  8, "charge": 5, "escape":  0},
 }
 DEFAULT_AGGRO = 3
 
