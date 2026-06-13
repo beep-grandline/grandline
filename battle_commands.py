@@ -106,8 +106,8 @@ def _build_fighter_data(player_row, member: discord.Member):
         if special_move and not any(m["name"] == special_move["name"] for m in moves):
             moves = list(moves) + [special_move]
 
-    current_hp = player_row["hp"]  or 100
-    max_hp     = player_row["max_hp"] or current_hp
+    current_hp = player_row["hp"] if player_row["hp"] is not None else 100
+    max_hp     = player_row["max_hp"] if player_row["max_hp"] is not None else current_hp
 
     atk = player_row["atk"]     or 10
     dfn = player_row["defense"] or 10
@@ -461,6 +461,14 @@ class ChallengeView(discord.ui.View):
             )
             return
 
+        for p, mention in [(p_a, self.challenger.mention), (p_b, self.target.mention)]:
+            if p["captured_by"]:
+                await interaction.response.edit_message(
+                    content=f"{mention} is under arrest and cannot fight.",
+                    embed=None, view=None,
+                )
+                return
+
         for pid, mention in [(cid, self.challenger.mention), (tid, self.target.mention)]:
             if not db.get_player_moves(pid):
                 await interaction.response.edit_message(
@@ -561,8 +569,14 @@ async def battle_cmd(interaction: discord.Interaction, target: discord.Member):
     if target.bot:
         await interaction.response.send_message("You can't challenge a bot.", ephemeral=True)
         return
-    if not db.get_player(uid):
+    p_self = db.get_player(uid)
+    if not p_self:
         await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        return
+    if p_self["captured_by"]:
+        await interaction.response.send_message(
+            "You're under arrest and cannot start a battle.", ephemeral=True
+        )
         return
     if not db.get_player(str(target.id)):
         await interaction.response.send_message(

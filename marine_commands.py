@@ -87,8 +87,16 @@ async def marine_arrest(interaction: discord.Interaction, target: discord.Member
         )
         return
 
-    if not db.get_player(uid):
+    officer_row = db.get_player(uid)
+    if not officer_row:
         await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        return
+
+    officer_hp = officer_row["hp"] if officer_row["hp"] is not None else 100
+    if officer_hp <= 0:
+        await interaction.response.send_message(
+            "You're incapacitated — you can't make arrests at 0 HP.", ephemeral=True
+        )
         return
 
     if target.id == interaction.user.id:

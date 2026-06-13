@@ -177,7 +177,8 @@ def get_player_hp(player_id: str) -> tuple:
     ).fetchone()
     if not row:
         return 100, 100
-    return row["hp"] or 100, row["max_hp"] or 100
+    return (row["hp"] if row["hp"] is not None else 100,
+            row["max_hp"] if row["max_hp"] is not None else 100)
 
 
 def heal_player(player_id: str, amount: int) -> tuple:
