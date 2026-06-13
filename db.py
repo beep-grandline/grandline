@@ -78,6 +78,7 @@ def init_db():
         "ALTER TABLE players ADD COLUMN recovery_until REAL  DEFAULT 0",
         "ALTER TABLE players ADD COLUMN recipes_json TEXT",
         "ALTER TABLE players ADD COLUMN captured_by  TEXT DEFAULT NULL",
+        "ALTER TABLE crews   ADD COLUMN ship_type    TEXT DEFAULT NULL",
     ]:
         try:
             db.execute(sql)
@@ -802,6 +803,25 @@ def set_crew_roll(crew_id, amount):
 def get_all_crews():
     """Returns all crew rows — used by roll replenishment task."""
     return db.execute("SELECT * FROM crews").fetchall()
+
+def create_battleship(officer_id: str, ship_name: str, q: int = 0, r: int = 0) -> str:
+    """Create a marine battleship crew row for an officer. Returns the crew_id."""
+    crew_id = f"battleship:{officer_id}"
+    db.execute("""
+        INSERT OR IGNORE INTO crews
+            (id, name, captain_id, q, r, roll, ship_hp, ship_max_hp, ship_type)
+        VALUES (?, ?, ?, ?, ?, 12, 500, 500, 'battleship')
+    """, (crew_id, ship_name, officer_id, q, r))
+    db.commit()
+    return crew_id
+
+
+def get_battleship(officer_id: str):
+    """Return the officer's battleship crew row, or None."""
+    return db.execute(
+        "SELECT * FROM crews WHERE id=?", (f"battleship:{officer_id}",)
+    ).fetchone()
+
 
 def get_ship_hp(crew_id):
     row = db.execute("SELECT ship_hp, ship_max_hp FROM crews WHERE id=?", (crew_id,)).fetchone()

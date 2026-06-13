@@ -28,6 +28,52 @@ marine_group = discord.app_commands.Group(
 )
 
 
+@marine_group.command(name="sail", description="Commission your Marine battleship")
+async def marine_sail(interaction: discord.Interaction):
+    uid = str(interaction.user.id)
+
+    if not _is_marine_officer(interaction.user):
+        await interaction.response.send_message(
+            "Only a **Fleet Admiral**, **Admiral**, or **Vice Admiral** can command a battleship.",
+            ephemeral=True,
+        )
+        return
+
+    if not db.get_player(uid):
+        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        return
+
+    existing = db.get_battleship(uid)
+    if existing:
+        q = existing["q"] or 0
+        r = existing["r"] or 0
+        await interaction.response.send_message(
+            f"You already command **{existing['name']}** — currently at `q={q}, r={r}`.\n"
+            f"Use `/travel helm` to steer it.",
+            ephemeral=True,
+        )
+        return
+
+    # Build the ship name from their highest-ranked role
+    rank = next(
+        (r.name for r in interaction.user.roles if r.name in MARINE_ROLES),
+        "Officer"
+    )
+    ship_name = f"{interaction.user.display_name}'s Battleship"
+
+    crew_id = db.create_battleship(uid, ship_name)
+
+    # Assign the officer to their battleship crew
+    db.set_player_crew(uid, crew_id)
+    db.set_following(uid, "ship")
+
+    await interaction.response.send_message(
+        f"⚓ **{ship_name}** is now commissioned, {rank} {interaction.user.mention}!\n"
+        f"Use `/travel helm` to steer and `/travel disembark` to go ashore.\n"
+        f"Your ship starts at `q=0, r=0`."
+    )
+
+
 @marine_group.command(name="arrest", description="Arrest a defeated player (0 HP required)")
 @discord.app_commands.describe(target="The player to arrest")
 async def marine_arrest(interaction: discord.Interaction, target: discord.Member):

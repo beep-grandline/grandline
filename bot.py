@@ -190,6 +190,7 @@ async def _crew_name_autocomplete(interaction: discord.Interaction, current: str
             discord.app_commands.Choice(name=c["name"], value=c["id"])
             for c in crews
             if current.lower() in c["name"].lower()
+            and (c["ship_type"] if "ship_type" in c.keys() else None) != "battleship"
         ][:25]
     except (discord.NotFound, Exception):
         return []
