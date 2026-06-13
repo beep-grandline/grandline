@@ -51,7 +51,7 @@ async def _treat(interaction: discord.Interaction, target: discord.Member,
 
     new_hp, max_hp, healed = db.heal_player(tid, amount)
     await interaction.response.send_message(
-        f"{target.mention} {interaction.user.display_name} {verb} ({new_hp}/{max_hp} HP)"
+        f"{interaction.user.mention} {verb} {target.mention} ({new_hp}/{max_hp} HP)"
     )
 
 
