@@ -185,11 +185,14 @@ async def marine_release(interaction: discord.Interaction, target: discord.Membe
             )
             return
 
-    # Determine release location — must be island tile or Impel Down
+    # Determine release location
     oq, orr = game.get_position(uid)
-    at_impel_down = (oq, orr) == (IMPEL_DOWN_Q, IMPEL_DOWN_R)
 
-    if not at_impel_down:
+    at_impel_down      = (oq, orr) == (IMPEL_DOWN_Q, IMPEL_DOWN_R)
+    adjacent_impel     = game.is_adjacent(oq, orr, IMPEL_DOWN_Q, IMPEL_DOWN_R)
+    to_impel_down      = at_impel_down or adjacent_impel
+
+    if not to_impel_down:
         try:
             from map_render import _cache, _load_map
             _load_map()
@@ -198,19 +201,28 @@ async def marine_release(interaction: discord.Interaction, target: discord.Membe
             terrain = "sea"
         if terrain != "island":
             await interaction.response.send_message(
-                "You can only release a prisoner on an island or at Impel Down.",
+                "You can only release a prisoner on an island, or adjacent to Impel Down to imprison them.",
                 ephemeral=True,
             )
             return
 
     prisoner_id   = str(prisoner["id"])
     prisoner_name = prisoner["name"]
-    db.release_prisoner(prisoner_id, oq, orr)
 
-    location_str = "Impel Down" if at_impel_down else f"q={oq}, r={orr}"
-    await interaction.response.send_message(
-        f"🔓 {interaction.user.mention} releases **{prisoner_name}** at {location_str}."
-    )
+    if to_impel_down:
+        # Send to Impel Down — prisoner stays captured (imprisoned), placed at the cell
+        db.release_prisoner(prisoner_id, IMPEL_DOWN_Q, IMPEL_DOWN_R)
+        await interaction.response.send_message(
+            f"⛓️ {interaction.user.mention} delivers **{prisoner_name}** to **Impel Down**. "
+            f"They are now imprisoned."
+        )
+    else:
+        # Drop on land — prisoner goes free
+        db.release_prisoner(prisoner_id, oq, orr)
+        await interaction.response.send_message(
+            f"🔓 {interaction.user.mention} releases **{prisoner_name}** at `q={oq}, r={orr}`. "
+            f"They are now free."
+        )
 
 
 @marine_group.command(name="prisoners", description="List your current prisoners")
