@@ -209,12 +209,10 @@ async def cook_serve(interaction: discord.Interaction, dish: str):
 
     kw    = " · ".join(k.upper() for k in recipe.get("keywords", []))
     embed = discord.Embed(
-        title=f"🍽️ {recipe['name']}",
+        title=f"🍽️ {recipe['name']}  ·  `{kw}`",
         description=(
             f"*{recipe.get('description', '')}*\n\n"
-            f"**{kw}** — {MEAL_TYPE_BLURB.get(recipe['type'], '')}\n"
-            f"Crew of **{interaction.user.display_name}**: press 🍴 to eat! "
-            f"(available for 1 hour)"
+            f"{MEAL_TYPE_BLURB.get(recipe['type'], '')}"
         ),
         color=0xd98e32,
     )
