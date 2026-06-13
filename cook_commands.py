@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-#  cook_commands.py  ·  /cook recipe, cookbook, serve — crew meals with buffs
+#  cook_commands.py  ·  /cook cookbook (add/list/modify/delete) + /cook serve
 #  Add to bot.py:
 #      from cook_commands import cook_group
 #      bot.tree.add_command(cook_group)
@@ -28,94 +28,22 @@ def _is_cook(member: discord.Member) -> bool:
     return any(role.name.lower() == "cook" for role in getattr(member, "roles", []))
 
 
+# ── Groups ────────────────────────────────────────────────────────────────────
+
 cook_group = discord.app_commands.Group(
     name="cook",
     description="Cook meals for your crew",
     guild_ids=[GUILD_ID],
 )
 
-
-# ── /cook recipe ──────────────────────────────────────────────────────────────
-
-@cook_group.command(name="recipe", description="Create a new signature dish")
-@discord.app_commands.describe(
-    name="Name of your dish",
-    type="What the meal does",
-    description="Flavor text shown when you serve it",
-    extra="Optional extra keyword",
-    url="Optional image URL for the dish",
+cookbook_group = discord.app_commands.Group(
+    name="cookbook",
+    description="Manage your recipes",
 )
-@discord.app_commands.choices(
-    type=[discord.app_commands.Choice(name=t.title(), value=t) for t in MEAL_TYPES],
-    extra=[discord.app_commands.Choice(name=k.title(), value=k) for k in EXTRA_KEYWORDS],
-)
-async def cook_recipe(
-    interaction: discord.Interaction,
-    name: str,
-    type: str,
-    description: str,
-    extra: str = None,
-    url: str = None,
-):
-    uid = str(interaction.user.id)
-    if not db.get_player(uid):
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
-        return
-    if not _is_cook(interaction.user):
-        await interaction.response.send_message("Only a **Cook** can create recipes.", ephemeral=True)
-        return
-
-    recipes = db.get_recipes(uid)
-    if any(r["name"].lower() == name.lower() for r in recipes):
-        await interaction.response.send_message(
-            f"You already have a recipe called **{name}**.", ephemeral=True
-        )
-        return
-    if len(recipes) >= 25:
-        await interaction.response.send_message("Your cookbook is full (25 recipes).", ephemeral=True)
-        return
-
-    keywords = [type] + ([extra] if extra else [])
-    db.add_recipe(uid, {
-        "name":        name[:80],
-        "type":        type,
-        "keywords":    keywords,
-        "description": description[:300],
-        "url":         (url or "").strip(),
-    })
-    await interaction.response.send_message(
-        f"📖 **{name}** added to your cookbook — *{', '.join(k.upper() for k in keywords)}*.",
-        ephemeral=True,
-    )
+cook_group.add_command(cookbook_group)
 
 
-# ── /cook cookbook ────────────────────────────────────────────────────────────
-
-@cook_group.command(name="cookbook", description="View your recipes")
-async def cook_cookbook(interaction: discord.Interaction):
-    uid     = str(interaction.user.id)
-    recipes = db.get_recipes(uid)
-    if not recipes:
-        await interaction.response.send_message(
-            "Your cookbook is empty. Create a dish with `/cook recipe`.", ephemeral=True
-        )
-        return
-
-    embed = discord.Embed(
-        title=f"📖 {interaction.user.display_name}'s Cookbook",
-        color=0xd98e32,
-    )
-    for r in recipes[:25]:
-        kw = ", ".join(k.upper() for k in r.get("keywords", []))
-        embed.add_field(
-            name=f"{r['name']}  ·  {kw}",
-            value=r.get("description") or "​",
-            inline=False,
-        )
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
-
-# ── /cook serve ───────────────────────────────────────────────────────────────
+# ── Shared autocomplete ───────────────────────────────────────────────────────
 
 async def _recipe_autocomplete(interaction: discord.Interaction, current: str):
     try:
@@ -128,6 +56,189 @@ async def _recipe_autocomplete(interaction: discord.Interaction, current: str):
     except Exception:
         return []
 
+
+# ── /cook cookbook add ────────────────────────────────────────────────────────
+
+@cookbook_group.command(name="add", description="Add a new signature dish to your cookbook")
+@discord.app_commands.describe(
+    name="Name of your dish",
+    type="What the meal does",
+    description="Flavor text shown when you serve it",
+    extra="Optional extra keyword",
+    url="Optional image URL for the dish",
+)
+@discord.app_commands.choices(
+    type=[discord.app_commands.Choice(name=t.title(), value=t) for t in MEAL_TYPES],
+    extra=[discord.app_commands.Choice(name=k.title(), value=k) for k in EXTRA_KEYWORDS],
+)
+async def cookbook_add(
+    interaction: discord.Interaction,
+    name: str,
+    type: str,
+    description: str,
+    extra: str = None,
+    url: str = None,
+):
+    try:
+        uid = str(interaction.user.id)
+        if not db.get_player(uid):
+            await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+            return
+        if not _is_cook(interaction.user):
+            await interaction.response.send_message("Only a **Cook** can create recipes.", ephemeral=True)
+            return
+
+        recipes = db.get_recipes(uid)
+        if any(r["name"].lower() == name.lower() for r in recipes):
+            await interaction.response.send_message(
+                f"You already have a recipe called **{name}**.", ephemeral=True
+            )
+            return
+        if len(recipes) >= 25:
+            await interaction.response.send_message("Your cookbook is full (25 recipes).", ephemeral=True)
+            return
+
+        keywords = [type] + ([extra] if extra else [])
+        db.add_recipe(uid, {
+            "name":        name[:80],
+            "type":        type,
+            "keywords":    keywords,
+            "description": description[:300],
+            "url":         (url or "").strip(),
+        })
+        await interaction.response.send_message(
+            f"📖 **{name}** added to your cookbook — *{', '.join(k.upper() for k in keywords)}*.",
+            ephemeral=True,
+        )
+    except discord.NotFound:
+        pass
+
+
+# ── /cook cookbook list ───────────────────────────────────────────────────────
+
+@cookbook_group.command(name="list", description="View all your recipes")
+async def cookbook_list(interaction: discord.Interaction):
+    try:
+        uid     = str(interaction.user.id)
+        recipes = db.get_recipes(uid)
+        if not recipes:
+            await interaction.response.send_message(
+                "Your cookbook is empty. Add a dish with `/cook cookbook add`.", ephemeral=True
+            )
+            return
+
+        embed = discord.Embed(
+            title=f"📖 {interaction.user.display_name}'s Cookbook",
+            color=0xd98e32,
+        )
+        for r in recipes[:25]:
+            kw = ", ".join(k.upper() for k in r.get("keywords", []))
+            embed.add_field(
+                name=f"{r['name']}  ·  {kw}",
+                value=r.get("description") or "​",
+                inline=False,
+            )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    except discord.NotFound:
+        pass
+
+
+# ── /cook cookbook modify ─────────────────────────────────────────────────────
+
+class ModifyModal(discord.ui.Modal):
+    def __init__(self, uid: str, recipe: dict):
+        super().__init__(title=f"Edit: {recipe['name'][:40]}")
+        self.uid    = uid
+        self.recipe = recipe
+
+        self.field_desc = discord.ui.TextInput(
+            label="Description",
+            default=recipe.get("description", ""),
+            max_length=300,
+            required=False,
+        )
+        self.field_url = discord.ui.TextInput(
+            label="Image URL",
+            default=recipe.get("url", ""),
+            max_length=500,
+            required=False,
+        )
+        self.add_item(self.field_desc)
+        self.add_item(self.field_url)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        db.update_recipe(self.uid, self.recipe["name"], {
+            "description": str(self.field_desc.value)[:300],
+            "url":         str(self.field_url.value).strip(),
+        })
+        await interaction.response.send_message(
+            f"✏️ **{self.recipe['name']}** updated.", ephemeral=True
+        )
+
+
+@cookbook_group.command(name="modify", description="Edit an existing recipe's description or image")
+@discord.app_commands.describe(dish="Recipe to edit")
+@discord.app_commands.autocomplete(dish=_recipe_autocomplete)
+async def cookbook_modify(interaction: discord.Interaction, dish: str):
+    try:
+        uid    = str(interaction.user.id)
+        recipe = next((r for r in db.get_recipes(uid) if r["name"].lower() == dish.lower()), None)
+        if not recipe:
+            await interaction.response.send_message(
+                "Recipe not found in your cookbook.", ephemeral=True
+            )
+            return
+        await interaction.response.send_modal(ModifyModal(uid=uid, recipe=recipe))
+    except discord.NotFound:
+        pass
+
+
+# ── /cook cookbook delete ─────────────────────────────────────────────────────
+
+class ConfirmDeleteView(discord.ui.View):
+    def __init__(self, uid: str, name: str):
+        super().__init__(timeout=60)
+        self.uid  = uid
+        self.name = name
+
+    @discord.ui.button(label="Delete", style=discord.ButtonStyle.danger)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if str(interaction.user.id) != self.uid:
+            await interaction.response.send_message("Not your cookbook.", ephemeral=True)
+            return
+        db.delete_recipe(self.uid, self.name)
+        self.stop()
+        await interaction.response.edit_message(
+            content=f"🗑️ **{self.name}** deleted.", view=None
+        )
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.stop()
+        await interaction.response.edit_message(content="Cancelled.", view=None)
+
+
+@cookbook_group.command(name="delete", description="Remove a recipe from your cookbook")
+@discord.app_commands.describe(dish="Recipe to delete")
+@discord.app_commands.autocomplete(dish=_recipe_autocomplete)
+async def cookbook_delete(interaction: discord.Interaction, dish: str):
+    try:
+        uid    = str(interaction.user.id)
+        recipe = next((r for r in db.get_recipes(uid) if r["name"].lower() == dish.lower()), None)
+        if not recipe:
+            await interaction.response.send_message(
+                "Recipe not found in your cookbook.", ephemeral=True
+            )
+            return
+        view = ConfirmDeleteView(uid=uid, name=recipe["name"])
+        await interaction.response.send_message(
+            f"Delete **{recipe['name']}**? This can't be undone.", view=view, ephemeral=True
+        )
+    except discord.NotFound:
+        pass
+
+
+# ── /cook serve ───────────────────────────────────────────────────────────────
 
 class ServeView(discord.ui.View):
     def __init__(self, cook_id: str, crew_id: str, recipe: dict):
@@ -186,40 +297,43 @@ class ServeView(discord.ui.View):
 @discord.app_commands.describe(dish="A recipe from your cookbook")
 @discord.app_commands.autocomplete(dish=_recipe_autocomplete)
 async def cook_serve(interaction: discord.Interaction, dish: str):
-    uid    = str(interaction.user.id)
-    player = db.get_player(uid)
-    if not player:
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
-        return
-    if not _is_cook(interaction.user):
-        await interaction.response.send_message("Only a **Cook** can serve meals.", ephemeral=True)
-        return
-    if not player["crew_id"]:
-        await interaction.response.send_message("You need to be in a crew to serve a meal.", ephemeral=True)
-        return
+    try:
+        uid    = str(interaction.user.id)
+        player = db.get_player(uid)
+        if not player:
+            await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+            return
+        if not _is_cook(interaction.user):
+            await interaction.response.send_message("Only a **Cook** can serve meals.", ephemeral=True)
+            return
+        if not player["crew_id"]:
+            await interaction.response.send_message("You need to be in a crew to serve a meal.", ephemeral=True)
+            return
 
-    recipe = next(
-        (r for r in db.get_recipes(uid) if r["name"].lower() == dish.lower()), None
-    )
-    if not recipe:
-        await interaction.response.send_message(
-            "That dish isn't in your cookbook. Use `/cook recipe` to create it.", ephemeral=True
+        recipe = next(
+            (r for r in db.get_recipes(uid) if r["name"].lower() == dish.lower()), None
         )
-        return
+        if not recipe:
+            await interaction.response.send_message(
+                "That dish isn't in your cookbook. Use `/cook cookbook add` to create it.", ephemeral=True
+            )
+            return
 
-    kw    = " · ".join(k.upper() for k in recipe.get("keywords", []))
-    embed = discord.Embed(
-        title=f"🍽️ {recipe['name']}  ·  `{kw}`",
-        description=(
-            f"{recipe.get('description', '')}\n\n"
-            f"*{MEAL_TYPE_BLURB.get(recipe['type'], '')}*"
-        ),
-        color=0xd98e32,
-    )
-    if recipe.get("url"):
-        embed.set_image(url=recipe["url"])
-    embed.set_footer(text=f"Prepared by {interaction.user.display_name}")
+        kw    = " · ".join(k.upper() for k in recipe.get("keywords", []))
+        embed = discord.Embed(
+            title=f"🍽️ {recipe['name']}  ·  `{kw}`",
+            description=(
+                f"{recipe.get('description', '')}\n\n"
+                f"*{MEAL_TYPE_BLURB.get(recipe['type'], '')}*"
+            ),
+            color=0xd98e32,
+        )
+        if recipe.get("url"):
+            embed.set_image(url=recipe["url"])
+        embed.set_footer(text=f"Prepared by {interaction.user.display_name}")
 
-    view = ServeView(cook_id=uid, crew_id=player["crew_id"], recipe=recipe)
-    await interaction.response.send_message(embed=embed, view=view)
-    view.message = await interaction.original_response()
+        view = ServeView(cook_id=uid, crew_id=player["crew_id"], recipe=recipe)
+        await interaction.response.send_message(embed=embed, view=view)
+        view.message = await interaction.original_response()
+    except discord.NotFound:
+        pass

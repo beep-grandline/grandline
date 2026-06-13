@@ -256,6 +256,29 @@ def add_recipe(player_id: str, recipe: dict):
     db.commit()
 
 
+def update_recipe(player_id: str, name: str, updates: dict):
+    """Replace fields on a recipe matched by name (case-insensitive)."""
+    recipes = get_recipes(player_id)
+    for r in recipes:
+        if r["name"].lower() == name.lower():
+            r.update(updates)
+            break
+    db.execute(
+        "UPDATE players SET recipes_json=? WHERE id=?",
+        (json.dumps(recipes), str(player_id))
+    )
+    db.commit()
+
+
+def delete_recipe(player_id: str, name: str):
+    recipes = [r for r in get_recipes(player_id) if r["name"].lower() != name.lower()]
+    db.execute(
+        "UPDATE players SET recipes_json=? WHERE id=?",
+        (json.dumps(recipes), str(player_id))
+    )
+    db.commit()
+
+
 # ── Island queries ────────────────────────────────────────────────────────────
 
 def get_island(q, r):
