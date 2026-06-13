@@ -211,8 +211,8 @@ async def cook_serve(interaction: discord.Interaction, dish: str):
     embed = discord.Embed(
         title=f"🍽️ {recipe['name']}  ·  `{kw}`",
         description=(
-            f"{MEAL_TYPE_BLURB.get(recipe['type'], '')}\n\n"
-            f"*{recipe.get('description', '')}*"
+            f"{recipe.get('description', '')}\n\n"
+            f"*{MEAL_TYPE_BLURB.get(recipe['type'], '')}*"
         ),
         color=0xd98e32,
     )
