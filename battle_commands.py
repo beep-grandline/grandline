@@ -188,14 +188,15 @@ async def _resolve_and_update(interaction: discord.Interaction, battle_id: str):
 
     pings = " ".join(filter(None, [_mention(fa["id"]), _mention(fb["id"])]))
 
-    if battle_logic.is_finished(state):
-        # persist HP for real players
-        for side_key in ("a", "b"):
-            f = state["fighters"][side_key]
-            fid = str(f["id"])
-            if not fid.startswith("npc:"):
-                db.update_player_hp(fid, max(0, f["hp"]))
+    # persist HP for real players after EVERY turn, so an interrupted battle
+    # (restart, stale cleanup, dropped turn) still reflects damage taken
+    for side_key in ("a", "b"):
+        f = state["fighters"][side_key]
+        fid = str(f["id"])
+        if not fid.startswith("npc:"):
+            db.update_player_hp(fid, max(0, f["hp"]))
 
+    if battle_logic.is_finished(state):
         # send the result message, but never let a send failure (e.g. channel
         # not in cache) keep the finished battle row alive in the DB
         try:
