@@ -178,6 +178,15 @@ def get_player_hp(player_id: str) -> tuple:
     return row["hp"] or 100, row["max_hp"] or 100
 
 
+def heal_player(player_id: str, amount: int) -> tuple:
+    """Add `amount` HP, capped at max_hp. Returns (new_hp, max_hp, healed)."""
+    hp, max_hp = get_player_hp(player_id)
+    new_hp     = min(max_hp, hp + amount)
+    db.execute("UPDATE players SET hp=? WHERE id=?", (new_hp, str(player_id)))
+    db.commit()
+    return new_hp, max_hp, new_hp - hp
+
+
 # ── Walk rolls / meal effects ─────────────────────────────────────────────────
 
 def spend_walk_roll(player_id: str, amount: int = 1):

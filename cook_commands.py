@@ -28,6 +28,20 @@ def _is_cook(member: discord.Member) -> bool:
     return any(role.name.lower() == "cook" for role in getattr(member, "roles", []))
 
 
+def _apply_meal_effect(uid: str, meal_type: str) -> str:
+    """Apply a meal's effect to a player and return a short note string."""
+    if meal_type == "stamina":
+        db.add_walk_rolls(uid, game.STAMINA_MEAL_ROLLS, game.WALK_ROLL_OVERFILL)
+        return f"💨 Stamina restored — up to {game.WALK_ROLL_OVERFILL} walk moves banked."
+    if meal_type == "hearty":
+        db.set_hearty_buff(uid, 1)
+        return "💪 +10% to all stats in the next battle."
+    if meal_type == "recovery":
+        db.set_recovery_until(uid, time.time() + game.RECOVERY_MEAL_HOURS * 3600)
+        return f"❤️ Recovery boosted for the next {game.RECOVERY_MEAL_HOURS} hours."
+    return "...it tasted like nothing."
+
+
 # ── Groups ────────────────────────────────────────────────────────────────────
 
 cook_group = discord.app_commands.Group(
@@ -274,19 +288,7 @@ class ServeView(discord.ui.View):
             await interaction.response.send_message("You've already had your share!", ephemeral=True)
             return
 
-        meal_type = self.recipe["type"]
-        if meal_type == "stamina":
-            db.add_walk_rolls(uid, game.STAMINA_MEAL_ROLLS, game.WALK_ROLL_OVERFILL)
-            note = f"💨 Stamina restored — up to {game.WALK_ROLL_OVERFILL} walk moves banked."
-        elif meal_type == "hearty":
-            db.set_hearty_buff(uid, 1)
-            note = "💪 You feel stronger — +10% to all stats in your next battle."
-        elif meal_type == "recovery":
-            db.set_recovery_until(uid, time.time() + game.RECOVERY_MEAL_HOURS * 3600)
-            note = f"❤️ Recovery boosted for the next {game.RECOVERY_MEAL_HOURS} hours."
-        else:
-            note = "...it tasted like nothing."
-
+        note = _apply_meal_effect(uid, self.recipe["type"])
         self.eaten.add(uid)
         await interaction.response.send_message(
             f"You eat **{self.recipe['name']}**. {note}", ephemeral=True
@@ -335,5 +337,57 @@ async def cook_serve(interaction: discord.Interaction, dish: str):
         view = ServeView(cook_id=uid, crew_id=player["crew_id"], recipe=recipe)
         await interaction.response.send_message(embed=embed, view=view)
         view.message = await interaction.original_response()
+    except discord.NotFound:
+        pass
+
+
+# ── /cook feed ────────────────────────────────────────────────────────────────
+
+@cook_group.command(name="feed", description="Serve a dish directly to one person")
+@discord.app_commands.describe(dish="A recipe from your cookbook", target="Who to feed")
+@discord.app_commands.autocomplete(dish=_recipe_autocomplete)
+async def cook_feed(interaction: discord.Interaction, dish: str, target: discord.Member):
+    try:
+        uid    = str(interaction.user.id)
+        player = db.get_player(uid)
+        if not player:
+            await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+            return
+        if not _is_cook(interaction.user):
+            await interaction.response.send_message("Only a **Cook** can serve meals.", ephemeral=True)
+            return
+
+        tid = str(target.id)
+        if not db.get_player(tid):
+            await interaction.response.send_message(
+                f"{target.display_name} isn't registered yet.", ephemeral=True
+            )
+            return
+
+        recipe = next(
+            (r for r in db.get_recipes(uid) if r["name"].lower() == dish.lower()), None
+        )
+        if not recipe:
+            await interaction.response.send_message(
+                "That dish isn't in your cookbook. Use `/cook cookbook add` to create it.", ephemeral=True
+            )
+            return
+
+        note  = _apply_meal_effect(tid, recipe["type"])
+        kw    = " · ".join(k.upper() for k in recipe.get("keywords", []))
+        embed = discord.Embed(
+            title=f"🍽️ {recipe['name']}  ·  `{kw}`",
+            description=(
+                f"{recipe.get('description', '')}\n\n"
+                f"**{interaction.user.display_name}** serves this to **{target.display_name}**.\n"
+                f"*{note}*"
+            ),
+            color=0xd98e32,
+        )
+        if recipe.get("url"):
+            embed.set_image(url=recipe["url"])
+        embed.set_footer(text=f"Prepared by {interaction.user.display_name}")
+
+        await interaction.response.send_message(content=target.mention, embed=embed)
     except discord.NotFound:
         pass

@@ -43,6 +43,8 @@ from spyglass import spyglass_cmd, load_islands, prerender_all_flags
 bot.tree.add_command(spyglass_cmd)
 from cook_commands import cook_group
 bot.tree.add_command(cook_group)
+from doctor_commands import doctor_group
+bot.tree.add_command(doctor_group)
 
 # Battles don't survive restarts (embed buttons die with the process),
 # so clear any leftovers once per process start — not in on_ready, which
