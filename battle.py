@@ -6,6 +6,11 @@
 
 import random
 
+# Counter damage on a successful block, as a fraction of the BLOCKER's own
+# attack stat (never the incoming hit). Keep this proportional to the
+# defender's power so blocking a heavy hitter doesn't reflect huge damage.
+COUNTER_ATK_FRACTION = 0.15
+
 # ── Type Chart 1: Elemental (Pokemon gen 6) ───────────────────────────────────
 
 ELEMENTAL_CHART = {
@@ -333,7 +338,7 @@ def _resolve_action(actor, target, action, move_name, opp_action):
                     lines.append(f"→ {actor['name']} takes {recoil_dmg} recoil damage!")
 
                 if is_blocking:
-                    counter_dmg = max(1, round(target["atk"] * 0.3))
+                    counter_dmg = max(1, round(target["atk"] * COUNTER_ATK_FRACTION))
                     actor["hp"] = max(0, actor["hp"] - counter_dmg)
                     lines.append(f"→ {target['name']} counters! **{counter_dmg}** damage.")
 
@@ -397,7 +402,7 @@ def _resolve_action(actor, target, action, move_name, opp_action):
                     lines.append(f"→ {actor['name']} takes {recoil_dmg} recoil damage!")
 
                 if any_blocked:
-                    counter_dmg = max(1, round(target["atk"] * 0.3))
+                    counter_dmg = max(1, round(target["atk"] * COUNTER_ATK_FRACTION))
                     actor["hp"] = max(0, actor["hp"] - counter_dmg)
                     lines.append(f"→ {target['name']} counters! **{counter_dmg}** damage.")
 
