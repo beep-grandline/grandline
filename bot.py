@@ -196,6 +196,19 @@ async def _crew_name_autocomplete(interaction: discord.Interaction, current: str
         return []
 
 
+async def _all_ships_autocomplete(interaction: discord.Interaction, current: str):
+    """Like _crew_name_autocomplete but includes marine battleships."""
+    try:
+        crews = db.get_all_crews()
+        return [
+            discord.app_commands.Choice(name=c["name"], value=c["id"])
+            for c in crews
+            if current.lower() in c["name"].lower()
+        ][:25]
+    except (discord.NotFound, Exception):
+        return []
+
+
 @bot.tree.command(name="register", description="Register your character", guild=MY_GUILD)
 @discord.app_commands.describe(job="Your role (pirate, marine, etc)")
 async def register(interaction: discord.Interaction, job: str):
@@ -526,7 +539,7 @@ async def gm_teleport(interaction: discord.Interaction, target: discord.Member, 
     q="Hex q coordinate",
     r="Hex r coordinate",
 )
-@discord.app_commands.autocomplete(crew=_crew_name_autocomplete)
+@discord.app_commands.autocomplete(crew=_all_ships_autocomplete)
 async def gm_moveship(interaction: discord.Interaction, crew: str, q: int, r: int):
     if not is_gm(interaction):
         await interaction.response.send_message("No permission.", ephemeral=True)
