@@ -25,7 +25,7 @@ doctor_group = discord.app_commands.Group(
 
 
 async def _treat(interaction: discord.Interaction, target: discord.Member,
-                 amount: int, title: str, verb: str):
+                 amount: int, verb: str):
     """Shared handler for bandage/heal. `amount` is HP to restore."""
     uid = str(interaction.user.id)
     if not db.get_player(uid):
@@ -50,16 +50,9 @@ async def _treat(interaction: discord.Interaction, target: discord.Member,
         return
 
     new_hp, max_hp, healed = db.heal_player(tid, amount)
-    embed = discord.Embed(
-        title=title,
-        description=(
-            f"**{interaction.user.display_name}** {verb} **{target.display_name}**.\n"
-            f"*+{healed} HP → {new_hp}/{max_hp}*"
-        ),
-        color=DOCTOR_COLOR,
+    await interaction.response.send_message(
+        f"{target.mention} {interaction.user.display_name} {verb} ({new_hp}/{max_hp} HP)"
     )
-    embed.set_footer(text=f"Treated by {interaction.user.display_name}")
-    await interaction.response.send_message(content=target.mention, embed=embed)
 
 
 @doctor_group.command(name="bandage", description="Patch a crewmate up for some HP")
@@ -68,7 +61,7 @@ async def doctor_bandage(interaction: discord.Interaction, target: discord.Membe
     try:
         _, max_hp = db.get_player_hp(str(target.id))
         amount    = max(1, round(max_hp * BANDAGE_FRACTION))
-        await _treat(interaction, target, amount, "🩹 Bandaged", "bandages")
+        await _treat(interaction, target, amount, "bandages")
     except discord.NotFound:
         pass
 
@@ -78,6 +71,6 @@ async def doctor_bandage(interaction: discord.Interaction, target: discord.Membe
 async def doctor_heal(interaction: discord.Interaction, target: discord.Member):
     try:
         _, max_hp = db.get_player_hp(str(target.id))
-        await _treat(interaction, target, max_hp, "❤️ Healed", "fully heals")
+        await _treat(interaction, target, max_hp, "fully heals")
     except discord.NotFound:
         pass
