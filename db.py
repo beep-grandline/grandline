@@ -77,6 +77,7 @@ def init_db():
         "ALTER TABLE players ADD COLUMN hearty_buff  INTEGER DEFAULT 0",
         "ALTER TABLE players ADD COLUMN recovery_until REAL  DEFAULT 0",
         "ALTER TABLE players ADD COLUMN recipes_json TEXT",
+        "ALTER TABLE players ADD COLUMN captured_by  TEXT DEFAULT NULL",
     ]:
         try:
             db.execute(sql)
@@ -284,6 +285,43 @@ def delete_recipe(player_id: str, name: str):
     db.execute(
         "UPDATE players SET recipes_json=? WHERE id=?",
         (json.dumps(recipes), str(player_id))
+    )
+    db.commit()
+
+
+# ── Marine capture ────────────────────────────────────────────────────────────
+
+def set_captured(player_id: str, officer_id: str):
+    """Mark a player as captured by an officer. Also sets following_id to officer so position tracks."""
+    db.execute(
+        "UPDATE players SET captured_by=?, following_id=? WHERE id=?",
+        (str(officer_id), str(officer_id), str(player_id))
+    )
+    db.commit()
+
+
+def release_prisoner(player_id: str, q: int, r: int):
+    """Release a captured player at (q, r), clearing capture state."""
+    db.execute(
+        "UPDATE players SET captured_by=NULL, following_id=NULL, q=?, r=? WHERE id=?",
+        (q, r, str(player_id))
+    )
+    db.commit()
+
+
+def get_prisoners(officer_id: str) -> list:
+    """Returns list of player rows captured by this officer."""
+    rows = db.execute(
+        "SELECT * FROM players WHERE captured_by=?", (str(officer_id),)
+    ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def release_all_prisoners_of(officer_id: str, q: int, r: int):
+    """Release all prisoners of an officer at (q, r)."""
+    db.execute(
+        "UPDATE players SET captured_by=NULL, following_id=NULL, q=?, r=? WHERE captured_by=?",
+        (q, r, str(officer_id))
     )
     db.commit()
 

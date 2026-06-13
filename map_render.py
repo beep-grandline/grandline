@@ -46,6 +46,10 @@ SEA_COLOR        = TERRAIN_COLORS["sea"]
 # regardless of what the JSON says. The JSON calm_belt terrain type is ignored.
 CALM_BELT_R = 36
 
+# Impel Down — reserved special hex rendered gray
+IMPEL_DOWN = (180, 0)
+IMPEL_DOWN_COLOR = "#5a5a6a"
+
 # Calm belt overlay — translucent white drawn above the sea texture
 CALM_BELT_COLOR = (1.0, 1.0, 1.0, 0.38)
 
@@ -516,6 +520,21 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                         if dq > 0 or (dq == 0 and dr > 0):
                             p1, p2 = corners[i1], corners[i2]
                             sea_segs.append([p1, p2])
+                continue
+
+            # Impel Down — special reserved hex, always rendered gray
+            if (q, r) == IMPEL_DOWN:
+                cx, cy  = _hex_to_pixel(q, r)
+                corners = _hex_corners(q, r)
+                land_patches.append(
+                    mpatches.RegularPolygon((cx, cy), numVertices=6, radius=SIZE, orientation=0)
+                )
+                land_colors.append(IMPEL_DOWN_COLOR)
+                hex_label_data.append((cx, cy, "Impel Down"))
+                for (dq2, dr2), (i1, i2) in NEIGHBOR_TO_EDGE.items():
+                    if hex_lookup.get((q + dq2, r + dr2), "sea") == "sea":
+                        p1, p2 = corners[i1], corners[i2]
+                        border_segs.append([p1, p2])
                 continue
 
             # Ignore calm_belt terrain from JSON — treat as plain sea

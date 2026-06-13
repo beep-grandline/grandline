@@ -95,6 +95,7 @@ MOVE_FAILURE = {
     "not_found":         "Player not found.",
     "no_walking_on_sea": "You can't walk on open sea. Stay on land.",
     "no_walk_rolls":     "You're out of stamina. Rest a while — or get the cook to make a stamina meal.",
+    "captured":          "You are under arrest and cannot move.",
 }
 
 

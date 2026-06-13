@@ -197,6 +197,16 @@ async def _resolve_and_update(interaction: discord.Interaction, battle_id: str):
             db.update_player_hp(fid, max(0, f["hp"]))
 
     if battle_logic.is_finished(state):
+        # If a marine officer lost, release all their prisoners to the winner's position
+        winner_key = state.get("winner")
+        if winner_key in ("a", "b"):
+            loser_key  = "b" if winner_key == "a" else "a"
+            loser_id   = str(state["fighters"][loser_key]["id"])
+            winner_id  = str(state["fighters"][winner_key]["id"])
+            if not loser_id.startswith("npc:") and db.get_prisoners(loser_id):
+                wq, wr = game.get_position(winner_id) if not winner_id.startswith("npc:") else (0, 0)
+                db.release_all_prisoners_of(loser_id, wq, wr)
+
         # send the result message, but never let a send failure (e.g. channel
         # not in cache) keep the finished battle row alive in the DB
         try:

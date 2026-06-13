@@ -48,6 +48,10 @@ BLOCKED_TILES = {(-1, 0)}
 
 DEFAULT_LOG_POSE = "alabasta"
 
+# Impel Down — reserved hex, rendered gray, used as marine prison destination
+IMPEL_DOWN_Q = 180
+IMPEL_DOWN_R = 0
+
 # ── Position resolver ─────────────────────────────────────────────────────────
 
 def get_position(player_id, _depth=0):
@@ -206,6 +210,9 @@ def move_player(player_id, direction):
     player = db.get_player(str(player_id))
     if not player:
         return 0, 0, False, "not_found"
+
+    if player["captured_by"]:
+        return player["q"] or 0, player["r"] or 0, False, "captured"
 
     if direction not in HEX_DIRECTIONS:
         return player["q"] or 0, player["r"] or 0, False, "invalid_direction"
