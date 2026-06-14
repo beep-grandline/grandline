@@ -522,19 +522,35 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                             sea_segs.append([p1, p2])
                 continue
 
-            # Impel Down — special reserved hex, always rendered gray
+            # Impel Down — layered underwater prison rendered as stacked circles
             if (q, r) == IMPEL_DOWN:
-                cx, cy  = _hex_to_pixel(q, r)
-                corners = _hex_corners(q, r)
-                land_patches.append(
-                    mpatches.RegularPolygon((cx, cy), numVertices=6, radius=SIZE, orientation=0)
-                )
-                land_colors.append(IMPEL_DOWN_COLOR)
-                hex_label_data.append((cx, cy, "Impel Down"))
-                for (dq2, dr2), (i1, i2) in NEIGHBOR_TO_EDGE.items():
-                    if hex_lookup.get((q + dq2, r + dr2), "sea") == "sea":
-                        p1, p2 = corners[i1], corners[i2]
-                        border_segs.append([p1, p2])
+                cx, cy = _hex_to_pixel(q, r)
+
+                LAYER_COUNT  = 4
+                V_OFFSET     = SIZE * 0.38   # downward drop per level
+                H_EXPAND     = SIZE * 0.07   # extra radius per level
+                TOP_RADIUS   = SIZE * 0.80
+                # index 0 = top circle, index 4 = deepest level
+                LEVEL_COLORS = ["#5a5a6e", "#40404f", "#2e2e3e", "#1e1e2e", "#121220"]
+                LEVEL_ALPHAS = [1.0, 0.72, 0.58, 0.46, 0.36]
+
+                # draw deepest level first so upper levels paint over them
+                for lvl in range(LAYER_COUNT, -1, -1):
+                    lcy = cy - lvl * V_OFFSET
+                    lr  = TOP_RADIUS + lvl * H_EXPAND
+                    ax.add_patch(mpatches.Circle(
+                        (cx, lcy), lr,
+                        facecolor=LEVEL_COLORS[lvl],
+                        edgecolor="#0a0a16",
+                        linewidth=0.7,
+                        alpha=LEVEL_ALPHAS[lvl],
+                        zorder=3,
+                    ))
+
+                ax.text(cx, cy + TOP_RADIUS * 0.55, "Impel Down",
+                        ha="center", va="bottom",
+                        fontsize=5.5, color="#d0d0e8",
+                        fontweight="bold", clip_on=True, zorder=6)
                 continue
 
             # Ignore calm_belt terrain from JSON — treat as plain sea
