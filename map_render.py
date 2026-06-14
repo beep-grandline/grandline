@@ -525,8 +525,15 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
 
             # Impel Down — record center for post-figure rendering
             if (q, r) == IMPEL_DOWN:
-                cx, cy = _hex_to_pixel(q, r)
+                cx, cy  = _hex_to_pixel(q, r)
+                corners = _hex_corners(q, r)
                 impel_down_center = (cx, cy)
+                # still contribute sea grid edges (skipping this tile would leave 3 edges undrawn)
+                for (dq2, dr2), (i1, i2) in NEIGHBOR_TO_EDGE.items():
+                    nq2, nr2 = q + dq2, r + dr2
+                    if _hex_distance(nq2, nr2, pq, pr) <= radius:
+                        if dq2 > 0 or (dq2 == 0 and dr2 > 0):
+                            sea_segs.append([corners[i1], corners[i2]])
                 continue
 
             # Ignore calm_belt terrain from JSON — treat as plain sea
@@ -691,16 +698,14 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         TOP_RADIUS  = SIZE * 0.52
         LAYER_COUNT = 4
         H_EXPAND    = SIZE * 0.28   # extra radius per ring
-        # outer rings drawn under hex grid (zorder 0.5), top circle above (zorder 3)
-        RING_COLORS = ["#5a5a6e", "#3a3a50", "#272736", "#181828", "#0e0e1c"]
-        RING_ALPHAS = [1.0,        0.80,      0.65,      0.52,      0.40]
+        # steep gradient — outer rings near-black, no alpha used
+        RING_COLORS = ["#575768", "#222230", "#111118", "#09090f", "#05050a"]
         for lvl in range(LAYER_COUNT, 0, -1):
             ax.add_patch(mpatches.Circle(
                 (icx, icy),
                 TOP_RADIUS + lvl * H_EXPAND,
                 facecolor=RING_COLORS[lvl],
                 edgecolor="none",
-                alpha=RING_ALPHAS[lvl],
                 zorder=0.5,
             ))
         ax.add_patch(mpatches.Circle(
