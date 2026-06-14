@@ -498,6 +498,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     reachable_centers = []
     wind_centers      = []   # roll view — wind-boosted hexes (reddish dots)
     island_accum      = {}
+    impel_down_center = None  # set if (180, 0) is in the viewport
 
     for q in range(pq - radius, pq + radius + 1):
         for r in range(pr - radius, pr + radius + 1):
@@ -522,35 +523,10 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                             sea_segs.append([p1, p2])
                 continue
 
-            # Impel Down — layered underwater prison rendered as stacked circles
+            # Impel Down — record center for post-figure rendering
             if (q, r) == IMPEL_DOWN:
                 cx, cy = _hex_to_pixel(q, r)
-
-                LAYER_COUNT  = 4
-                V_OFFSET     = SIZE * 0.38   # downward drop per level
-                H_EXPAND     = SIZE * 0.07   # extra radius per level
-                TOP_RADIUS   = SIZE * 0.80
-                # index 0 = top circle, index 4 = deepest level
-                LEVEL_COLORS = ["#5a5a6e", "#40404f", "#2e2e3e", "#1e1e2e", "#121220"]
-                LEVEL_ALPHAS = [1.0, 0.72, 0.58, 0.46, 0.36]
-
-                # draw deepest level first so upper levels paint over them
-                for lvl in range(LAYER_COUNT, -1, -1):
-                    lcy = cy - lvl * V_OFFSET
-                    lr  = TOP_RADIUS + lvl * H_EXPAND
-                    ax.add_patch(mpatches.Circle(
-                        (cx, lcy), lr,
-                        facecolor=LEVEL_COLORS[lvl],
-                        edgecolor="#0a0a16",
-                        linewidth=0.7,
-                        alpha=LEVEL_ALPHAS[lvl],
-                        zorder=3,
-                    ))
-
-                ax.text(cx, cy + TOP_RADIUS * 0.55, "Impel Down",
-                        ha="center", va="bottom",
-                        fontsize=5.5, color="#d0d0e8",
-                        fontweight="bold", clip_on=True, zorder=6)
+                impel_down_center = (cx, cy)
                 continue
 
             # Ignore calm_belt terrain from JSON — treat as plain sea
@@ -708,6 +684,30 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
 
     # Whirlpool effects — drawn above sea, below labels and player
     # _draw_whirlpools(ax, WHIRLPOOL_TILES, pq, pr, radius)
+
+    # Impel Down — layered stacked circles (drawn after ax exists)
+    if impel_down_center is not None:
+        icx, icy = impel_down_center
+        ID_LAYER_COUNT  = 4
+        ID_V_OFFSET     = SIZE * 0.38
+        ID_H_EXPAND     = SIZE * 0.07
+        ID_TOP_RADIUS   = SIZE * 0.80
+        ID_COLORS = ["#5a5a6e", "#40404f", "#2e2e3e", "#1e1e2e", "#121220"]
+        ID_ALPHAS = [1.0, 0.72, 0.58, 0.46, 0.36]
+        for lvl in range(ID_LAYER_COUNT, -1, -1):
+            ax.add_patch(mpatches.Circle(
+                (icx, icy - lvl * ID_V_OFFSET),
+                ID_TOP_RADIUS + lvl * ID_H_EXPAND,
+                facecolor=ID_COLORS[lvl],
+                edgecolor="#0a0a16",
+                linewidth=0.7,
+                alpha=ID_ALPHAS[lvl],
+                zorder=3,
+            ))
+        ax.text(icx, icy + ID_TOP_RADIUS * 0.6, "Impel Down",
+                ha="center", va="bottom",
+                fontsize=5.5, color="#d0d0e8",
+                fontweight="bold", clip_on=True, zorder=6)
 
     # Per-hex labels (hex_label field — e.g. "Royal Palace")
     for (lx, ly, text) in hex_label_data:
