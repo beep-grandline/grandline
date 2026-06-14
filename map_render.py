@@ -685,26 +685,31 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     # Whirlpool effects — drawn above sea, below labels and player
     # _draw_whirlpools(ax, WHIRLPOOL_TILES, pq, pr, radius)
 
-    # Impel Down — layered stacked circles (drawn after ax exists)
+    # Impel Down — concentric circles, outer rings behind the hex grid
     if impel_down_center is not None:
-        icx, icy = impel_down_center
-        ID_LAYER_COUNT  = 4
-        ID_V_OFFSET     = SIZE * 0.38
-        ID_H_EXPAND     = SIZE * 0.07
-        ID_TOP_RADIUS   = SIZE * 0.80
-        ID_COLORS = ["#5a5a6e", "#40404f", "#2e2e3e", "#1e1e2e", "#121220"]
-        ID_ALPHAS = [1.0, 0.72, 0.58, 0.46, 0.36]
-        for lvl in range(ID_LAYER_COUNT, -1, -1):
+        icx, icy    = impel_down_center
+        TOP_RADIUS  = SIZE * 0.52
+        LAYER_COUNT = 4
+        H_EXPAND    = SIZE * 0.28   # extra radius per ring
+        # outer rings drawn under hex grid (zorder 0.5), top circle above (zorder 3)
+        RING_COLORS = ["#5a5a6e", "#3a3a50", "#272736", "#181828", "#0e0e1c"]
+        RING_ALPHAS = [1.0,        0.80,      0.65,      0.52,      0.40]
+        for lvl in range(LAYER_COUNT, 0, -1):
             ax.add_patch(mpatches.Circle(
-                (icx, icy - lvl * ID_V_OFFSET),
-                ID_TOP_RADIUS + lvl * ID_H_EXPAND,
-                facecolor=ID_COLORS[lvl],
-                edgecolor="#0a0a16",
-                linewidth=0.7,
-                alpha=ID_ALPHAS[lvl],
-                zorder=3,
+                (icx, icy),
+                TOP_RADIUS + lvl * H_EXPAND,
+                facecolor=RING_COLORS[lvl],
+                edgecolor="none",
+                alpha=RING_ALPHAS[lvl],
+                zorder=0.5,
             ))
-        ax.text(icx, icy + ID_TOP_RADIUS * 0.6, "Impel Down",
+        ax.add_patch(mpatches.Circle(
+            (icx, icy), TOP_RADIUS,
+            facecolor=RING_COLORS[0],
+            edgecolor="none",
+            zorder=3,
+        ))
+        ax.text(icx, icy + TOP_RADIUS * 0.65, "Impel Down",
                 ha="center", va="bottom",
                 fontsize=5.5, color="#d0d0e8",
                 fontweight="bold", clip_on=True, zorder=6)
