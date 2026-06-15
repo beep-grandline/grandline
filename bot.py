@@ -1100,6 +1100,37 @@ async def admin_rolepicker(interaction: discord.Interaction):
     await interaction.followup.send("Posted!", ephemeral=True)
 
 
+@admin_group.command(name="translate", description="Render text in the Poneglyph script (test)")
+@discord.app_commands.describe(text="Text to render")
+async def admin_translate(interaction: discord.Interaction, text: str):
+    if not is_admin(interaction):
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+
+    import io
+    from PIL import Image, ImageDraw, ImageFont
+
+    font = ImageFont.truetype("data/Poneglyph.ttf", 96)
+
+    # measure the text so the canvas fits it snugly
+    tmp  = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+    bbox = tmp.textbbox((0, 0), text, font=font)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+    pad = 20
+    img  = Image.new("RGB", (tw + pad * 2, th + pad * 2), "white")
+    draw = ImageDraw.Draw(img)
+    draw.text((pad - bbox[0], pad - bbox[1]), text, font=font, fill="black")
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+
+    await interaction.response.send_message(
+        file=discord.File(buf, filename="poneglyph.png")
+    )
+
+
 @admin_group.command(name="help", description="List all admin commands")
 async def admin_help(interaction: discord.Interaction):
     embed = discord.Embed(
