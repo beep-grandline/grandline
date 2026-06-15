@@ -694,23 +694,19 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
 
     # Impel Down — concentric circles, outer rings behind the hex grid
     if impel_down_center is not None:
-        icx, icy    = impel_down_center
-        TOP_RADIUS  = SIZE * 0.52
-        LAYER_COUNT = 4
-        H_EXPAND    = SIZE * 0.28   # extra radius per ring
-        # steep gradient — outer rings near-black, no alpha used
-        RING_COLORS = ["#575768", "#222230", "#111118", "#09090f", "#05050a"]
-        for lvl in range(LAYER_COUNT, 0, -1):
-            ax.add_patch(mpatches.Circle(
-                (icx, icy),
-                TOP_RADIUS + lvl * H_EXPAND,
-                facecolor=RING_COLORS[lvl],
-                edgecolor="none",
-                zorder=0.5,
-            ))
+        icx, icy   = impel_down_center
+        TOP_RADIUS = SIZE * 0.52
+        # bottom shadow — slightly larger, dark ocean blue, behind the hex grid
+        ax.add_patch(mpatches.Circle(
+            (icx, icy), TOP_RADIUS + SIZE * 0.28,
+            facecolor="#3a7a92",
+            edgecolor="none",
+            zorder=0.5,
+        ))
+        # top circle — slate gray, above the grid
         ax.add_patch(mpatches.Circle(
             (icx, icy), TOP_RADIUS,
-            facecolor=RING_COLORS[0],
+            facecolor="#575768",
             edgecolor="none",
             zorder=3,
         ))
