@@ -650,7 +650,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
     if view == "roll" and reachable_centers:
         xs, ys, dists = zip(*reachable_centers)
         # alpha rolloff: ~0.62 nearest → ~0.28 (half) at 9 tiles out
-        ROLL_ALPHA_NEAR, ROLL_ALPHA_FAR, ROLL_ALPHA_DIST = 0.62, 0.28, 9.0
+        ROLL_ALPHA_NEAR, ROLL_ALPHA_FAR, ROLL_ALPHA_DIST = 0.62, 0.18, 9.0
         colors = [
             (1.0, 1.0, 1.0,
              max(ROLL_ALPHA_FAR,
