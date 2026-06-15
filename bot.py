@@ -62,6 +62,8 @@ async def on_ready():
     load_islands()
     asyncio.create_task(prerender_all_flags())
     bot.add_view(RolePicker())
+    bot.add_view(JobPicker())
+    bot.add_view(WeaponPicker())
     bot.tree.clear_commands(guild=None)
     await bot.tree.sync()
     synced = await bot.tree.sync(guild=MY_GUILD)
@@ -1077,13 +1079,15 @@ admin_group = discord.app_commands.Group(
 )
 
 
-@admin_group.command(name="rolepicker", description="Post the faction role picker")
+@admin_group.command(name="rolepicker", description="Post the role/job/weapon pickers")
 async def admin_rolepicker(interaction: discord.Interaction):
     if not is_admin(interaction):
         await interaction.response.send_message("No permission.", ephemeral=True)
         return
     await interaction.response.defer(ephemeral=True)
     await interaction.channel.send("# Choose Your Allegiance!", view=RolePicker())
+    await interaction.channel.send("# Choose Your Job!", view=JobPicker())
+    await interaction.channel.send("# Choose Your Weapon!", view=WeaponPicker())
     await interaction.followup.send("Posted!", ephemeral=True)
 
 
@@ -1107,34 +1111,78 @@ bot.tree.add_command(admin_group)
 
 # ── Role picker ───────────────────────────────────────────────────────────────
 
+ALLEGIANCE_ROLES = ["Pirate", "Marine"]
+JOB_ROLES        = ["Doctor", "Cook", "Navigator", "Helmsman", "Musician"]
+
+
 class RolePicker(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
     @discord.ui.button(label="🏴‍☠️ Pirate", style=discord.ButtonStyle.secondary, custom_id="role_pirate")
     async def pirate(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await assign_role(interaction, "Pirate")
+        await _assign_allegiance(interaction, "Pirate")
 
     @discord.ui.button(label="⚓ Marine", style=discord.ButtonStyle.secondary, custom_id="role_marine")
     async def marine(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await assign_role(interaction, "Marine")
-
-    @discord.ui.button(label="👨 Civilian", style=discord.ButtonStyle.secondary, custom_id="role_civ")
-    async def civilian(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await assign_role(interaction, "Civilian")
-
-    @discord.ui.button(label="🗡️ Revolutionary", style=discord.ButtonStyle.secondary, custom_id="role_revo")
-    async def revolutionary(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await assign_role(interaction, "Revolutionary")
+        await _assign_allegiance(interaction, "Marine")
 
 
-async def assign_role(interaction: discord.Interaction, role_name: str):
-    crew_roles = ["Pirate", "Marine", "Civilian", "Revolutionary"]
-    for rname in crew_roles:
+class JobPicker(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="🩺 Doctor",    style=discord.ButtonStyle.secondary, custom_id="job_doctor")
+    async def doctor(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await _assign_job(interaction, "Doctor")
+
+    @discord.ui.button(label="🍳 Cook",      style=discord.ButtonStyle.secondary, custom_id="job_cook")
+    async def cook(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await _assign_job(interaction, "Cook")
+
+    @discord.ui.button(label="🧭 Navigator", style=discord.ButtonStyle.secondary, custom_id="job_navigator")
+    async def navigator(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await _assign_job(interaction, "Navigator")
+
+    @discord.ui.button(label="🎡 Helmsman",  style=discord.ButtonStyle.secondary, custom_id="job_helmsman")
+    async def helmsman(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await _assign_job(interaction, "Helmsman")
+
+    @discord.ui.button(label="🎵 Musician",  style=discord.ButtonStyle.secondary, custom_id="job_musician")
+    async def musician(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await _assign_job(interaction, "Musician")
+
+
+class WeaponPicker(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="🗡️ Sword", style=discord.ButtonStyle.secondary, custom_id="weapon_sword")
+    async def sword(self, interaction: discord.Interaction, button: discord.ui.Button):
+        uid = str(interaction.user.id)
+        if not db.get_player(uid):
+            await interaction.response.send_message(
+                "Register first with `/register`.", ephemeral=True
+            )
+            return
+        inv = db.get_inventory(uid)
+        if any(item["name"].lower() == "sword" for item in inv):
+            await interaction.response.send_message(
+                "You already have a Sword.", ephemeral=True
+            )
+            return
+        db.add_inventory_item(uid, "Sword", qty=1, keywords=[])
+        await interaction.response.send_message(
+            "You received a **Sword**!", ephemeral=True
+        )
+
+
+async def _assign_allegiance(interaction: discord.Interaction, role_name: str):
+    for rname in ALLEGIANCE_ROLES:
         existing = discord.utils.get(interaction.guild.roles, name=rname)
         if existing and existing in interaction.user.roles:
             await interaction.response.send_message(
-                f"You already have the {rname} role. You can't change it.", ephemeral=True
+                f"You already have the **{rname}** role.", ephemeral=True
             )
             return
     role = discord.utils.get(interaction.guild.roles, name=role_name)
@@ -1144,7 +1192,26 @@ async def assign_role(interaction: discord.Interaction, role_name: str):
         )
         return
     await interaction.user.add_roles(role)
-    await interaction.response.send_message(f"You are now a {role_name}!", ephemeral=True)
+    await interaction.response.send_message(f"You are now a **{role_name}**!", ephemeral=True)
+
+
+async def _assign_job(interaction: discord.Interaction, role_name: str):
+    for rname in JOB_ROLES:
+        existing = discord.utils.get(interaction.guild.roles, name=rname)
+        if existing and existing in interaction.user.roles:
+            await interaction.response.send_message(
+                f"You already have the **{rname}** role.", ephemeral=True
+            )
+            return
+    role = discord.utils.get(interaction.guild.roles, name=role_name)
+    if not role:
+        await interaction.response.send_message(
+            f"Role '{role_name}' doesn't exist on this server.", ephemeral=True
+        )
+        return
+    await interaction.user.add_roles(role)
+    await interaction.response.send_message(f"You are now a **{role_name}**!", ephemeral=True)
+
 
 
 
