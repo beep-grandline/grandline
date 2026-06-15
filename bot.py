@@ -1110,26 +1110,16 @@ async def admin_translate(interaction: discord.Interaction, text: str):
     import io
     from PIL import Image, ImageDraw, ImageFont
 
-    BG        = (12,  22,  54)   # dark navy
-    CARVED    = ( 7,  13,  34)   # darker navy — the groove floor
-    HIGHLIGHT = (38,  65, 120)   # lighter blue — light catching the upper-left rim
-    SHADOW    = ( 3,   6,  16)   # near-black — shadow in the lower-right groove
-
     font = ImageFont.truetype("data/Poneglyph.ttf", 96)
 
     tmp  = ImageDraw.Draw(Image.new("RGB", (1, 1)))
     bbox = tmp.textbbox((0, 0), text, font=font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
 
-    pad = 28
-    img  = Image.new("RGB", (tw + pad * 2, th + pad * 2), BG)
+    pad = 20
+    img  = Image.new("RGB", (tw + pad * 2, th + pad * 2), "black")
     draw = ImageDraw.Draw(img)
-    px, py = pad - bbox[0], pad - bbox[1]
-
-    # deboss: highlight on upper-left edge, shadow on lower-right, carved floor on top
-    draw.text((px - 2, py - 2), text, font=font, fill=HIGHLIGHT)
-    draw.text((px + 2, py + 2), text, font=font, fill=SHADOW)
-    draw.text((px,     py    ), text, font=font, fill=CARVED)
+    draw.text((pad - bbox[0], pad - bbox[1]), text, font=font, fill="white")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
