@@ -554,7 +554,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
 
                 # Roll dots: only tiles actually reachable by sailing (BFS)
                 if view == "roll" and (q, r) in reachable_set:
-                    reachable_centers.append((cx, cy))
+                    reachable_centers.append((cx, cy, _hex_distance(q, r, pq, pr)))
                 continue
 
             color = TERRAIN_COLORS.get(terrain, TERRAIN_COLORS["island"])
@@ -648,9 +648,16 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         ))
 
     if view == "roll" and reachable_centers:
-        xs, ys = zip(*reachable_centers)
-        ax.scatter(xs, ys, s=18, color=(1.0, 1.0, 1.0, 0.55),
-                   linewidths=0, zorder=2)
+        xs, ys, dists = zip(*reachable_centers)
+        # alpha rolloff: ~0.62 nearest → ~0.28 (half) at 9 tiles out
+        ROLL_ALPHA_NEAR, ROLL_ALPHA_FAR, ROLL_ALPHA_DIST = 0.62, 0.28, 9.0
+        colors = [
+            (1.0, 1.0, 1.0,
+             max(ROLL_ALPHA_FAR,
+                 ROLL_ALPHA_NEAR - (ROLL_ALPHA_NEAR - ROLL_ALPHA_FAR) * (max(0, d - 1) / ROLL_ALPHA_DIST)))
+            for d in dists
+        ]
+        ax.scatter(xs, ys, s=18, color=colors, linewidths=0, zorder=2)
 
     if view == "roll" and wind_centers:
         wxs, wys = zip(*wind_centers)
