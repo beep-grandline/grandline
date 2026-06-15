@@ -571,7 +571,7 @@ async def battle_cmd(interaction: discord.Interaction, target: discord.Member):
         return
     p_self = db.get_player(uid)
     if not p_self:
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
     if p_self["captured_by"]:
         await interaction.response.send_message(
@@ -641,7 +641,7 @@ async def engage_cmd(interaction: discord.Interaction, target: str):
     player = db.get_player(uid)
 
     if not player:
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
     if db.get_battle_by_player(uid):
         await interaction.response.send_message(

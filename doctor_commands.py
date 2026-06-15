@@ -29,7 +29,7 @@ async def _treat(interaction: discord.Interaction, target: discord.Member,
     """Shared handler for bandage/heal. `amount` is HP to restore."""
     uid = str(interaction.user.id)
     if not db.get_player(uid):
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
     if not _is_doctor(interaction.user):
         await interaction.response.send_message("Only a **Doctor** can do that.", ephemeral=True)

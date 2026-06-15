@@ -256,7 +256,7 @@ _TYPE_CHOICES = [
 async def kit_show(interaction: discord.Interaction):
     uid = str(interaction.user.id)
     if not db.get_player(uid):
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
 
     moves = db.get_player_moves(uid)
@@ -363,7 +363,7 @@ async def kit_add(
 ):
     uid = str(interaction.user.id)
     if not db.get_player(uid):
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
 
     moves = db.get_player_moves(uid)

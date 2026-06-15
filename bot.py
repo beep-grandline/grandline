@@ -87,7 +87,7 @@ HELP_PAGES = {
         "title": "⛵ Starting",
         "description": "How to start the game.",
         "fields": [
-            ("/register <faction>", "Enter the game."),
+            ("Choose Your Allegiance", "Pick Pirate or Marine from the role picker to enter the game."),
         ]
     },
     
@@ -211,23 +211,13 @@ async def _all_ships_autocomplete(interaction: discord.Interaction, current: str
         return []
 
 
-@bot.tree.command(name="register", description="Register your character", guild=MY_GUILD)
-@discord.app_commands.describe(job="Your role (pirate, marine, etc)")
-async def register(interaction: discord.Interaction, job: str):
-    uid  = str(interaction.user.id)
-    name = interaction.user.name
-    db.upsert_player(uid, name)
-    await interaction.response.send_message(
-        f"Welcome to the Grand Line, {name}!", ephemeral=True
-    )
-
 @bot.tree.command(name="position", description="Check your current position", guild=MY_GUILD)
 async def position_cmd(interaction: discord.Interaction):
     uid = str(interaction.user.id)
     pos = db.get_player_position(uid)
     if not pos:
         await interaction.response.send_message(
-            "You are not registered yet. Use `/register` first.", ephemeral=True
+            "You are not registered yet. Pick your allegiance from the role picker first.", ephemeral=True
         )
         return
     q, r = pos
@@ -296,7 +286,7 @@ async def join_cmd(interaction: discord.Interaction, crew:str):
     uid = str(interaction.user.id)
 
     if not db.get_player(uid):
-        await interaction.followup.send("You need to register first with `/register`.")
+        await interaction.followup.send("You need to register first — pick your allegiance from the role picker.")
         return
 
     player = db.get_player(uid)
@@ -711,6 +701,24 @@ async def gm_repair(
         f"HP: **{new_hp}/{max_hp}**"
     )
 
+@gm_group.command(name="register", description="Manually register a player (backup for the role picker)")
+@discord.app_commands.describe(target="The player to register")
+async def gm_register(interaction: discord.Interaction, target: discord.Member):
+    if not is_gm(interaction):
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+    uid = str(target.id)
+    if db.get_player(uid):
+        await interaction.response.send_message(
+            f"**{target.display_name}** is already registered.", ephemeral=True
+        )
+        return
+    db.upsert_player(uid, target.name)
+    await interaction.response.send_message(
+        f"Registered **{target.display_name}** into the game."
+    )
+
+
 @gm_group.command(name="remove", description="Remove a player from the player list")
 @discord.app_commands.describe(target="The player to remove")
 async def gm_remove(interaction: discord.Interaction, target: discord.Member):
@@ -915,6 +923,7 @@ async def gm_help(interaction: discord.Interaction):
         ("/gm addrolls",  "Add rolls to a crew for events (crew, amount, optional cap)"),
         ("/gm crew",      "Create a new crew (name, captain, color)"),
         ("/gm disband",   "Disband a crew by name"),
+        ("/gm register",  "Manually register a player — backup if the role picker fails (target)"),
         ("/gm remove",    "Remove a player from the game"),
         ("/gm setberry",  "Set a player's berry (target, amount)"),
         ("/gm setstats",  "Set a player's battle stats — ATK, DEF, SPD, block and dodge names"),
@@ -1162,7 +1171,7 @@ class WeaponPicker(discord.ui.View):
         uid = str(interaction.user.id)
         if not db.get_player(uid):
             await interaction.response.send_message(
-                "Register first with `/register`.", ephemeral=True
+                "Pick your allegiance from the role picker first.", ephemeral=True
             )
             return
         inv = db.get_inventory(uid)
@@ -1192,7 +1201,11 @@ async def _assign_allegiance(interaction: discord.Interaction, role_name: str):
         )
         return
     await interaction.user.add_roles(role)
-    await interaction.response.send_message(f"You are now a **{role_name}**!", ephemeral=True)
+    # registering an allegiance enters the player into the game
+    db.upsert_player(str(interaction.user.id), interaction.user.name)
+    await interaction.response.send_message(
+        f"You are now a **{role_name}**! Welcome to the Grand Line.", ephemeral=True
+    )
 
 
 async def _assign_job(interaction: discord.Interaction, role_name: str):

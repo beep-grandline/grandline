@@ -40,7 +40,7 @@ async def marine_sail(interaction: discord.Interaction):
         return
 
     if not db.get_player(uid):
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
 
     existing = db.get_battleship(uid)
@@ -89,7 +89,7 @@ async def marine_arrest(interaction: discord.Interaction, target: discord.Member
 
     officer_row = db.get_player(uid)
     if not officer_row:
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
 
     officer_hp = officer_row["hp"] if officer_row["hp"] is not None else 100
@@ -158,7 +158,7 @@ async def marine_release(interaction: discord.Interaction, target: discord.Membe
         return
 
     if not db.get_player(uid):
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
 
     prisoners = db.get_prisoners(uid)
@@ -237,7 +237,7 @@ async def marine_prisoners(interaction: discord.Interaction):
         return
 
     if not db.get_player(uid):
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
 
     prisoners = db.get_prisoners(uid)

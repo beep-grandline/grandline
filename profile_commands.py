@@ -106,7 +106,7 @@ async def profile_set(interaction: discord.Interaction):
     uid = str(interaction.user.id)
     if not db.get_player(uid):
         await interaction.response.send_message(
-            "Register first with `/register`.", ephemeral=True
+            "Register first — pick your allegiance from the role picker.", ephemeral=True
         )
         return
 

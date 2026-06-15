@@ -70,7 +70,7 @@ async def inventory_cmd(interaction: discord.Interaction):
     player = db.get_player(uid)
     if not player:
         await interaction.response.send_message(
-            "Register first with `/register`.", ephemeral=True
+            "Register first — pick your allegiance from the role picker.", ephemeral=True
         )
         return
     embed = _inventory_embed(interaction.user, player)
@@ -146,7 +146,7 @@ async def eat_cmd(interaction: discord.Interaction):
     player = db.get_player(uid)
 
     if not player:
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
 
     if not player["held_fruit_id"]:

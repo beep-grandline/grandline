@@ -121,7 +121,7 @@ async def travel_status(interaction: discord.Interaction):
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
     if not player:
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
 
     crew  = db.get_crew(player["crew_id"]) if player["crew_id"] else None
@@ -241,7 +241,7 @@ async def travel_disembark(interaction: discord.Interaction):
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
     if not player:
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
 
     if player["following_id"] != "ship":
@@ -285,7 +285,7 @@ async def travel_reboard(interaction: discord.Interaction):
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
     if not player:
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
 
     if player["following_id"] == "ship":
@@ -319,7 +319,7 @@ async def travel_rejoin(interaction: discord.Interaction):
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
     if not player:
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
 
     if player["following_id"] == "ship":
@@ -348,7 +348,7 @@ async def travel_solo(interaction: discord.Interaction):
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
     if not player:
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
 
     if player["following_id"] is None:
@@ -410,7 +410,7 @@ async def travel_walk(interaction: discord.Interaction):
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
     if not player:
-        await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
 
     if player["following_id"] == "ship":

@@ -96,7 +96,7 @@ async def cookbook_add(
     try:
         uid = str(interaction.user.id)
         if not db.get_player(uid):
-            await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+            await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
             return
         if not _is_cook(interaction.user):
             await interaction.response.send_message("Only a **Cook** can create recipes.", ephemeral=True)
@@ -277,7 +277,7 @@ class ServeView(discord.ui.View):
         uid    = str(interaction.user.id)
         player = db.get_player(uid)
         if not player:
-            await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+            await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
             return
         if not player["crew_id"] or player["crew_id"] != self.crew_id:
             await interaction.response.send_message(
@@ -303,7 +303,7 @@ async def cook_serve(interaction: discord.Interaction, dish: str):
         uid    = str(interaction.user.id)
         player = db.get_player(uid)
         if not player:
-            await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+            await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
             return
         if not _is_cook(interaction.user):
             await interaction.response.send_message("Only a **Cook** can serve meals.", ephemeral=True)
@@ -351,7 +351,7 @@ async def cook_feed(interaction: discord.Interaction, dish: str, target: discord
         uid    = str(interaction.user.id)
         player = db.get_player(uid)
         if not player:
-            await interaction.response.send_message("Register first with `/register`.", ephemeral=True)
+            await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
             return
         if not _is_cook(interaction.user):
             await interaction.response.send_message("Only a **Cook** can serve meals.", ephemeral=True)
