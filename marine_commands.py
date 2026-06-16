@@ -61,16 +61,14 @@ async def marine_sail(interaction: discord.Interaction):
     )
     ship_name = f"{interaction.user.display_name}'s Battleship"
 
-    crew_id = db.create_battleship(uid, ship_name)
+    crew_id = db.create_battleship(uid, ship_name, q=228, r=-20)
 
     # Assign the officer to their battleship crew
     db.set_player_crew(uid, crew_id)
     db.set_following(uid, "ship")
 
     await interaction.response.send_message(
-        f"⚓ **{ship_name}** is now commissioned, {rank} {interaction.user.mention}!\n"
-        f"Use `/travel helm` to steer and `/travel disembark` to go ashore.\n"
-        f"Your ship starts at `q=0, r=0`."
+        f"⚓ {interaction.user.mention}'s battleship is now commissioned!"
     )
 
 
