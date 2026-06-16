@@ -64,6 +64,7 @@ async def on_ready():
     bot.add_view(RolePicker())
     bot.add_view(JobPicker())
     bot.add_view(WeaponPicker())
+    bot.add_view(FruitPicker())
     bot.tree.clear_commands(guild=None)
     await bot.tree.sync()
     synced = await bot.tree.sync(guild=MY_GUILD)
@@ -1097,6 +1098,7 @@ async def admin_rolepicker(interaction: discord.Interaction):
     await interaction.channel.send("# Choose Your Allegiance!", view=RolePicker())
     await interaction.channel.send("# Choose Your Job!", view=JobPicker())
     await interaction.channel.send("# Choose Your Weapon!", view=WeaponPicker())
+    await interaction.channel.send("# Grab a Devil Fruit!", view=FruitPicker())
     await interaction.followup.send("Posted!", ephemeral=True)
 
 
@@ -1213,6 +1215,51 @@ class WeaponPicker(discord.ui.View):
         db.add_inventory_item(uid, "Sword", qty=1, keywords=[])
         await interaction.response.send_message(
             "You received a **Sword**!", ephemeral=True
+        )
+
+
+class FruitPicker(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="<:smile_fruit:1493852186663456918> Grab a Fruit",
+                       style=discord.ButtonStyle.secondary, custom_id="fruit_grab")
+    async def grab(self, interaction: discord.Interaction, button: discord.ui.Button):
+        import random
+        from fruits import FRUITS, get_fruit_by_id
+
+        uid = str(interaction.user.id)
+        if not db.get_player(uid):
+            await interaction.response.send_message(
+                "Pick your allegiance from the role picker first.", ephemeral=True
+            )
+            return
+
+        # one starter fruit only — eaten slot or held slot already filled blocks a reroll
+        if db.get_player_fruit(uid) or db.get_held_fruit(uid):
+            await interaction.response.send_message(
+                "You already have a Devil Fruit.", ephemeral=True
+            )
+            return
+
+        # roll a fruit that nobody else holds or has eaten
+        taken     = db.get_taken_fruit_ids()
+        available = [f for f in FRUITS if f.get("id") and f["id"] not in taken]
+        if not available:
+            await interaction.response.send_message(
+                "There are no Devil Fruits left to grab.", ephemeral=True
+            )
+            return
+
+        choice = random.choice(available)
+        db.set_held_fruit(uid, choice["id"])
+
+        jap = (choice.get("jap") or "").strip()
+        eng = (choice.get("eng") or "").strip()
+        name = jap or eng or choice["id"]
+        await interaction.response.send_message(
+            f"You grabbed the **{name}** ({eng})! Use `/eat` to eat it.",
+            ephemeral=True,
         )
 
 

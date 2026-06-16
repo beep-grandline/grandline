@@ -627,14 +627,30 @@ def set_profile(player_id, char_name=None, fighting_style=None, summary=None, ep
     db.execute(f"UPDATE players SET {', '.join(fields)} WHERE id=?", values)
     db.commit()
 
+def get_taken_fruit_ids():
+    """Returns a set of every fruit_id currently held or eaten by any player.
+    Single query — fast regardless of fruit count or player count."""
+    rows = db.execute(
+        "SELECT fruit_id, held_fruit_id FROM players "
+        "WHERE fruit_id IS NOT NULL OR held_fruit_id IS NOT NULL"
+    ).fetchall()
+    taken = set()
+    for row in rows:
+        if row["fruit_id"]:
+            taken.add(row["fruit_id"])
+        if row["held_fruit_id"]:
+            taken.add(row["held_fruit_id"])
+    return taken
+
+
 def get_held_fruit(player_id):
     """Returns the fruit_id string of the held (uneaten) fruit, or None."""
     row = db.execute(
         "SELECT held_fruit_id FROM players WHERE id=?", (player_id,)
     ).fetchone()
     return row["held_fruit_id"] if row else None
- 
- 
+
+
 def set_held_fruit(player_id, fruit_id):
     db.execute(
         "UPDATE players SET held_fruit_id=? WHERE id=?", (fruit_id, player_id)
