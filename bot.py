@@ -191,7 +191,7 @@ async def info_command(
         return
 
     page = INFO_PAGES[topic]
-    embed = discord.Embed(title=page["title"], color=0x3a7ebf)
+    embed = discord.Embed(title=page["title"], description=page.get("description"), color=0x3a7ebf)
     for name, value in page["fields"]:
         embed.add_field(name=name, value=value, inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
