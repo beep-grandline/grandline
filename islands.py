@@ -7,6 +7,28 @@ ISLANDS_CSV = "data/islands.csv"
 # name -> {url, next, logduration, q, r}
 _islands: dict = {}
 
+# Marine facilities that aren't in the CSV but should be navigable destinations.
+# Tile rendering for these lives in map_render.py (GRAY_FACILITIES / IMPEL_DOWN);
+# keep the centers below in sync with that file.
+SPECIAL_ISLANDS = {
+    "Impel Down":     (180,   0),
+    "Marine Base G8": ( 50,  11),
+    "Marine Base G6": (111, -25),
+    "Marineford":     (228, -20),
+}
+
+
+def _register_special():
+    """Inject the marine facilities into the island list (idempotent)."""
+    for name, (q, r) in SPECIAL_ISLANDS.items():
+        _islands.setdefault(name, {
+            "url":         "",
+            "next":        "",
+            "logduration": "",
+            "q":           q,
+            "r":           r,
+        })
+
 
 def load_islands():
     global _islands
@@ -28,6 +50,7 @@ def load_islands():
         print(f"[islands] loaded {len(_islands)} island entries")
     except FileNotFoundError:
         print("[islands] data/islands.csv not found")
+    _register_special()
 
 
 def get_island(name: str) -> Optional[dict]:

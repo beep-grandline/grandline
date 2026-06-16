@@ -435,12 +435,22 @@ async def travel_walk(interaction: discord.Interaction):
     )
 
 
+MARINE_ALLEGIANCE    = "Marine"
+MARINE_OFFICER_ROLES = {"Fleet Admiral", "Admiral", "Vice Admiral"}
+
+
+def _is_marine(member) -> bool:
+    names = {r.name for r in getattr(member, "roles", [])}
+    return MARINE_ALLEGIANCE in names or bool(names & MARINE_OFFICER_ROLES)
+
+
 async def _pose_autocomplete(interaction: discord.Interaction, current: str):
     try:
         choices = []
+        cur     = current.lower()
 
         # Always offer Log Pose first
-        if "log pose".startswith(current.lower()) or not current:
+        if "log pose".startswith(cur) or not current:
             choices.append(discord.app_commands.Choice(name="Log Pose", value="log"))
 
         # Eternal Poses from inventory
@@ -456,8 +466,18 @@ async def _pose_autocomplete(interaction: discord.Interaction, current: str):
                 continue
             label = f"Eternal Pose → {dest}"
             value = f"eternal:{dest}"
-            if current.lower() in label.lower():
+            if cur in label.lower():
                 choices.append(discord.app_commands.Choice(name=label, value=value))
+
+        # Marines may navigate directly to any island or facility on the map
+        if _is_marine(interaction.user):
+            seen = {c.value for c in choices}
+            for name in sorted(islands_mod.get_all().keys()):
+                value = f"eternal:{name}"
+                if value in seen:
+                    continue
+                if not cur or cur in name.lower():
+                    choices.append(discord.app_commands.Choice(name=name, value=value))
 
         return choices[:25]
     except (discord.NotFound, Exception):
@@ -485,7 +505,7 @@ async def travel_pose(interaction: discord.Interaction, destination: str):
         next_island    = (island_data or {}).get("next") or current_island
         db.set_log_pose(crew["id"], next_island, pose_type="log")
         await interaction.response.send_message(
-            f"🧭 Log Pose set — navigating toward **{next_island}**.", ephemeral=True
+            "🧭 You are now following the log pose.", ephemeral=True
         )
 
     elif destination.startswith("eternal:"):

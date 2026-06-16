@@ -50,6 +50,30 @@ CALM_BELT_R = 36
 IMPEL_DOWN = (180, 0)
 IMPEL_DOWN_COLOR = "#5a5a6a"
 
+# ── Marine facilities — gray hexes rendered with the normal island logic ──────
+# Centers here are mirrored in islands.py (SPECIAL_ISLANDS) so marines can
+# navigate to them. Edit tiles in one place; keep islands.py centers in sync.
+GRAY_HEX_COLOR = "#9a9aa3"
+
+MARINE_SHIP_START = (228, -20)   # where /marine sail commissions a battleship
+
+# Marineford forms a crescent: 5 of the 6 tiles surrounding the ship start
+# (the sixth is left open so the ring reads as a crescent).
+_MF_DIRS = [(1, 0), (0, 1), (-1, 1), (-1, 0), (0, -1), (1, -1)]
+MARINEFORD_TILES = [
+    (MARINE_SHIP_START[0] + dq, MARINE_SHIP_START[1] + dr)
+    for dq, dr in _MF_DIRS[:5]
+]
+
+GRAY_FACILITIES = {
+    "Marine Base G8": [(50, 11)],
+    "Marine Base G6": [(111, -25)],
+    "Marineford":     MARINEFORD_TILES,
+}
+
+# Flat lookup set of every gray facility tile
+GRAY_HEXES = {tile for tiles in GRAY_FACILITIES.values() for tile in tiles}
+
 # Calm belt overlay — translucent white drawn above the sea texture
 CALM_BELT_COLOR = (1.0, 1.0, 1.0, 0.38)
 
@@ -534,6 +558,29 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                     if _hex_distance(nq2, nr2, pq, pr) <= radius:
                         if dq2 > 0 or (dq2 == 0 and dr2 > 0):
                             sea_segs.append([corners[i1], corners[i2]])
+                continue
+
+            # Marine facilities — gray hexes, rendered like islands
+            if (q, r) in GRAY_HEXES:
+                cx, cy  = _hex_to_pixel(q, r)
+                corners = _hex_corners(q, r)
+                land_patches.append(
+                    mpatches.RegularPolygon(
+                        (cx, cy), numVertices=6,
+                        radius=SIZE, orientation=0,
+                    )
+                )
+                land_colors.append(GRAY_HEX_COLOR)
+                # Border only where the neighbour is open sea — adjacent gray
+                # facility tiles read as one landmass.
+                for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
+                    nq, nr = q + dq, r + dr
+                    neighbor_is_land = (
+                        hex_lookup.get((nq, nr), "sea") != "sea"
+                        or (nq, nr) in GRAY_HEXES
+                    )
+                    if not neighbor_is_land:
+                        border_segs.append([corners[i1], corners[i2]])
                 continue
 
             # Ignore calm_belt terrain from JSON — treat as plain sea
