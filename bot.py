@@ -148,6 +148,30 @@ async def help_command(
 
 
 INFO_PAGES = {
+    "Kit": {
+        "title": "⚔️ Kit — Keywords Reference",
+        "description": "Keywords define how your moves behave. Each move costs keyword slots.",
+        "fields": [
+            (
+                "Power Tiers",
+                "`CHIP` · `STRIKE` · `HEAVY` · `CRUSHER`\n"
+                "Sets the base damage of a move. One required per move.",
+            ),
+            (
+                "Modifiers",
+                "`QUICK` — acts before slower moves\n"
+                "`HOMING` — harder to dodge\n"
+                "`FLURRY` — hits multiple times\n"
+                "`PIERCE` — partially ignores DEF\n"
+                "`GUARD` — raises DEF this turn",
+            ),
+            (
+                "Slot Rules",
+                "Each move has **4 keyword slots**. You can build up to **4 moves**. "
+                "More complex keywords cost more slots.",
+            ),
+        ],
+    },
     "Factions": {
         "title": "⚑ Factions",
         "description": "The three factions of the Grand Line.",
@@ -164,7 +188,7 @@ INFO_PAGES = {
 @discord.app_commands.describe(topic="What do you want to know about?")
 async def info_command(
     interaction: discord.Interaction,
-    topic: Literal["Factions"] = None
+    topic: Literal["Factions", "Kit"] = None
 ):
     if topic is None:
         embed = discord.Embed(
@@ -863,14 +887,27 @@ async def gm_givefruit(interaction: discord.Interaction, target: discord.Member,
  
  
 # ── /gm giveitem ──────────────────────────────────────────────────────────────
- 
+
+async def _giveitem_autocomplete(interaction: discord.Interaction, current: str):
+    from items import NAMED_ITEMS
+    try:
+        cur = current.lower()
+        return [
+            discord.app_commands.Choice(name=n, value=n)
+            for n in NAMED_ITEMS
+            if cur in n.lower()
+        ][:25]
+    except (discord.NotFound, Exception):
+        return []
+
 @gm_group.command(name="giveitem", description="Add an item to a player's inventory")
 @discord.app_commands.describe(
     target="The player",
-    name="Item name",
+    name="Item name (select from list or type a custom name)",
     qty="Quantity (default 1)",
-    keywords="Space-separated tags e.g. healing rare (optional)",
+    keywords="Space-separated tags — leave blank for named items (auto-filled)",
 )
+@discord.app_commands.autocomplete(name=_giveitem_autocomplete)
 async def gm_giveitem(
     interaction: discord.Interaction,
     target: discord.Member,
@@ -878,24 +915,31 @@ async def gm_giveitem(
     qty: int = 1,
     keywords: str = "",
 ):
+    from items import NAMED_ITEMS
     if not is_gm(interaction):
         await interaction.response.send_message("No permission.", ephemeral=True)
         return
- 
+
     uid = str(target.id)
     if not db.get_player(uid):
         await interaction.response.send_message(
             f"**{target.display_name}** is not registered.", ephemeral=True
         )
         return
- 
+
     if qty < 1:
         await interaction.response.send_message("Quantity must be at least 1.", ephemeral=True)
         return
- 
-    kw_list = [k for k in keywords.split() if k] if keywords else []
+
+    # Auto-fill keywords from registry if this is a named item and none were provided
+    definition = NAMED_ITEMS.get(name)
+    if definition and not keywords:
+        kw_list = definition.get("keywords", [])
+    else:
+        kw_list = [k for k in keywords.split() if k] if keywords else []
+
     db.add_inventory_item(uid, name, qty=qty, keywords=kw_list)
- 
+
     kw_str = ", ".join(kw_list) if kw_list else "no tags"
     await interaction.response.send_message(
         f"Added **{name}** ×{qty} ({kw_str}) to **{target.display_name}**'s inventory."
