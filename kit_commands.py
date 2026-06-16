@@ -27,7 +27,7 @@ KEYWORDS = {
     "HEAVY":       {"slots":  2, "apply": {"power": +4}, "sign": "+", "desc": "power → 7",  "cat": "descriptor", "stat": "power"},
     "CRUSHER":     {"slots":  3, "apply": {"power": +6}, "sign": "+", "desc": "power → 9",  "cat": "descriptor", "stat": "power"},
     # accuracy
-    "PRECISE":     {"slots":  1, "apply": {"accuracy": +15}, "sign": "+", "desc": "accuracy +15", "cat": "descriptor", "stat": "accuracy"},
+    "PRECISE":     {"slots":  2, "apply": {"accuracy": +15}, "sign": "+", "desc": "accuracy +15", "cat": "descriptor", "stat": "accuracy"},
     "SHARPEYE":    {"slots":  1, "apply": {"accuracy": +10}, "sign": "+", "desc": "accuracy +10", "cat": "descriptor", "stat": "accuracy"},
     "INACCURATE":  {"slots": -1, "apply": {"accuracy": -20}, "sign": "-", "desc": "accuracy -20", "cat": "descriptor", "stat": "accuracy"},
     # priority
@@ -36,13 +36,13 @@ KEYWORDS = {
     "SLOW":        {"slots": -1, "apply": {"priority": -1}, "sign": "-", "desc": "priority -1", "cat": "descriptor", "stat": "priority"},
     "SLUGGISH":    {"slots": -2, "apply": {"priority": -2}, "sign": "-", "desc": "priority -2", "cat": "descriptor", "stat": "priority"},
     # tracking
-    "HOMING":      {"slots":  1, "apply": {"tracking": +3}, "sign": "+", "desc": "tracking +3", "cat": "descriptor", "stat": "tracking"},
+    "HOMING":      {"slots":  2, "apply": {"tracking": +3}, "sign": "+", "desc": "tracking +3", "cat": "descriptor", "stat": "tracking"},
     "FOCUSED":     {"slots":  1, "apply": {"tracking": +2}, "sign": "+", "desc": "tracking +2", "cat": "descriptor", "stat": "tracking"},
     "TELEGRAPHED": {"slots": -1, "apply": {"tracking": -3}, "sign": "-", "desc": "tracking -3", "cat": "descriptor", "stat": "tracking"},
     # hits
     "MULTI":       {"slots":  1, "apply": {"hits": +1},  "sign": "+", "desc": "+1 hit roll", "cat": "descriptor", "stat": "hits"},
-    "FLURRY":      {"slots":  1, "apply": {"hits": +5},  "sign": "+", "desc": "+5 hit rolls (power spread, independent rolls)", "cat": "descriptor", "stat": "hits"},
-    "BARRAGE":     {"slots":  1, "apply": {"hits": +29}, "sign": "+", "desc": "+29 hit rolls (30 total, 2× scale on full connect)", "cat": "descriptor", "stat": "hits"},
+    "FLURRY":      {"slots":  2, "apply": {"hits": +5},  "sign": "+", "desc": "+5 hit rolls (power spread, independent rolls)", "cat": "descriptor", "stat": "hits"},
+    "BARRAGE":     {"slots":  3, "apply": {"hits": +29}, "sign": "+", "desc": "+29 hit rolls (30 total, 2× scale on full connect)", "cat": "descriptor", "stat": "hits"},
     # conditions
     "DRAINING":    {"slots": -1, "apply": {"hp_cost": 15},    "sign": "-", "desc": "15 HP on use",  "cat": "condition", "stat": "hp_cost"},
     "EXHAUSTING":  {"slots": -1, "apply": {"hp_cost": 25},    "sign": "-", "desc": "25 HP on use",  "cat": "condition", "stat": "hp_cost"},
