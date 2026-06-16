@@ -425,7 +425,74 @@ async def zelle(interaction: discord.Interaction, target: discord.Member, amount
 
 
  
- 
+
+
+# ── /use command ──────────────────────────────────────────────────────────────
+
+async def _use_autocomplete(interaction: discord.Interaction, current: str):
+    try:
+        uid   = str(interaction.user.id)
+        items = db.get_inventory(uid)
+        cur   = current.lower()
+        choices = []
+        for item in items:
+            kws = [k.lower() for k in item.get("keywords", [])]
+            if "consumable" not in kws:
+                continue
+            name = item["name"]
+            if cur in name.lower():
+                choices.append(discord.app_commands.Choice(name=name, value=name))
+        return choices[:25]
+    except (discord.NotFound, Exception):
+        return []
+
+
+@bot.tree.command(name="use", description="Use a consumable item from your inventory", guild=MY_GUILD)
+@discord.app_commands.describe(item="The item to use")
+@discord.app_commands.autocomplete(item=_use_autocomplete)
+async def use_cmd(interaction: discord.Interaction, item: str):
+    from items import get_consumable_effect
+    uid    = str(interaction.user.id)
+    player = db.get_player(uid)
+    if not player:
+        await interaction.response.send_message(
+            "Pick your allegiance from the role picker first.", ephemeral=True
+        )
+        return
+
+    items    = db.get_inventory(uid)
+    inv_item = next((i for i in items if i["name"].lower() == item.lower()), None)
+    if not inv_item:
+        await interaction.response.send_message(
+            f"You don't have **{item}**.", ephemeral=True
+        )
+        return
+
+    heal = get_consumable_effect(inv_item)
+    if heal is None:
+        await interaction.response.send_message(
+            f"**{item}** can't be used directly.", ephemeral=True
+        )
+        return
+
+    hp, max_hp = db.get_player_hp(uid)
+    if hp >= max_hp:
+        await interaction.response.send_message(
+            f"You're already at full HP ({hp}/{max_hp}).", ephemeral=True
+        )
+        return
+
+    new_hp, max_hp, healed = db.heal_player(uid, heal)
+    db.remove_inventory_item(uid, inv_item["name"], qty=1)
+
+    await interaction.response.send_message(
+        f"🧪 You used **{inv_item['name']}** and restored **{healed} HP**. "
+        f"({hp} → {new_hp}/{max_hp})",
+        ephemeral=True,
+    )
+
+
+
 # ── /search command ───────────────────────────────────────────────────────────
  
 @bot.tree.command(name="search", description="Look up a devil fruit", guild=MY_GUILD)

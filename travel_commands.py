@@ -510,6 +510,12 @@ async def travel_pose(interaction: discord.Interaction, destination: str):
 
     elif destination.startswith("eternal:"):
         island = destination[8:]
+        if not islands_mod.get_island(island):
+            await interaction.response.send_message(
+                f"**{island}** isn't a known island. Select a destination from the list.",
+                ephemeral=True,
+            )
+            return
         db.set_log_pose(crew["id"], island, pose_type="eternal")
         await interaction.response.send_message(
             f"🧭 Eternal Pose activated — destination locked to **{island}**.", ephemeral=True
