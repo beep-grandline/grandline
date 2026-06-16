@@ -150,36 +150,15 @@ async def help_command(
 INFO_PAGES = {
     "Kit": {
         "title": "⚔️ Kit — Keywords Reference",
-        "description": "Each move has a **4 slot budget**. Upgrades cost slots, drawbacks refund them. You can hold up to **4 moves**.",
+        "description": "Each move has a **4 slot budget**. You can hold up to **4 moves**.\nAll keywords ordered left to right in increasing utility (slot usage in parentheses).",
         "fields": [
-            (
-                "Power  (pick one, slot cost shown)",
-                "`CHIP` (pwr 1, +1) · `LIGHT` (pwr 3, 0) · `MEDIUM` (pwr 5, −1) · `HEAVY` (pwr 7, −2) · `CRUSHER` (pwr 9, −3)",
-            ),
-            (
-                "Accuracy",
-                "`INACCURATE` (acc −20, +1) · `SHARPEYE` (acc +10, −1) · `PRECISE` (acc +15, −2)",
-            ),
-            (
-                "Priority  (turn order)",
-                "`SLUGGISH` (pri −2, +2) · `SLOW` (pri −1, +1) · `QUICK` (pri +1, −1) · `BURST` (pri +2, −2)",
-            ),
-            (
-                "Tracking  (harder to evade)",
-                "`TELEGRAPHED` (trk −3, +1) · `FOCUSED` (trk +2, −1) · `HOMING` (trk +3, −2)",
-            ),
-            (
-                "Hits  (FLURRY and BARRAGE cannot be combined)",
-                "`MULTI` (+1 hit, −1) · `FLURRY` (+5 hits, −2) · `BARRAGE` (30 hits, −3)",
-            ),
-            (
-                "Conditions  (drawbacks that refund a slot each)",
-                "`DRAINING` (−15 HP/use, +1) · `EXHAUSTING` (−25 HP/use, +1) · `RISKY` (20% recoil, +1)",
-            ),
-            (
-                "Attack Types",
-                "`blunt` · `slash` · `pierce` — set when adding a move, not a keyword. Interacts with devil fruit type matchups.",
-            ),
+            ("Power  (pick one)",   "`CHIP` (+1) · `LIGHT` (0) · `MEDIUM` (−1) · `HEAVY` (−2) · `CRUSHER` (−3)"),
+            ("Accuracy",            "`INACCURATE` (+1) · `SHARPEYE` (−1) · `PRECISE` (−2)"),
+            ("Priority",            "`SLUGGISH` (+2) · `SLOW` (+1) · `QUICK` (−1) · `BURST` (−2)"),
+            ("Tracking",            "`TELEGRAPHED` (+1) · `FOCUSED` (−1) · `HOMING` (−2)"),
+            ("Hits",                "`MULTI` (−1) · `FLURRY` (−2) · `BARRAGE` (−3)"),
+            ("Conditions",          "`DRAINING` (+1) · `EXHAUSTING` (+1) · `RISKY` (+1)"),
+            ("Attack Types",        "`blunt` · `slash` · `pierce` — set when adding a move, not a keyword."),
         ],
     },
     "Factions": {
