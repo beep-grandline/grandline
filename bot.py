@@ -912,6 +912,35 @@ async def gm_take(
 
 
 
+@gm_group.command(name="removefruit", description="Remove a player's eaten Devil Fruit")
+@discord.app_commands.describe(target="The player whose eaten fruit to remove")
+async def gm_removefruit(interaction: discord.Interaction, target: discord.Member):
+    if not is_gm(interaction):
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+
+    uid = str(target.id)
+    if not db.get_player(uid):
+        await interaction.response.send_message(
+            f"**{target.display_name}** is not registered.", ephemeral=True
+        )
+        return
+
+    current = db.get_player_fruit(uid)
+    if not current:
+        await interaction.response.send_message(
+            f"**{target.display_name}** has no eaten fruit.", ephemeral=True
+        )
+        return
+
+    row  = get_fruit_by_id(current)
+    name = (row.get("jap") or current) if row else current
+    db.set_player_fruit(uid, None)
+    await interaction.response.send_message(
+        f"Removed **{name}** from **{target.display_name}**."
+    )
+
+
 @gm_group.command(name="help", description="List all GM commands")
 async def gm_help(interaction: discord.Interaction):
     embed = discord.Embed(
@@ -931,8 +960,9 @@ async def gm_help(interaction: discord.Interaction):
         ("/gm setfruit",  "Set a player's eaten fruit and apply its type (target, fruit)"),
         ("/gm givefruit", "Give an uneaten fruit to a player's held slot (target, fruit)"),
         ("/gm giveitem",  "Add an item to a player's inventory (target, name, qty, keywords)"),
-        ("/gm take",      "Remove a held fruit or item from a player (target, item)"),
-        ("/gm help",      "Show this message"),
+        ("/gm take",         "Remove a held fruit or item from a player (target, item)"),
+        ("/gm removefruit",  "Remove a player's eaten Devil Fruit (target)"),
+        ("/gm help",         "Show this message"),
     ]
     for name, desc in commands_list:
         embed.add_field(name=name, value=desc, inline=False)
@@ -1222,7 +1252,7 @@ class FruitPicker(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="<:smile_fruit:1493852186663456918> Grab a Fruit",
+    @discord.ui.button(label="🍎 Grab a Fruit",
                        style=discord.ButtonStyle.secondary, custom_id="fruit_grab")
     async def grab(self, interaction: discord.Interaction, button: discord.ui.Button):
         import random
