@@ -150,25 +150,51 @@ async def help_command(
 INFO_PAGES = {
     "Kit": {
         "title": "⚔️ Kit — Keywords Reference",
-        "description": "Keywords define how your moves behave. Each move costs keyword slots.",
+        "description": "Each move has **4 slot budget**. You can hold up to **4 moves**. Keywords cost or refund slots — go over budget and the move is rejected.",
         "fields": [
             (
-                "Power Tiers",
-                "`CHIP` · `STRIKE` · `HEAVY` · `CRUSHER`\n"
-                "Sets the base damage of a move. One required per move.",
+                "Power  (pick one)",
+                "`CHIP` −1 slot · power → 1\n"
+                "`LIGHT` 0 slots · power → 3 *(default)*\n"
+                "`MEDIUM` +1 slot · power → 5\n"
+                "`HEAVY` +2 slots · power → 7\n"
+                "`CRUSHER` +3 slots · power → 9",
             ),
             (
-                "Modifiers",
-                "`QUICK` — acts before slower moves\n"
-                "`HOMING` — harder to dodge\n"
-                "`FLURRY` — hits multiple times\n"
-                "`PIERCE` — partially ignores DEF\n"
-                "`GUARD` — raises DEF this turn",
+                "Accuracy",
+                "`PRECISE` +1 slot · accuracy +15\n"
+                "`SHARPEYE` +1 slot · accuracy +10\n"
+                "`INACCURATE` −1 slot · accuracy −20",
             ),
             (
-                "Slot Rules",
-                "Each move has **4 keyword slots**. You can build up to **4 moves**. "
-                "More complex keywords cost more slots.",
+                "Priority  (turn order)",
+                "`BURST` +2 slots · priority +2\n"
+                "`QUICK` +1 slot · priority +1\n"
+                "`SLOW` −1 slot · priority −1\n"
+                "`SLUGGISH` −2 slots · priority −2",
+            ),
+            (
+                "Tracking  (harder to evade)",
+                "`HOMING` +1 slot · tracking +3\n"
+                "`FOCUSED` +1 slot · tracking +2\n"
+                "`TELEGRAPHED` −1 slot · tracking −3",
+            ),
+            (
+                "Hits  (FLURRY and BARRAGE can't combine)",
+                "`MULTI` +1 slot · +1 hit roll\n"
+                "`FLURRY` +1 slot · +5 hit rolls, power spread across hits\n"
+                "`BARRAGE` +1 slot · +29 hit rolls (30 total), 2× scale on full connect",
+            ),
+            (
+                "Conditions  (drawbacks that refund slots)",
+                "`DRAINING` −1 slot · costs 15 HP on use\n"
+                "`EXHAUSTING` −1 slot · costs 25 HP on use\n"
+                "`RISKY` −1 slot · 20% recoil damage on use",
+            ),
+            (
+                "Attack Types",
+                "`blunt` · `slash` · `pierce` — chosen when adding a move, not a keyword. "
+                "Interacts with type matchups from devil fruits.",
             ),
         ],
     },
