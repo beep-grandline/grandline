@@ -150,7 +150,7 @@ async def help_command(
 INFO_PAGES = {
     "Kit": {
         "title": "⚔️ Kit — Keywords Reference",
-        "description": "Each move has a **4 slot budget**. You can hold up to **4 moves**.\nAll keywords ordered left to right in increasing utility (slot usage in parentheses).",
+        "description": "Each move has a **4 slot budget**. You can hold up to **4 moves**.\nAll keywords ordered left to right in increasing utility (slot usage in parentheses).\nYou can use up to 4 keywords per move as long as the total slot usage doesn't exceed 4.",
         "fields": [
             ("Power  (pick one)",   "`CHIP` (+1) · `LIGHT` (0) · `MEDIUM` (−1) · `HEAVY` (−2) · `CRUSHER` (−3)"),
             ("Accuracy",            "`INACCURATE` (+1) · `SHARPEYE` (−1) · `PRECISE` (−2)"),
