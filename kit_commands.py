@@ -21,7 +21,7 @@ HIT_TIERS   = {"FLURRY", "BARRAGE"}   # mutually exclusive — can't combine
 
 KEYWORDS = {
     # power tiers
-    "CHIP":        {"slots": -1, "apply": {"power": -2}, "sign": "-", "desc": "power → 1",  "cat": "descriptor", "stat": "power"},
+    "CHIP":        {"slots": -1, "apply": {"power": -2, "accuracy": +15}, "sign": "-", "desc": "power → 1, accuracy +15", "cat": "descriptor", "stat": "power"},
     "LIGHT":       {"slots":  0, "apply": {"power":  0}, "sign": "=", "desc": "power → 3",  "cat": "descriptor", "stat": "power"},
     "MEDIUM":      {"slots":  1, "apply": {"power": +2}, "sign": "+", "desc": "power → 5",  "cat": "descriptor", "stat": "power"},
     "HEAVY":       {"slots":  2, "apply": {"power": +4}, "sign": "+", "desc": "power → 7",  "cat": "descriptor", "stat": "power"},
@@ -34,7 +34,7 @@ KEYWORDS = {
     "BURST":       {"slots":  2, "apply": {"priority": +2}, "sign": "+", "desc": "priority +2", "cat": "descriptor", "stat": "priority"},
     "QUICK":       {"slots":  1, "apply": {"priority": +1}, "sign": "+", "desc": "priority +1", "cat": "descriptor", "stat": "priority"},
     "SLOW":        {"slots": -1, "apply": {"priority": -1}, "sign": "-", "desc": "priority -1", "cat": "descriptor", "stat": "priority"},
-    "SLUGGISH":    {"slots": -2, "apply": {"priority": -2}, "sign": "-", "desc": "priority -2", "cat": "descriptor", "stat": "priority"},
+    "SLUGGISH":    {"slots": -1, "apply": {"priority": -2, "power": -2}, "sign": "-", "desc": "priority -2, power -2", "cat": "descriptor", "stat": "priority"},
     # tracking
     "HOMING":      {"slots":  2, "apply": {"tracking": +3}, "sign": "+", "desc": "tracking +3", "cat": "descriptor", "stat": "tracking"},
     "FOCUSED":     {"slots":  1, "apply": {"tracking": +2}, "sign": "+", "desc": "tracking +2", "cat": "descriptor", "stat": "tracking"},

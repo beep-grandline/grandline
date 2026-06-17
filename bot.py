@@ -152,9 +152,9 @@ INFO_PAGES = {
         "title": "⚔️ Kit — Keywords Reference",
         "description": "Each move has a **4 slot budget**. You can hold up to **4 moves**.\nAll keywords ordered left to right in increasing utility (slot usage in parentheses).\nYou can use up to 4 keywords per move as long as the total slot usage doesn't exceed 4.",
         "fields": [
-            ("Power  (pick one)",   "`CHIP` (+1) · `LIGHT` (0) · `MEDIUM` (−1) · `HEAVY` (−2) · `CRUSHER` (−3)"),
+            ("Power  (pick one)",   "`CHIP` (+1, +acc) · `LIGHT` (0) · `MEDIUM` (−1) · `HEAVY` (−2) · `CRUSHER` (−3)"),
             ("Accuracy",            "`INACCURATE` (+1) · `SHARPEYE` (−1) · `PRECISE` (−2)"),
-            ("Priority",            "`SLUGGISH` (+2) · `SLOW` (+1) · `QUICK` (−1) · `BURST` (−2)"),
+            ("Priority",            "`SLUGGISH` (+2, −pwr) · `SLOW` (+1) · `QUICK` (−1) · `BURST` (−2)"),
             ("Tracking",            "`TELEGRAPHED` (+1) · `FOCUSED` (−1) · `HOMING` (−2)"),
             ("Hits",                "`MULTI` (−1) · `FLURRY` (−2) · `BARRAGE` (−3)"),
             ("Conditions",          "`DRAINING` (+1) · `EXHAUSTING` (+1) · `RISKY` (+1)"),
