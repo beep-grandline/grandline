@@ -31,11 +31,10 @@ def _battle_embed(state, log=None):
     embed.set_author(name=f"⚔  {fa['name']}  vs  {fb['name']}")
 
     # both HP bars in one field — no gap between them
-    embed.add_field(
-        name  = "\u200b",
-        value = "\n".join(battle_logic.status_block(state)),
-        inline= False,
-    )
+    status_val = "\n".join(battle_logic.status_block(state))
+    if len(status_val) > 1024:
+        status_val = status_val[:1021] + "..."
+    embed.add_field(name="\u200b", value=status_val, inline=False)
 
     if log:
         # strip the turn header line from the log since it's now the embed title

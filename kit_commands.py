@@ -374,6 +374,7 @@ async def kit_add(
         )
         return
 
+    name     = name[:50]
     keywords = [k.upper() for k in [kw1, kw2, kw3, kw4] if k]
     built    = _build_move(name, attack_type, keywords)
 

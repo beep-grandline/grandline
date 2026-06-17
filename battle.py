@@ -618,9 +618,10 @@ def status_block(state):
     """
     lines = []
     for side in ("a", "b"):
-        f   = state["fighters"][side]
-        bar = hp_bar(f["hp"], f["max_hp"])
-        lines.append(f"`{f['name']:<12} [{bar}] {f['hp']}/{f['max_hp']} HP`")
+        f    = state["fighters"][side]
+        name = f["name"][:20]  # guard against unexpectedly long display names
+        bar  = hp_bar(f["hp"], f["max_hp"])
+        lines.append(f"`{name:<12} [{bar}] {f['hp']}/{f['max_hp']} HP`")
     return lines
 
 
