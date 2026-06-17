@@ -305,23 +305,6 @@ async def _all_ships_autocomplete(interaction: discord.Interaction, current: str
         return []
 
 
-@bot.tree.command(name="position", description="[GM] Check a player's raw hex coordinates", guild=MY_GUILD)
-async def position_cmd(interaction: discord.Interaction):
-    if not is_gm(interaction):
-        await interaction.response.send_message("GM only.", ephemeral=True)
-        return
-    uid = str(interaction.user.id)
-    pos = db.get_player_position(uid)
-    if not pos:
-        await interaction.response.send_message(
-            "You are not registered yet. Pick your allegiance from the role picker first.", ephemeral=True
-        )
-        return
-    q, r = pos
-    await interaction.response.send_message(
-        f"Your current position is **q={q}, r={r}**.", ephemeral=True
-    )
-
 @bot.tree.command(name="purse", description="Check how much money you have", guild=MY_GUILD)
 async def purse_cmd(interaction: discord.Interaction):
     uid   = str(interaction.user.id)
@@ -901,6 +884,29 @@ async def gm_remove(interaction: discord.Interaction, target: discord.Member):
     )
 
 
+@gm_group.command(name="position", description="Check a player's raw hex coordinates")
+@discord.app_commands.describe(target="The player")
+async def gm_position(interaction: discord.Interaction, target: discord.Member):
+    if not is_gm(interaction):
+        await interaction.response.send_message("You don't have permission to use this.", ephemeral=True)
+        return
+    uid = str(target.id)
+    if not db.get_player(uid):
+        await interaction.response.send_message(
+            f"**{target.display_name}** is not registered.", ephemeral=True
+        )
+        return
+    pos = db.get_player_position(uid)
+    if not pos:
+        await interaction.response.send_message(
+            f"**{target.display_name}** has no position on record.", ephemeral=True
+        )
+        return
+    q, r = pos
+    await interaction.response.send_message(
+        f"**{target.display_name}** is at **q={q}, r={r}**.", ephemeral=True
+    )
+
 @gm_group.command(name="setberry", description="Set a player's berry amount")
 @discord.app_commands.describe(target="The player", amount="Amount of berry to set")
 async def gm_setberry(interaction: discord.Interaction, target: discord.Member, amount: int):
@@ -1138,6 +1144,7 @@ async def gm_help(interaction: discord.Interaction):
         ("/gm disband",   "Disband a crew by name"),
         ("/gm register",  "Manually register a player — backup if the role picker fails (target)"),
         ("/gm remove",    "Remove a player from the game"),
+        ("/gm position",  "Check a player's raw hex coordinates (target)"),
         ("/gm setberry",  "Set a player's berry (target, amount)"),
         ("/gm setstats",  "Set a player's battle stats — ATK, DEF, SPD, block and dodge names"),
         ("/gm setfruit",  "Set a player's eaten fruit and apply its type (target, fruit)"),
