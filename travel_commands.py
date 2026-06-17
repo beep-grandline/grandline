@@ -116,19 +116,6 @@ _DIR_CHOICES = [
 ]
 
 
-@travel_group.command(name="status", description="Show your current position and ship rolls")
-async def travel_status(interaction: discord.Interaction):
-    uid    = str(interaction.user.id)
-    player = db.get_player(uid)
-    if not player:
-        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
-        return
-
-    crew  = db.get_crew(player["crew_id"]) if player["crew_id"] else None
-    q, r  = game.get_position(uid)
-    embed = _status_embed(player, crew, q, r)
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
 
 
 class HelmView(discord.ui.View):
@@ -179,7 +166,7 @@ class HelmView(discord.ui.View):
     async def btn_fr(self, i, b): await self._move(i, "fr")
 
 
-@travel_group.command(name="helm", description="Take the helm and steer the ship (captain only)")
+@travel_group.command(name="helm", description="Take the helm and steer the ship (captain or helmsman)")
 async def travel_helm(interaction: discord.Interaction):
     uid    = str(interaction.user.id)
     player = db.get_player(uid)
@@ -188,8 +175,9 @@ async def travel_helm(interaction: discord.Interaction):
         return
 
     crew = db.get_crew(player["crew_id"])
-    if not _is_captain(interaction, crew):
-        await interaction.response.send_message("Only the captain can take the helm.", ephemeral=True)
+    is_helmsman = any(r.name == "Helmsman" for r in interaction.user.roles)
+    if not _is_captain(interaction, crew) and not is_helmsman:
+        await interaction.response.send_message("Only the captain or helmsman can take the helm.", ephemeral=True)
         return
 
     rolls = crew["roll"] or 0

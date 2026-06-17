@@ -96,19 +96,13 @@ HELP_PAGES = {
 
     "Travel": {
         "title": "🗺️ Travel",
-        "description": "Navigating the Grand Line. Most commands are captain-only unless noted.",
+        "description": "Navigating the Grand Line.",
         "fields": [
-            ("/travel status",    "Your current tile, ship rolls, and log pose destination."),
             ("/travel map",       "View your current area on the world map."),
-            ("/travel pose",      "Set your log or eternal pose destination (captain only)."),
-            ("/travel helm",      "Manually steer the ship one step toward your pose (captain only)."),
-            ("/travel auto",      "Auto-move one step toward your pose without confirmation (captain only)."),
             ("/travel disembark", "Step off the ship onto an adjacent island tile."),
             ("/travel reboard",   "Board the ship from an adjacent tile."),
-            ("/travel rejoin",    "Teleport back to your captain's position."),
-            ("/travel solo",      "Break away from your crew and move independently on foot."),
-            ("/travel walk",      "Move on foot across island tiles."),
-            ("/spyglass",         "Scout nearby islands and ships from your current position."),
+            ("On Sea",            "/travel helm — Steer the ship (captain or helmsman).\n/travel auto — Auto-move one step toward your pose (captain only).\n/travel pose — Set your log or eternal pose destination (captain only).\n/spyglass — Scout nearby islands and ships."),
+            ("On Land",           "/travel walk — Move on foot across island tiles.\n/travel solo — Break away from your crew and move independently.\n/travel rejoin — Teleport back to your captain's position."),
         ]
     },
 
