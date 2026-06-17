@@ -49,9 +49,6 @@ KEYWORDS = {
     "RISKY":       {"slots": -1, "apply": {"recoil": 0.20},   "sign": "-", "desc": "20% recoil",    "cat": "condition", "stat": "recoil"},
 }
 
-# Power is stored on a 1–10 scale; multiply by this to fit battle.py's damage range
-POWER_SCALE = 9
-
 MAX_MOVES = 4
 
 
@@ -132,7 +129,7 @@ def _to_battle_dict(name, attack_type, built):
     return {
         # battle.py fields
         "name":        name,
-        "power":       round(s["power"] * POWER_SCALE),
+        "power":       s["power"],
         "accuracy":    s["accuracy"],
         "attack_type": attack_type,
         "hp_cost":     s["hp_cost"],
