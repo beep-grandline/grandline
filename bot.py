@@ -85,33 +85,112 @@ def is_gm(interaction: discord.Interaction) -> bool:
 
 HELP_PAGES = {
     "Starting": {
-        "title": "⛵ Starting",
-        "description": "How to start the game.",
+        "title": "⛵ Starting Out",
+        "description": "How to enter the game.",
         "fields": [
-            ("Choose Your Allegiance", "Pick Pirate or Marine from the role picker to enter the game."),
+            ("Choose Your Allegiance", "Pick Pirate or Marine from the role picker to register. You'll be placed at a starting island and can begin playing immediately."),
+            ("Crew Up", "Join a crew with `/join <crew>` or wait for a captain to invite you. Solo players can still sail and fight."),
+            ("Build Your Kit", "Before you can fight, add at least one move with `/kit add`. See the **Battle** page for details."),
         ]
     },
-    
-    "Battle": {
-        "title": "⚔ Battle",
-        "description": "How to fight other players.",
-        "fields": [
-            ("/kit add",       "Build a move using keywords. Pick a power tier (CHIP → CRUSHER), then add modifiers like QUICK, HOMING, or FLURRY. You get 4 slots and 4 moves max."),
-            ("/kit show",      "View your current moveset."),
-            ("/kit remove",    "Remove a move from your kit."),
-            ("/battle @user", "Challenge another player to a fight. They'll get Accept and Decline buttons. Both players need a kit before a battle can start."),
-            ("/forfeit",       "Concede your current battle."),
-        ]
-    },
-    
+
     "Travel": {
         "title": "🗺️ Travel",
-        "description": "Navigating the Grand Line.",
+        "description": "Navigating the Grand Line. Most commands are captain-only unless noted.",
         "fields": [
-            ("/map", "Shows your current viewport. Updates your position on the map."),
-            ("/position", "Lists your current position."),
+            ("/travel status",    "Your current tile, ship rolls, and log pose destination."),
+            ("/travel map",       "View your current area on the world map."),
+            ("/travel pose",      "Set your log or eternal pose destination (captain only)."),
+            ("/travel helm",      "Manually steer the ship one step toward your pose (captain only)."),
+            ("/travel auto",      "Auto-move one step toward your pose without confirmation (captain only)."),
+            ("/travel disembark", "Step off the ship onto an adjacent island tile."),
+            ("/travel reboard",   "Board the ship from an adjacent tile."),
+            ("/travel rejoin",    "Teleport back to your captain's position."),
+            ("/travel solo",      "Break away from your crew and move independently on foot."),
+            ("/travel walk",      "Move on foot across island tiles."),
+            ("/spyglass",         "Scout nearby islands and ships from your current position."),
         ]
     },
+
+    "Battle": {
+        "title": "⚔️ Battle",
+        "description": "Fighting other players and NPCs. Use `/info Kit` for keyword details.",
+        "fields": [
+            ("/kit add",          "Build a move with a power tier (CHIP → CRUSHER) and optional modifiers. 4 slot budget, 4 moves max."),
+            ("/kit show",         "View your current moveset and slot usage."),
+            ("/kit remove",       "Remove a move from your kit."),
+            ("/battle @player",   "Challenge a player to a duel. Both sides need a kit."),
+            ("/engage <npc>",     "Fight an NPC on your current tile."),
+            ("/cannons <target>", "Fire your ship's cannons at an enemy crew (captain only, must be in range)."),
+            ("/forfeit",          "Concede your current battle."),
+            ("/use",              "Use a consumable item (potion, etc.) outside of battle."),
+        ]
+    },
+
+    "Flair": {
+        "title": "🪪 Flair",
+        "description": "Profile and crew customization.",
+        "fields": [
+            ("/profile show",     "View your own or another player's character profile."),
+            ("/profile set",      "Set your character's name, backstory, image, and other details."),
+            ("/crew show",        "View your crew's details and members."),
+            ("/crew set",         "Set your crew's name, description, jolly roger, and other details (captain only)."),
+        ]
+    },
+
+    "Inventory": {
+        "title": "🎒 Inventory & Economy",
+        "description": "Items, money, and consumables.",
+        "fields": [
+            ("/inventory",        "View everything in your inventory."),
+            ("/eat",              "Eat your currently held Devil Fruit."),
+            ("/use",              "Use a consumable item (heals HP)."),
+            ("/purse",            "Check your current berry balance."),
+            ("/zelle @player",    "Transfer berry to another player."),
+            ("/join <crew>",      "Request to join a crew."),
+            ("/leave",            "Leave your current crew."),
+        ]
+    },
+
+    "Jobs": {
+        "title": "💼 Jobs",
+        "description": "Specialized roles with their own command sets. Use `/help <job>` for details on each.\n\n`Cook` · `Doctor` · `Marine`",
+        "fields": [],
+    },
+
+    "Cook": {
+        "title": "🍳 Cook",
+        "description": "Cooks can prepare meals that buff or restore their crew.",
+        "fields": [
+            ("/cook serve <dish>",      "Serve a dish to everyone on the ship."),
+            ("/cook feed @player",      "Serve a dish directly to one person."),
+            ("/cookbook add",           "Add a new recipe to your cookbook."),
+            ("/cookbook list",          "View all your saved recipes."),
+            ("/cookbook modify <dish>", "Edit a recipe's description or image."),
+            ("/cookbook delete <dish>", "Remove a recipe from your cookbook."),
+        ]
+    },
+
+    "Doctor": {
+        "title": "⚕️ Doctor",
+        "description": "Doctors can patch up crewmates mid-adventure.",
+        "fields": [
+            ("/doctor bandage @player", "Patch a crewmate up for some HP."),
+            ("/doctor heal @player",    "Fully restore a crewmate's HP."),
+        ]
+    },
+
+    "Marine": {
+        "title": "⚓ Marine",
+        "description": "Marine officers have access to law-enforcement commands.",
+        "fields": [
+            ("/marine sail",              "Commission your Marine battleship."),
+            ("/marine arrest @player",    "Arrest a defeated player (0 HP required)."),
+            ("/marine release @player",   "Release your prisoner at your current location."),
+            ("/marine prisoners",         "List your current prisoners."),
+        ]
+    },
+
     "Devil Fruits": {
         "title": "<:smile_fruit:1493852186663456918> Devil Fruits",
         "description": "Devil fruit commands.",
@@ -119,15 +198,18 @@ HELP_PAGES = {
             ("/search <name>", "Find an entry in the devil fruit encyclopedia."),
         ]
     },
-
 }
 
+_HELP_TOPICS = Literal[
+    "Starting", "Travel", "Battle", "Flair", "Inventory",
+    "Jobs", "Cook", "Doctor", "Marine", "Devil Fruits"
+]
 
 @bot.tree.command(name="help", description="Help topics", guild=MY_GUILD)
 @discord.app_commands.describe(topic="What do you need help with?")
 async def help_command(
     interaction: discord.Interaction,
-    topic: Literal["Starting", "Travel", "Devil Fruits", "Battle"] = None
+    topic: _HELP_TOPICS = None
 ):
     if topic is None:
         embed = discord.Embed(
@@ -135,13 +217,17 @@ async def help_command(
             description="Use `/help <topic>` to find bot commands for any of the listed topics. Want to know how the game works? Use the `/info` command!",
             color=0x3a7ebf,
         )
+        # Overview: skip individual job pages — they're grouped under Jobs
+        _skip = {"Cook", "Doctor", "Marine"}
         for key, page in HELP_PAGES.items():
+            if key in _skip:
+                continue
             embed.add_field(name=page["title"], value=page["description"], inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
     page = HELP_PAGES[topic]
-    embed = discord.Embed(title=page["title"], color=0x3a7ebf)
+    embed = discord.Embed(title=page["title"], description=page.get("description"), color=0x3a7ebf)
     for name, value in page["fields"]:
         embed.add_field(name=name, value=value, inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -225,8 +311,11 @@ async def _all_ships_autocomplete(interaction: discord.Interaction, current: str
         return []
 
 
-@bot.tree.command(name="position", description="Check your current position", guild=MY_GUILD)
+@bot.tree.command(name="position", description="[GM] Check a player's raw hex coordinates", guild=MY_GUILD)
 async def position_cmd(interaction: discord.Interaction):
+    if not is_gm(interaction):
+        await interaction.response.send_message("GM only.", ephemeral=True)
+        return
     uid = str(interaction.user.id)
     pos = db.get_player_position(uid)
     if not pos:
