@@ -607,7 +607,7 @@ def resolve_turn(state, action_a, action_b):
 # ── Display helpers ───────────────────────────────────────────────────────────
 
 def hp_bar(hp, max_hp, width=12):
-    filled = round((hp / max_hp) * width) if max_hp > 0 else 0
+    filled = min(width, round((hp / max_hp) * width)) if max_hp > 0 else 0
     return "█" * max(0, filled) + "░" * (width - max(0, filled))
 
 
