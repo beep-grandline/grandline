@@ -241,6 +241,54 @@ INFO_PAGES = {
             ("Attack Types",        "`blunt` · `slash` · `pierce` — set when adding a move, not a keyword."),
         ],
     },
+    "Defenses": {
+        "title": "🛡️ Defenses — Devil Fruit Body Types",
+        "description": (
+            "Each fruit gives a **body type** that reacts differently to the "
+            "three attack types: slash, blunt, pierce. Numbers are damage "
+            "multipliers (`✕` = immune). Pick your moves to match your opponent."
+        ),
+        "fields": [
+            ("Passive — always reduce incoming damage", (
+                "```\n"
+                "          Sla  Blu  Pie\n"
+                "none        1    1    1\n"
+                "sponge      2    ✕    1\n"
+                "armor     0.7  0.6  1.5\n"
+                "logia       ✕    ✕    ✕\n"
+                "```\n"
+                "`sponge` (Beri Beri) shrugs off blunt · `logia` (Gasu Gasu) "
+                "is intangible until hit with Haki · `armor` (Buki Buki) hates pierce."
+            )),
+            ("On block — only when they block", (
+                "```\n"
+                "          Sla  Blu  Pie\n"
+                "shell     0.6 0.45    2\n"
+                "buffer    0.5  0.8  0.5\n"
+                "```\n"
+                "`shell` (Bari Bari) turtles up but shatters to pierce · "
+                "`buffer` (Awa Awa) softens most blocked hits."
+            )),
+            ("Accuracy — harder to hit", (
+                "```\n"
+                "          Sla  Blu  Pie\n"
+                "deflect   0.7  0.5  0.5\n"
+                "big       0.8  0.5  0.9\n"
+                "```\n"
+                "`deflect` (Buku Buku) and `big` (Deka Deka) lower your attack's "
+                "hit chance instead of reducing damage."
+            )),
+            ("Escape", (
+                "`escape` (Bara Bara) fighters flee far more easily (1.8× escape "
+                "chance). `big` types are slow to run (0.7×)."
+            )),
+            ("Elements", (
+                "On top of body type, each fruit has an **element** (Fire, Ice, "
+                "Electric, etc.) that follows the standard 18-type chart for super "
+                "effective / not very effective hits."
+            )),
+        ],
+    },
     "Factions": {
         "title": "⚑ Factions",
         "description": "The three factions of the Grand Line.",
@@ -257,7 +305,7 @@ INFO_PAGES = {
 @discord.app_commands.describe(topic="What do you want to know about?")
 async def info_command(
     interaction: discord.Interaction,
-    topic: Literal["Factions", "Kit"] = None
+    topic: Literal["Factions", "Kit", "Defenses"] = None
 ):
     if topic is None:
         embed = discord.Embed(
