@@ -147,7 +147,7 @@ def _calculate_damage(attacker, defender, move, is_blocking=False):
     e_mod         = _elemental_mod(move_element, defender.get("type1", "Normal"))
     p_mod_passive = _passive_physical_mod(attack_type, defender.get("type2", "none"))
     p_mod_block   = _block_physical_mod(attack_type, defender.get("type2", "none")) if is_blocking else 1.0
-    flat_block    = 0.6 if is_blocking and defender.get("type2") not in BLOCK_ONLY_TYPES else 1.0
+    flat_block    = 0.0 if is_blocking and defender.get("type2") not in BLOCK_ONLY_TYPES else 1.0
     total_p_mod   = p_mod_passive * p_mod_block * flat_block
 
     if e_mod == 0 or total_p_mod == 0 or abs(total_p_mod) < 1e-9:
@@ -296,66 +296,89 @@ def _resolve_action(actor, target, action, move_name, opp_action):
             else:
                 lines.append(f"{target['name']} tried to dodge but couldn't! ({pct}% chance)")
 
-        # block check — result used differently for single vs multi-hit
-        is_blocking = (opp_action == "block")
-        if is_blocking:
-            ok, pct = _roll_block(target, actor)
-            if ok:
-                block_str = f" with {target['block']}!" if target.get("block") else "!"
-                lines.append(f"{target['name']} blocks{block_str} ({pct}% chance)")
-            else:
-                lines.append(f"{target['name']}'s block fails! ({pct}% chance)")
-                is_blocking = False
-
         lines.append(f"{actor['name']} used **{move['name']}**! [{attack_type} | {hits} hit{'s' if hits > 1 else ''}]")
 
         if hits == 1:
-            # ── single hit ────────────────────────────────────────────────────
+            # ── single hit — roll block here, only for this path ──────────────
+            is_blocking = (opp_action == "block")
+            if is_blocking:
+                ok, pct = _roll_block(target, actor)
+                if ok:
+                    block_str = f" with {target['block']}!" if target.get("block") else "!"
+                    lines.append(f"{target['name']} blocks{block_str} ({pct}% chance)")
+                else:
+                    lines.append(f"{target['name']}'s block fails! ({pct}% chance)")
+                    is_blocking = False
+
             dmg, hit, crit, e_mod, p_mod = _calculate_damage(actor, target, move, is_blocking)
 
             if not hit:
                 lines.append("→ Missed!")
-            elif dmg == 0:
-                label = _effectiveness_label(e_mod, p_mod)
-                if label:
-                    lines.append(label)
             else:
                 if crit:
                     lines.append("→ Critical hit!")
-                label = _effectiveness_label(e_mod, p_mod)
-                if label:
-                    lines.append(label)
-                if charge_mult > 1.0:
-                    dmg = max(1, round(dmg * charge_mult))
-                target["hp"] = max(0, target["hp"] - dmg)
-                charge_tag = " ⚡ Charged!" if charge_mult > 1.0 else ""
-                lines.append(f"→{charge_tag} {target['name']} took **{dmg}** damage. (e:{e_mod}× p:{p_mod:.2f}×)")
+                if not (dmg == 0 and is_blocking):  # skip label when block fully negates
+                    label = _effectiveness_label(e_mod, p_mod)
+                    if label:
+                        lines.append(label)
+                if dmg == 0 and is_blocking:
+                    lines.append(f"→ {target['name']} blocks the hit completely!")
+                elif dmg > 0:
+                    if charge_mult > 1.0:
+                        dmg = max(1, round(dmg * charge_mult))
+                    target["hp"] = max(0, target["hp"] - dmg)
+                    charge_tag = " ⚡ Charged!" if charge_mult > 1.0 else ""
+                    lines.append(f"→{charge_tag} {target['name']} took **{dmg}** damage. (e:{e_mod}× p:{p_mod:.2f}×)")
+                    recoil = move.get("recoil", 0.0)
+                    if recoil > 0:
+                        recoil_dmg = max(1, round(dmg * recoil))
+                        actor["hp"] = max(0, actor["hp"] - recoil_dmg)
+                        lines.append(f"→ {actor['name']} takes {recoil_dmg} recoil damage!")
+                elif dmg == 0:
+                    label2 = _effectiveness_label(e_mod, p_mod)
+                    if not label2:
+                        lines.append("→ No effect!")
 
-                recoil = move.get("recoil", 0.0)
-                if recoil > 0:
-                    recoil_dmg = max(1, round(dmg * recoil))
-                    actor["hp"] = max(0, actor["hp"] - recoil_dmg)
-                    lines.append(f"→ {actor['name']} takes {recoil_dmg} recoil damage!")
-
+                # counter fires whenever block succeeded, even on full block
                 if is_blocking:
                     counter_dmg = max(1, round(target["atk"] * COUNTER_ATK_FRACTION))
                     actor["hp"] = max(0, actor["hp"] - counter_dmg)
                     lines.append(f"→ {target['name']} counters! **{counter_dmg}** damage.")
 
         else:
-            # ── multi-hit (flurry / barrage) ──────────────────────────────────
-            # barrage (30 hits) uses a higher scale so full connect is meaningful
-            scale       = 2.0 if hits >= 20 else 1.3
-            acc_penalty = 0.50 if hits >= 20 else 0.75
+            # ── multi-hit (multi / flurry / barrage) ──────────────────────────
+            # Scale and accuracy penalty vary by hit count so each tier is
+            # meaningfully different: MULTI(2) ≈ MEDIUM, FLURRY(6) ≈ HEAVY,
+            # BARRAGE(30) ≈ CRUSHER in expected damage.
+            if hits >= 20:       # BARRAGE — massive barrage, each hit weak
+                scale, acc_penalty = 3.5, 0.60
+            elif hits >= 5:      # FLURRY — spread burst
+                scale, acc_penalty = 1.8, 0.80
+            else:                # MULTI — double tap
+                scale, acc_penalty = 1.3, 0.90
+
             per_hit_move = dict(move)
             per_hit_move["power"]    = move["power"] / hits * scale
             per_hit_move["accuracy"] = move["accuracy"] * acc_penalty
 
-            hit_count   = 0
-            block_count = 0
-            total_dmg   = 0
-            got_crit    = False
-            any_blocked = False
+            hit_count    = 0
+            blocked_full = 0   # hits fully negated by block
+            total_dmg    = 0
+            got_crit     = False
+            any_blocked  = False
+
+            # Roll block once for the whole sequence from the raw action,
+            # not from is_blocking (which was scoped to single-hit above).
+            block_active = False
+            if opp_action == "block":
+                b_ok, b_pct = _roll_block(target, actor)
+                block_str = f" with {target['block']}!" if target.get("block") else "!"
+                if b_ok:
+                    lines.append(f"{target['name']} blocks{block_str} ({b_pct}% chance)")
+                    block_active = True
+                    any_blocked  = True
+                else:
+                    lines.append(f"{target['name']}'s block fails! ({b_pct}% chance)")
 
             for _ in range(hits):
                 dmg, did_hit, crit, e_mod, p_mod = _calculate_damage(
@@ -365,42 +388,40 @@ def _resolve_action(actor, target, action, move_name, opp_action):
                     continue
                 if crit:
                     got_crit = True
-                if is_blocking:
-                    b_ok, _ = _roll_block(target, actor)
-                    if b_ok:
-                        block_count += 1
-                        any_blocked  = True
-                        dmg = max(1, round(dmg * 0.5))
-                    else:
-                        hit_count += 1
+                if block_active:
+                    blocked_full += 1
                 else:
                     hit_count += 1
-                total_dmg += dmg
+                    total_dmg += dmg
 
-            landed = hit_count + block_count
+            landed = hit_count + blocked_full
 
             if got_crit:
                 lines.append("→ Critical hit in the barrage!")
 
-            if total_dmg == 0:
+            if total_dmg == 0 and not any_blocked:
                 lines.append("→ All hits missed!")
             else:
-                if charge_mult > 1.0:
-                    total_dmg = max(1, round(total_dmg * charge_mult))
-                target["hp"] = max(0, target["hp"] - total_dmg)
+                if total_dmg > 0:
+                    if charge_mult > 1.0:
+                        total_dmg = max(1, round(total_dmg * charge_mult))
+                    target["hp"] = max(0, target["hp"] - total_dmg)
                 charge_tag = " ⚡ Charged!" if charge_mult > 1.0 else ""
                 summary = f"→{charge_tag} {landed}/{hits} connected"
-                if block_count:
-                    summary += f", {block_count} blocked"
-                summary += f" — **{total_dmg}** total damage"
+                if blocked_full:
+                    summary += f", {blocked_full} blocked"
+                if total_dmg > 0:
+                    summary += f" — **{total_dmg}** total damage"
                 lines.append(summary)
 
-                recoil = move.get("recoil", 0.0)
-                if recoil > 0:
-                    recoil_dmg = max(1, round(total_dmg * recoil))
-                    actor["hp"] = max(0, actor["hp"] - recoil_dmg)
-                    lines.append(f"→ {actor['name']} takes {recoil_dmg} recoil damage!")
+                if total_dmg > 0:
+                    recoil = move.get("recoil", 0.0)
+                    if recoil > 0:
+                        recoil_dmg = max(1, round(total_dmg * recoil))
+                        actor["hp"] = max(0, actor["hp"] - recoil_dmg)
+                        lines.append(f"→ {actor['name']} takes {recoil_dmg} recoil damage!")
 
+                # counter fires if any hit was blocked (consistent with single-hit)
                 if any_blocked:
                     counter_dmg = max(1, round(target["atk"] * COUNTER_ATK_FRACTION))
                     actor["hp"] = max(0, actor["hp"] - counter_dmg)
@@ -521,9 +542,12 @@ def resolve_turn(state, action_a, action_b):
         log.append(f"⚡ {fb['name']} moves first from last turn's dodge!")
         a_goes_first = False
     else:
-        spd_move_a = (_find_move(fa, move_a) or {}).get("spd", 0) if act_a == "attack" else 0
-        spd_move_b = (_find_move(fb, move_b) or {}).get("spd", 0) if act_b == "attack" else 0
-        a_goes_first = (fa["spd"] + spd_move_a) >= (fb["spd"] + spd_move_b)
+        pri_move_a = (_find_move(fa, move_a) or {}).get("priority", 0) if act_a == "attack" else 0
+        pri_move_b = (_find_move(fb, move_b) or {}).get("priority", 0) if act_b == "attack" else 0
+        # priority is a discrete tier; weight heavily so it overrides speed
+        total_a = fa["spd"] + pri_move_a * 10
+        total_b = fb["spd"] + pri_move_b * 10
+        a_goes_first = total_a >= total_b
 
     if a_goes_first:
         first,  second  = fa, fb
