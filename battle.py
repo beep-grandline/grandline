@@ -11,6 +11,14 @@ import random
 # defender's power so blocking a heavy hitter doesn't reflect huge damage.
 COUNTER_ATK_FRACTION = 0.15
 
+# Damage scaling.
+#  DAMAGE_SCALE      — global flat multiplier on all damage (tune to slow/speed fights).
+#  ATK_DEF_EXPONENT  — dampens the atk/defense ratio so stat gaps matter but don't
+#                      nuke. 1.0 = raw linear ratio (old behaviour); 0.5 = square-root
+#                      dampening (a 8× atk advantage becomes ~2.8×, not 8×).
+DAMAGE_SCALE     = 0.85
+ATK_DEF_EXPONENT = 0.5
+
 # ── Type Chart 1: Elemental (Pokemon gen 6) ───────────────────────────────────
 
 ELEMENTAL_CHART = {
@@ -136,7 +144,8 @@ def _calculate_damage(attacker, defender, move, is_blocking=False):
     if not hit:
         return 0, False, False, 1.0, 1.0
 
-    base  = move["power"] * (attacker["atk"] / max(defender["defense"], 1))
+    ratio = attacker["atk"] / max(defender["defense"], 1)
+    base  = move["power"] * (ratio ** ATK_DEF_EXPONENT) * DAMAGE_SCALE
     base *= random.uniform(0.85, 1.15)
 
     crit = random.random() < 0.0625
