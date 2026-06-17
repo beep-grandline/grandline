@@ -156,12 +156,12 @@ HELP_PAGES = {
         "title": "🍳 Cook",
         "description": "Cooks can prepare meals that buff or restore their crew.",
         "fields": [
-            ("/cook serve <dish>",      "Serve a dish to everyone on the ship."),
-            ("/cook feed @player",      "Serve a dish directly to one person."),
-            ("/cookbook add",           "Add a new recipe to your cookbook."),
-            ("/cookbook list",          "View all your saved recipes."),
-            ("/cookbook modify <dish>", "Edit a recipe's description or image."),
-            ("/cookbook delete <dish>", "Remove a recipe from your cookbook."),
+            ("/cook serve <dish>",           "Serve a dish to everyone on the ship."),
+            ("/cook feed @player",           "Serve a dish directly to one person."),
+            ("/cook cookbook add",           "Add a new recipe to your cookbook."),
+            ("/cook cookbook list",          "View all your saved recipes."),
+            ("/cook cookbook modify <dish>", "Edit a recipe's description or image."),
+            ("/cook cookbook delete <dish>", "Remove a recipe from your cookbook."),
         ]
     },
 
