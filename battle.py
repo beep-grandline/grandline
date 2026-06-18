@@ -356,28 +356,27 @@ def _resolve_action(actor, target, action, move_name, opp_action):
 
         else:
             # ── multi-hit (multi / flurry / barrage) ──────────────────────────
-            # Scale and accuracy penalty vary by hit count so each tier is
-            # meaningfully different: MULTI(2) ≈ MEDIUM, FLURRY(6) ≈ HEAVY,
-            # BARRAGE(30) ≈ CRUSHER in expected damage.
-            if hits >= 20:       # BARRAGE — massive barrage, each hit weak
+            # Scale varies by tier. Damage is computed ONCE for the whole
+            # sequence (scaled power × connect ratio) so the max(1,...) floor
+            # doesn't inflate every tiny sub-hit. Accuracy rolls are still
+            # per-hit so partial connects are meaningful.
+            if hits >= 20:       # BARRAGE
                 scale, acc_penalty = 3.5, 0.60
-            elif hits >= 5:      # FLURRY — spread burst
+            elif hits >= 5:      # FLURRY
                 scale, acc_penalty = 1.8, 0.80
-            else:                # MULTI — double tap
+            else:                # MULTI
                 scale, acc_penalty = 1.3, 0.90
 
-            per_hit_move = dict(move)
-            per_hit_move["power"]    = move["power"] / hits * scale
-            per_hit_move["accuracy"] = move["accuracy"] * acc_penalty
+            acc_move = dict(move)
+            acc_move["accuracy"] = move["accuracy"] * acc_penalty
+            # accuracy used only for hit-rolls; we don't pass it to damage calc
+            effective_acc = acc_move["accuracy"]
 
             hit_count    = 0
-            blocked_full = 0   # hits fully negated by block
-            total_dmg    = 0
-            got_crit     = False
+            blocked_full = 0
             any_blocked  = False
 
-            # Roll block once for the whole sequence from the raw action,
-            # not from is_blocking (which was scoped to single-hit above).
+            # Roll block once for the whole sequence.
             block_active = False
             if opp_action == "block":
                 b_ok, b_pct = _roll_block(target, actor)
@@ -389,23 +388,35 @@ def _resolve_action(actor, target, action, move_name, opp_action):
                 else:
                     lines.append(f"{target['name']}'s block fails! ({b_pct}% chance)")
 
+            # Per-hit accuracy rolls only — count connects.
             for _ in range(hits):
-                dmg, did_hit, crit, e_mod, p_mod = _calculate_damage(
-                    actor, target, per_hit_move, is_blocking=False
-                )
-                if not did_hit:
-                    continue
-                if crit:
-                    got_crit = True
-                if block_active:
-                    blocked_full += 1
-                else:
-                    hit_count += 1
-                    total_dmg += dmg
+                if random.uniform(0, 100) <= effective_acc:
+                    if block_active:
+                        blocked_full += 1
+                    else:
+                        hit_count += 1
 
             landed = hit_count + blocked_full
 
-            if got_crit:
+            # Crit chance once for the sequence (treat barrage as one attack).
+            got_crit = random.random() < 0.0625
+
+            # Single damage roll for the whole sequence, scaled by connect ratio.
+            # This avoids the max(1,...) floor inflating every individual sub-hit.
+            total_dmg = 0
+            if hit_count > 0:
+                connect_ratio = hit_count / hits
+                seq_move = dict(move)
+                seq_move["power"] = move["power"] * scale * connect_ratio
+                if got_crit:
+                    seq_move["power"] *= 1.5
+                dmg, did_hit, _, e_mod, p_mod = _calculate_damage(
+                    actor, target, seq_move, is_blocking=False
+                )
+                if did_hit:
+                    total_dmg = dmg
+
+            if got_crit and hit_count > 0:
                 lines.append("→ Critical hit in the barrage!")
 
             if total_dmg == 0 and not any_blocked:
