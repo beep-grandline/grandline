@@ -353,6 +353,28 @@ async def _all_ships_autocomplete(interaction: discord.Interaction, current: str
         return []
 
 
+@bot.tree.command(name="sizeup", description="Size up another fighter", guild=MY_GUILD)
+@discord.app_commands.describe(target="Who are you sizing up?")
+async def sizeup_cmd(interaction: discord.Interaction, target: discord.Member):
+    me = db.get_player(str(interaction.user.id))
+    them = db.get_player(str(target.id))
+    if not me or not them:
+        await interaction.response.send_message("One of you isn't registered.", ephemeral=True)
+        return
+    my_total    = (me["atk"] or 10) + (me["defense"] or 10) + (me["spd"] or 10)
+    their_total = (them["atk"] or 10) + (them["defense"] or 10) + (them["spd"] or 10)
+    ratio = their_total / max(my_total, 1)
+    if ratio <= 1.15:
+        verdict = "probably go ahead"
+    elif ratio <= 1.5:
+        verdict = "idk maybe?"
+    else:
+        verdict = "haha lol"
+    await interaction.response.send_message(
+        f"{interaction.user.mention} sizes up {target.mention}... **{verdict}**"
+    )
+
+
 @bot.tree.command(name="purse", description="Check how much money you have", guild=MY_GUILD)
 async def purse_cmd(interaction: discord.Interaction):
     uid   = str(interaction.user.id)
