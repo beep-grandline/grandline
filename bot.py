@@ -1401,6 +1401,56 @@ async def admin_translate(interaction: discord.Interaction, text: str):
     )
 
 
+@admin_group.command(name="recalcmoves", description="Recompute all player moves with the current keyword formula")
+async def admin_recalcmoves(interaction: discord.Interaction):
+    if not is_admin(interaction):
+        await interaction.response.send_message("Admin only.", ephemeral=True)
+        return
+    await interaction.response.defer(ephemeral=True)
+
+    from kit_commands import _build_move, _to_battle_dict
+
+    players = db.db.execute("SELECT id FROM players").fetchall()
+    total_moves = 0
+    total_players = 0
+    skipped = 0
+
+    for row in players:
+        pid = row["id"]
+        moves = db.get_player_moves(pid)
+        if not moves:
+            continue
+        updated = []
+        player_changed = False
+        for m in moves:
+            kws = m.get("_keywords")
+            attack_type = m.get("attack_type", "blunt")
+            name = m.get("name", "Move")
+            if not kws:
+                # legacy move with no keyword metadata — can't rebuild
+                updated.append(m)
+                skipped += 1
+                continue
+            built = _build_move(name, attack_type, kws)
+            if built["errors"]:
+                updated.append(m)
+                skipped += 1
+                continue
+            new_move = _to_battle_dict(name, attack_type, built)
+            updated.append(new_move)
+            total_moves += 1
+            player_changed = True
+        if player_changed:
+            db.set_player_moves(pid, updated)
+            total_players += 1
+
+    await interaction.followup.send(
+        f"Recalculated **{total_moves}** moves across **{total_players}** players."
+        + (f" Skipped {skipped} legacy/invalid moves." if skipped else ""),
+        ephemeral=True,
+    )
+
+
 @admin_group.command(name="help", description="List all admin commands")
 async def admin_help(interaction: discord.Interaction):
     embed = discord.Embed(
@@ -1408,8 +1458,9 @@ async def admin_help(interaction: discord.Interaction):
         color=0x8b0000,
     )
     commands_list = [
-        ("/admin rolepicker", "Used only to refresh the rolepicker."),
-        ("/admin help",       "Show this message"),
+        ("/admin rolepicker",   "Used only to refresh the rolepicker."),
+        ("/admin recalcmoves",  "Recompute all player moves with the current keyword formula."),
+        ("/admin help",         "Show this message"),
     ]
     for name, desc in commands_list:
         embed.add_field(name=name, value=desc, inline=False)
