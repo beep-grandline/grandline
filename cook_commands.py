@@ -343,12 +343,40 @@ async def cook_serve(interaction: discord.Interaction, dish: str):
 
 # ── /cook feed ────────────────────────────────────────────────────────────────
 
+class FeedView(discord.ui.View):
+    def __init__(self, cook_id: str, target_id: str, recipe: dict, full_embed: discord.Embed):
+        super().__init__(timeout=300)
+        self.cook_id    = cook_id
+        self.target_id  = target_id
+        self.recipe     = recipe
+        self.full_embed = full_embed
+
+    @discord.ui.button(label="Eat 🍽️", style=discord.ButtonStyle.success)
+    async def eat(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if str(interaction.user.id) != self.target_id:
+            await interaction.response.send_message("That's not for you.", ephemeral=True)
+            return
+
+        note = _apply_meal_effect(self.target_id, self.recipe["type"])
+
+        # full recipe embed + effect note, ephemeral to the eater
+        result_embed = discord.Embed.from_dict(self.full_embed.to_dict())
+        result_embed.add_field(name="Effect", value=note, inline=False)
+        await interaction.response.send_message(embed=result_embed, ephemeral=True)
+
+        # disable the button on the public message
+        button.disabled = True
+        button.label = "Eaten"
+        await interaction.message.edit(view=self)
+        self.stop()
+
+
 @cook_group.command(name="feed", description="Serve a dish directly to one person")
 @discord.app_commands.describe(dish="A recipe from your cookbook", target="Who to feed")
 @discord.app_commands.autocomplete(dish=_recipe_autocomplete)
 async def cook_feed(interaction: discord.Interaction, dish: str, target: discord.Member):
     try:
-        uid    = str(interaction.user.id)
+        uid = str(interaction.user.id)
         player = db.get_player(uid)
         if not player:
             await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
@@ -373,21 +401,27 @@ async def cook_feed(interaction: discord.Interaction, dish: str, target: discord
             )
             return
 
-        note  = _apply_meal_effect(tid, recipe["type"])
-        kw    = " · ".join(k.upper() for k in recipe.get("keywords", []))
-        embed = discord.Embed(
+        kw = " · ".join(k.upper() for k in recipe.get("keywords", []))
+
+        # full embed stored in the view for sending ephemerally on eat
+        full_embed = discord.Embed(
             title=f"🍽️ {recipe['name']}  ·  `{kw}`",
             description=(
                 f"{recipe.get('description', '')}\n\n"
-                f"**{interaction.user.display_name}** serves this to **{target.display_name}**.\n"
-                f"*{note}*"
+                f"*{MEAL_TYPE_BLURB.get(recipe['type'], '')}*"
             ),
             color=0xd98e32,
         )
         if recipe.get("url"):
-            embed.set_image(url=recipe["url"])
-        embed.set_footer(text=f"Prepared by {interaction.user.display_name}")
+            full_embed.set_image(url=recipe["url"])
+        full_embed.set_footer(text=f"Prepared by {interaction.user.display_name}")
 
-        await interaction.response.send_message(content=target.mention, embed=embed)
+        view = FeedView(cook_id=uid, target_id=tid, recipe=recipe, full_embed=full_embed)
+        blurb = MEAL_TYPE_BLURB.get(recipe["type"], "a meal")
+        await interaction.response.send_message(
+            f"{interaction.user.display_name} wants to feed {target.mention} **{recipe['name']}** ({blurb})",
+            view=view,
+        )
     except discord.NotFound:
         pass
+
