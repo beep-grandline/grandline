@@ -1401,6 +1401,33 @@ async def admin_translate(interaction: discord.Interaction, text: str):
     )
 
 
+@admin_group.command(name="legacymoves", description="List moves that can't be recalculated (missing keyword metadata)")
+async def admin_legacymoves(interaction: discord.Interaction):
+    if not is_admin(interaction):
+        await interaction.response.send_message("Admin only.", ephemeral=True)
+        return
+    await interaction.response.defer(ephemeral=True)
+
+    players = db.db.execute("SELECT id, name FROM players").fetchall()
+    lines = []
+    for row in players:
+        pid  = row["id"]
+        name = row["name"] or pid
+        moves = db.get_player_moves(pid)
+        for m in moves:
+            if not m.get("_keywords"):
+                lines.append(f"**{name}** (`{pid[:6]}…`) — `{m.get('name','?')}` power={m.get('power','?')}")
+
+    if not lines:
+        await interaction.followup.send("No legacy moves found.", ephemeral=True)
+        return
+
+    await interaction.followup.send(
+        f"**{len(lines)} legacy move(s):**\n" + "\n".join(lines),
+        ephemeral=True,
+    )
+
+
 @admin_group.command(name="recalcmoves", description="Recompute all player moves with the current keyword formula")
 async def admin_recalcmoves(interaction: discord.Interaction):
     if not is_admin(interaction):
@@ -1460,6 +1487,7 @@ async def admin_help(interaction: discord.Interaction):
     commands_list = [
         ("/admin rolepicker",   "Used only to refresh the rolepicker."),
         ("/admin recalcmoves",  "Recompute all player moves with the current keyword formula."),
+        ("/admin legacymoves",  "List moves that can't be recalculated (missing keyword metadata)."),
         ("/admin help",         "Show this message"),
     ]
     for name, desc in commands_list:
