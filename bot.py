@@ -72,6 +72,18 @@ async def on_ready():
     print(f"Logged in as {bot.user}")
 
 
+_MUSIC_WORDS = {"crescendo", "diminuendo", "presto", "allegro", "yohohoho"}
+
+@bot.event
+async def on_message(message: discord.Message):
+    if message.author.bot:
+        return
+    words = set(message.content.lower().split())
+    if words & _MUSIC_WORDS:
+        await message.channel.send("🎵")
+    await bot.process_commands(message)
+
+
 # ── Permission helpers ────────────────────────────────────────────────────────
 
 def is_admin(interaction: discord.Interaction) -> bool:

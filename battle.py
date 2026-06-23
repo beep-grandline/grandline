@@ -98,7 +98,11 @@ def _elemental_mod(move_element, defender_type1):
         return 1.0
     return ELEMENTAL_CHART.get(move_element, {}).get(defender_type1, 1.0)
 
-def _passive_physical_mod(attack_type, defender_type2):
+HAKI_LOGIA_MOD = 0.5  # temporary: Haki role bypasses logia immunity at this fraction
+
+def _passive_physical_mod(attack_type, defender_type2, haki=False):
+    if defender_type2 == "logia" and haki:
+        return HAKI_LOGIA_MOD
     if defender_type2 not in PASSIVE_DMG_TYPES:
         return 1.0
     return PHYSICAL_CHART.get(defender_type2, {}).get(attack_type, 1.0)
@@ -154,7 +158,8 @@ def _calculate_damage(attacker, defender, move, is_blocking=False):
 
     move_element  = move.get("element", attacker.get("type1", "Normal"))
     e_mod         = _elemental_mod(move_element, defender.get("type1", "Normal"))
-    p_mod_passive = _passive_physical_mod(attack_type, defender.get("type2", "none"))
+    haki          = attacker.get("haki", False)
+    p_mod_passive = _passive_physical_mod(attack_type, defender.get("type2", "none"), haki=haki)
     p_mod_block   = _block_physical_mod(attack_type, defender.get("type2", "none")) if is_blocking else 1.0
     flat_block    = 0.0 if is_blocking and defender.get("type2") not in BLOCK_ONLY_TYPES else 1.0
     total_p_mod   = p_mod_passive * p_mod_block * flat_block
