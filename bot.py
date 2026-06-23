@@ -697,32 +697,15 @@ async def df_cmd(interaction: discord.Interaction):
         )
         return
 
-    CAT_MAP = {
-        "1": "Paramecia",
-        "2": "Zoan",
-        "3": "Logia",
-        "4": "Mythical Zoan",
-        "5": "Ancient Zoan",
-        "6": "Special Paramecia",
-    }
-
-    eng     = (row.get("eng") or "Unknown").strip()
-    jap     = (row.get("jap") or "").strip()
-    ability = (row.get("ability") or "No description available.").strip()
-    url     = (row.get("url") or "").strip()
-    cat     = (row.get("cat") or "").strip()
-    category = CAT_MAP.get(cat, "Unknown")
-
-    embed = discord.Embed(
-        title=jap,
-        description=f"*{eng}*" if jap else "",
-        color=0x1a3f6b,
+    jap = (row.get("jap") or "").strip()
+    eng = (row.get("eng") or "").strip()
+    t1  = row.get("type1") or "Normal"
+    t2  = row.get("type2") or "none"
+    await interaction.response.send_message(
+        f"You've eaten the **{jap}** ({eng}).\n"
+        f"Type: `{t1}` / Defense modifier: `{t2}`",
+        ephemeral=True,
     )
-    embed.add_field(name="Ability", value=ability, inline=True)
-    embed.add_field(name="Category", value=category, inline=True)
-    embed.set_thumbnail(url=url)
-
-    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 # ── /gm command group — usable by Admin and Mod ───────────────────────────────
@@ -1268,7 +1251,7 @@ class SetStatsModal(discord.ui.Modal, title="Set Fighter Stats"):
     )
     defense = discord.ui.TextInput(
         label="DEF",
-        placeholder="Defence (integer)",
+        placeholder="Defense (integer)",
         max_length=4,
         required=False,
     )
@@ -1392,7 +1375,7 @@ async def gm_setfruit(interaction: discord.Interaction, target: discord.Member, 
     t2  = row.get("type2") or "none"
     await interaction.response.send_message(
         f"Gave **{target.display_name}** the **{jap}** ({eng}).\n"
-        f"Type: `{t1}` / Defence modifier: `{t2}`",
+        f"Type: `{t1}` / Defense modifier: `{t2}`",
         ephemeral=False,
     )
 

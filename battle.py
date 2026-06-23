@@ -61,7 +61,7 @@ ELEMENTAL_CHART = {
                  "Fighting": 2, "Dragon": 2, "Dark": 2},
 }
 
-# ── Type Chart 2: Physical defence ───────────────────────────────────────────
+# ── Type Chart 2: Physical defense ───────────────────────────────────────────
 
 PHYSICAL_CHART = {
     "none":    {"slash": 1.0,  "blunt": 1.0,  "pierce": 1.0},

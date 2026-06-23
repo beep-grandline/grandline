@@ -117,7 +117,7 @@ class EatConfirmView(discord.ui.View):
         await interaction.response.edit_message(
             content=(
                 f"You ate the **{name}**! "
-                f"Your type is now `{t1}` / defence modifier `{t2}`.\n"
+                f"Your type is now `{t1}` / defense modifier `{t2}`.\n"
                 f"*There is no going back.*"
             ),
             embed=None, view=self,
