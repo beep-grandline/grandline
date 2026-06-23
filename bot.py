@@ -678,12 +678,51 @@ async def search_cmd(interaction: discord.Interaction, fruit: str):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
+@bot.tree.command(name="df", description="See what devil fruit you've eaten", guild=MY_GUILD)
+async def df_cmd(interaction: discord.Interaction):
+    uid = str(interaction.user.id)
+    if not db.get_player(uid):
+        await interaction.response.send_message("You're not registered.", ephemeral=True)
+        return
+    fruit_id = db.get_player_fruit(uid)
+    if not fruit_id:
+        await interaction.response.send_message(
+            "You haven't eaten a devil fruit.", ephemeral=True
+        )
+        return
+    row = get_fruit_by_id(fruit_id)
+    if not row:
+        await interaction.response.send_message(
+            f"You've eaten `{fruit_id}`, but that fruit has no data on record.", ephemeral=True
+        )
+        return
 
+    CAT_MAP = {
+        "1": "Paramecia",
+        "2": "Zoan",
+        "3": "Logia",
+        "4": "Mythical Zoan",
+        "5": "Ancient Zoan",
+        "6": "Special Paramecia",
+    }
 
+    eng     = (row.get("eng") or "Unknown").strip()
+    jap     = (row.get("jap") or "").strip()
+    ability = (row.get("ability") or "No description available.").strip()
+    url     = (row.get("url") or "").strip()
+    cat     = (row.get("cat") or "").strip()
+    category = CAT_MAP.get(cat, "Unknown")
 
+    embed = discord.Embed(
+        title=jap,
+        description=f"*{eng}*" if jap else "",
+        color=0x1a3f6b,
+    )
+    embed.add_field(name="Ability", value=ability, inline=True)
+    embed.add_field(name="Category", value=category, inline=True)
+    embed.set_thumbnail(url=url)
 
-
-
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 # ── /gm command group — usable by Admin and Mod ───────────────────────────────
