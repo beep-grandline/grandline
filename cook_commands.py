@@ -417,9 +417,8 @@ async def cook_feed(interaction: discord.Interaction, dish: str, target: discord
         full_embed.set_footer(text=f"Prepared by {interaction.user.display_name}")
 
         view = FeedView(cook_id=uid, target_id=tid, recipe=recipe, full_embed=full_embed)
-        blurb = MEAL_TYPE_BLURB.get(recipe["type"], "a meal")
         await interaction.response.send_message(
-            f"{interaction.user.display_name} wants to feed {target.mention} **{recipe['name']}** ({blurb})",
+            f"{interaction.user.display_name} wants to feed {target.mention} **{recipe['name']}**",
             view=view,
         )
     except discord.NotFound:
