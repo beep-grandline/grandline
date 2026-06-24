@@ -709,10 +709,6 @@ async def df_cmd(interaction: discord.Interaction):
 
 
 
-@bot.tree.command(name="tab", description="Check the tab", guild=MY_GUILD)
-async def tab_cmd(interaction: discord.Interaction):
-    await interaction.response.send_message("Tab opened for Fetty: 2 billion berry")
-
 
 # ── /gm command group — usable by Admin and Mod ───────────────────────────────
 
