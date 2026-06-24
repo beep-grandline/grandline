@@ -102,7 +102,7 @@ HELP_PAGES = {
         "fields": [
             ("Choose Your Allegiance", "Pick Pirate or Marine from the role picker to register. You'll be placed at a starting island and can begin playing immediately."),
             ("Crew Up", "Join a crew with `/join <crew>` or wait for a captain to invite you. Solo players can still sail and fight."),
-            ("Build Your Kit", "Before you can fight, add at least one move with `/kit add`. See the **Battle** page for details."),
+            ("Build Your Kit", "Before you can fight, add at least one move with `/kit add`. Use `/kit help` for keyword details."),
         ]
     },
 
@@ -120,7 +120,7 @@ HELP_PAGES = {
 
     "Battle": {
         "title": "⚔️ Battle",
-        "description": "Fighting other players and NPCs. Use `/info Kit` for keyword details.",
+        "description": "Fighting other players and NPCs. Use `/kit help` for keyword details.",
         "fields": [
             ("/kit add",          "Build a move with a power tier (CHIP → CRUSHER) and optional modifiers. 4 slot budget, 4 moves max."),
             ("/kit show",         "View your current moveset and slot usage."),
@@ -241,16 +241,22 @@ async def help_command(
 
 INFO_PAGES = {
     "Kit": {
-        "title": "⚔️ Kit — Keywords Reference",
-        "description": "Each move has a **4 slot budget**. You can hold up to **4 moves**.\nAll keywords ordered left to right in increasing utility (slot usage in parentheses).\nYou can use up to 4 keywords per move as long as the total slot usage doesn't exceed 4.",
+        "title": "How to build your kit",
+        "description": (
+            "Your kit is your moveset - build four unique moves that represent your character! "
+            "Each move can be built from any mix of the keywords below so long as you follow these constraints:\n\n"
+            "• Each move has a **4 slot budget**.\n"
+            "• You cannot pick two keywords in the same category (except for extra conditions).\n"
+            "• You cannot use more than 4 keywords, even if the slot usage is acceptable.\n"
+            "• You can unlock slash and pierce moves if you own appropriate weapons."
+        ),
         "fields": [
-            ("Power  (pick one)",   "`CHIP` (+1, +acc) · `LIGHT` (0) · `MEDIUM` (−1) · `HEAVY` (−2) · `CRUSHER` (−3)"),
+            ("Power",               "`CHIP` (+1, +acc) · `LIGHT` (0) · `MEDIUM` (−1) · `HEAVY` (−2) · `CRUSHER` (−3)"),
             ("Accuracy",            "`INACCURATE` (+1) · `SHARPEYE` (−1) · `PRECISE` (−2)"),
-            ("Priority",            "`SLUGGISH` (+2, −pwr) · `SLOW` (+1) · `QUICK` (−1) · `BURST` (−2)"),
+            ("Speed",               "`SLUGGISH` (+2, −pwr) · `SLOW` (+1) · `QUICK` (−1) · `BURST` (−2)"),
             ("Tracking",            "`TELEGRAPHED` (+1) · `FOCUSED` (−1) · `HOMING` (−2)"),
             ("Hits",                "`MULTI` (−1) · `FLURRY` (−2) · `BARRAGE` (−3)"),
-            ("Conditions",          "`DRAINING` (+1) · `EXHAUSTING` (+1) · `RISKY` (+1)"),
-            ("Attack Types",        "`blunt` · `slash` · `pierce` — set when adding a move, not a keyword."),
+            ("Extra conditions",    "`DRAINING` (+1) · `EXHAUSTING` (+1) · `RISKY` (+1)"),
         ],
     },
     "Defenses": {

@@ -99,7 +99,7 @@ def _build_npc_move(name: str, type_code: str, tags_str: str) -> dict:
         "name":        name,
         "power":       s["power"] * POWER_SCALE,
         "accuracy":    s["accuracy"],
-        "priority":    s["priority"],
+        "speed":       s["speed"],
         "tracking":    s["tracking"],
         "hits":        s["hits"],
         "hp_cost":     s["hp_cost"],

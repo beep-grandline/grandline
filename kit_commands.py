@@ -13,7 +13,7 @@ from config import GUILD_ID
 # Mirrored from move_builder.py (no IPython dependency here)
 
 SLOTS = 4
-BASE  = {"power": 3, "accuracy": 75, "priority": 0,
+BASE  = {"power": 3, "accuracy": 75, "speed": 0,
          "tracking": 5, "hits": 1, "hp_cost": 0, "recoil": 0.0}
 
 POWER_TIERS = {"CHIP", "LIGHT", "MEDIUM", "HEAVY", "CRUSHER"}
@@ -30,11 +30,11 @@ KEYWORDS = {
     "PRECISE":     {"slots":  2, "apply": {"accuracy": +15}, "sign": "+", "desc": "accuracy +15", "cat": "descriptor", "stat": "accuracy"},
     "SHARPEYE":    {"slots":  1, "apply": {"accuracy": +10}, "sign": "+", "desc": "accuracy +10", "cat": "descriptor", "stat": "accuracy"},
     "INACCURATE":  {"slots": -1, "apply": {"accuracy": -20}, "sign": "-", "desc": "accuracy -20", "cat": "descriptor", "stat": "accuracy"},
-    # priority
-    "BURST":       {"slots":  2, "apply": {"priority": +2}, "sign": "+", "desc": "priority +2", "cat": "descriptor", "stat": "priority"},
-    "QUICK":       {"slots":  1, "apply": {"priority": +1}, "sign": "+", "desc": "priority +1", "cat": "descriptor", "stat": "priority"},
-    "SLOW":        {"slots": -1, "apply": {"priority": -1}, "sign": "-", "desc": "priority -1", "cat": "descriptor", "stat": "priority"},
-    "SLUGGISH":    {"slots": -1, "apply": {"priority": -2, "power": -2}, "sign": "-", "desc": "priority -2, power -2", "cat": "descriptor", "stat": "priority"},
+    # speed
+    "BURST":       {"slots":  2, "apply": {"speed": +2}, "sign": "+", "desc": "speed +2", "cat": "descriptor", "stat": "speed"},
+    "QUICK":       {"slots":  1, "apply": {"speed": +1}, "sign": "+", "desc": "speed +1", "cat": "descriptor", "stat": "speed"},
+    "SLOW":        {"slots": -1, "apply": {"speed": -1}, "sign": "-", "desc": "speed -1", "cat": "descriptor", "stat": "speed"},
+    "SLUGGISH":    {"slots": -1, "apply": {"speed": -2, "power": -2}, "sign": "-", "desc": "speed -2, power -2", "cat": "descriptor", "stat": "speed"},
     # tracking
     "HOMING":      {"slots":  2, "apply": {"tracking": +3}, "sign": "+", "desc": "tracking +3", "cat": "descriptor", "stat": "tracking"},
     "FOCUSED":     {"slots":  1, "apply": {"tracking": +2}, "sign": "+", "desc": "tracking +2", "cat": "descriptor", "stat": "tracking"},
@@ -105,7 +105,7 @@ def _build_move(name, attack_type, keywords):
     stats["power"]    = max(1,  min(10,  stats["power"]))
     stats["accuracy"] = max(5,  min(100, stats["accuracy"]))
     stats["tracking"] = max(1,  min(10,  stats["tracking"]))
-    stats["priority"] = max(-2, min(2,   stats["priority"]))
+    stats["speed"]    = max(-2, min(2,   stats["speed"]))
     stats["hits"]     = max(1,  min(30,  stats["hits"]))
 
     return {
@@ -135,7 +135,7 @@ def _to_battle_dict(name, attack_type, built):
         "hp_cost":     s["hp_cost"],
         "recoil":      s["recoil"],
         "hits":        s["hits"],
-        "priority":    s["priority"],
+        "speed":       s["speed"],
         "tracking":    s["tracking"],
         # display metadata (underscore = ignored by battle.py)
         "_keywords":   [kw for kw, _ in built["log"]],
@@ -162,7 +162,7 @@ def _format_built(built):
         f"`{_bar(s['power'],    10)}` **{s['power']}/10** pwr  "
         f"`{_bar(s['accuracy'], 100)}` **{s['accuracy']}%** acc  "
         f"`{_bar(s['tracking'], 10)}` **{s['tracking']}/10** trk",
-        f"Priority **{s['priority']:+d}**  ·  Slots **{slot_str}**",
+        f"Speed **{s['speed']:+d}**  ·  Slots **{slot_str}**",
     ]
     mods = []
     if s["hits"] > 1:    mods.append(f"×{s['hits']} hits")
@@ -182,7 +182,7 @@ def _format_stored(move):
         f"`{_bar(s.get('power',    3),  10)}` **{s.get('power', 3)}/10** pwr  "
         f"`{_bar(s.get('accuracy', 75), 100)}` **{s.get('accuracy', 75)}%** acc  "
         f"`{_bar(s.get('tracking', 5),  10)}` **{s.get('tracking', 5)}/10** trk",
-        f"Priority **{s.get('priority', 0):+d}**",
+        f"Speed **{s.get('speed', 0):+d}**",
     ]
     mods = []
     if move.get("hits", 1) > 1:   mods.append(f"×{move['hits']} hits")
@@ -247,6 +247,29 @@ _TYPE_CHOICES = [
     discord.app_commands.Choice(name="slash",  value="slash"),
     discord.app_commands.Choice(name="pierce", value="pierce"),
 ]
+
+
+@kit_group.command(name="help", description="How to build your kit")
+async def kit_help(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="How to build your kit",
+        description=(
+            "Your kit is your moveset - build four unique moves that represent your character! "
+            "Each move can be built from any mix of the keywords below so long as you follow these constraints:\n\n"
+            "• Each move has a **4 slot budget**.\n"
+            "• You cannot pick two keywords in the same category (except for extra conditions).\n"
+            "• You cannot use more than 4 keywords, even if the slot usage is acceptable.\n"
+            "• You can unlock slash and pierce moves if you own appropriate weapons."
+        ),
+        color=0x3a7ebf,
+    )
+    embed.add_field(name="Power",            value="`CHIP` (+1, +acc) · `LIGHT` (0) · `MEDIUM` (−1) · `HEAVY` (−2) · `CRUSHER` (−3)", inline=False)
+    embed.add_field(name="Accuracy",         value="`INACCURATE` (+1) · `SHARPEYE` (−1) · `PRECISE` (−2)", inline=False)
+    embed.add_field(name="Speed",            value="`SLUGGISH` (+2, −pwr) · `SLOW` (+1) · `QUICK` (−1) · `BURST` (−2)", inline=False)
+    embed.add_field(name="Tracking",         value="`TELEGRAPHED` (+1) · `FOCUSED` (−1) · `HOMING` (−2)", inline=False)
+    embed.add_field(name="Hits",             value="`MULTI` (−1) · `FLURRY` (−2) · `BARRAGE` (−3)", inline=False)
+    embed.add_field(name="Extra conditions", value="`DRAINING` (+1) · `EXHAUSTING` (+1) · `RISKY` (+1)", inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 @kit_group.command(name="show", description="Show your current moveset")

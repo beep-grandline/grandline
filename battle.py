@@ -193,7 +193,7 @@ SPECIAL_MOVES = {
         "attack_type": "blunt",
         "power":       0,
         "accuracy":    100,
-        "priority":    0,
+        "speed":       0,
         "tracking":    5,
         "hits":        1,
         "hp_cost":     0,
@@ -568,8 +568,8 @@ def resolve_turn(state, action_a, action_b):
         log.append(f"⚡ {fb['name']} moves first from last turn's dodge!")
         a_goes_first = False
     else:
-        pri_move_a = (_find_move(fa, move_a) or {}).get("priority", 0) if act_a == "attack" else 0
-        pri_move_b = (_find_move(fb, move_b) or {}).get("priority", 0) if act_b == "attack" else 0
+        pri_move_a = (_find_move(fa, move_a) or {}).get("speed", 0) if act_a == "attack" else 0
+        pri_move_b = (_find_move(fb, move_b) or {}).get("speed", 0) if act_b == "attack" else 0
         # priority is a discrete tier; weight heavily so it overrides speed
         total_a = fa["spd"] + pri_move_a * 10
         total_b = fb["spd"] + pri_move_b * 10
