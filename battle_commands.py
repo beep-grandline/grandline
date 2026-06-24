@@ -119,7 +119,7 @@ def _build_fighter_data(player_row, member: discord.Member):
         spd = round(spd * game.HEARTY_BUFF_MULT)
         db.set_hearty_buff(str(member.id), 0)
 
-    haki = any(r.name == "Haki" for r in getattr(member, "roles", []))
+    haki = any(r.name.lower() == "haki" for r in getattr(member, "roles", []))
 
     return {
         "id":      str(member.id),

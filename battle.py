@@ -497,6 +497,7 @@ def create_battle(a_data, b_data):
             "type2":    data.get("type2", "none"),
             "block":    data.get("block"),
             "dodge":    data.get("dodge"),
+            "haki":     data.get("haki", False),
             "escaped":  False,
             "charging": False,
         }
