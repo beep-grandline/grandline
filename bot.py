@@ -55,6 +55,41 @@ _cleared = db.clear_all_battles()
 if _cleared:
     print(f"[battles] cleared {_cleared} stale battle(s) from previous run")
 
+
+# ── Global slash-command error handler ────────────────────────────────────────
+ERROR_LOG_CHANNEL_ID = 1519738308756901928
+
+
+@bot.tree.error
+async def on_app_command_error(
+    interaction: discord.Interaction,
+    error: discord.app_commands.AppCommandError,
+):
+    import traceback
+    # full traceback to console
+    traceback.print_exception(type(error), error, error.__traceback__)
+
+    # concise message to the user who ran the command
+    try:
+        msg = "Something went wrong with that command. Try again, or let a GM know."
+        if interaction.response.is_done():
+            await interaction.followup.send(msg, ephemeral=True)
+        else:
+            await interaction.response.send_message(msg, ephemeral=True)
+    except Exception:
+        pass  # interaction token may have expired — nothing we can do
+
+    # detailed traceback to the log channel
+    try:
+        channel = bot.get_channel(ERROR_LOG_CHANNEL_ID)
+        if channel:
+            cmd = interaction.command.qualified_name if interaction.command else "unknown"
+            user = getattr(interaction.user, "display_name", "unknown")
+            tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+            await channel.send(f"⚠ Error in `/{cmd}` (by {user}):\n```py\n{tb[-1800:]}\n```")
+    except Exception:
+        pass
+
 @bot.event
 async def on_ready():
     setup_travel_task(bot)
