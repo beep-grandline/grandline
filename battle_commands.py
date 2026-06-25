@@ -135,6 +135,7 @@ def _build_fighter_data(player_row, member: discord.Member):
         "dodge":   player_row["dodge_name"],
         "moves":   moves,
         "haki":    haki,
+        "fruit_id": fruit_id,
     }
 
 

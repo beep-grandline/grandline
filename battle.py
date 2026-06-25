@@ -126,6 +126,8 @@ def _roll_dodge(defender, attacker, move):
     return random.random() < chance, round(chance * 100)
 
 def _roll_block(defender, attacker):
+    if defender.get("fruit_id") == "bari":  # Bari Bari — blocks never fail
+        return True, 100
     delta   = (defender["defense"] - attacker["atk"]) * 3
     chance  = max(10, min(90, 50 + delta)) / 100
     return random.random() < chance, round(chance * 100)
@@ -517,6 +519,7 @@ def create_battle(a_data, b_data):
             "block":    data.get("block"),
             "dodge":    data.get("dodge"),
             "haki":           data.get("haki", False),
+            "fruit_id":       data.get("fruit_id", ""),
             "status_effects": [],
             "escaped":        False,
             "charging":       False,
