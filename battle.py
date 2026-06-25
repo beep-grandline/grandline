@@ -156,18 +156,27 @@ def _calculate_damage(attacker, defender, move, is_blocking=False):
     if crit:
         base *= 1.5
 
+    hot           = move.get("hot", False)
     move_element  = move.get("element", attacker.get("type1", "Normal"))
     e_mod         = _elemental_mod(move_element, defender.get("type1", "Normal"))
     haki          = attacker.get("haki", False)
-    p_mod_passive = _passive_physical_mod(attack_type, defender.get("type2", "none"), haki=haki)
-    p_mod_block   = _block_physical_mod(attack_type, defender.get("type2", "none")) if is_blocking else 1.0
-    flat_block    = 0.0 if is_blocking and defender.get("type2") not in BLOCK_ONLY_TYPES else 1.0
+    defender_type2 = defender.get("type2", "none")
+    # HOT bypasses armor passive resistance
+    if hot and defender_type2 == "armor":
+        p_mod_passive = 1.0
+    else:
+        p_mod_passive = _passive_physical_mod(attack_type, defender_type2, haki=haki)
+    p_mod_block   = _block_physical_mod(attack_type, defender_type2) if is_blocking else 1.0
+    flat_block    = 0.0 if is_blocking and defender_type2 not in BLOCK_ONLY_TYPES else 1.0
     total_p_mod   = p_mod_passive * p_mod_block * flat_block
 
     if e_mod == 0 or total_p_mod == 0 or abs(total_p_mod) < 1e-9:
         return 0, True, False, e_mod, total_p_mod
 
     final = max(1, round(base * e_mod * total_p_mod))
+    # HOT adds flat bonus damage when target is blocking
+    if hot and is_blocking and final > 0:
+        final += 2
     return final, True, crit, e_mod, total_p_mod
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -348,6 +357,16 @@ def _resolve_action(actor, target, action, move_name, opp_action):
                         recoil_dmg = max(1, round(dmg * recoil))
                         actor["hp"] = max(0, actor["hp"] - recoil_dmg)
                         lines.append(f"→ {actor['name']} takes {recoil_dmg} recoil damage!")
+                    # burn on hit
+                    if move.get("burn") and random.random() < 0.30:
+                        existing = [e for e in target.get("status_effects", []) if e["type"] == "burn"]
+                        if existing:
+                            existing[0]["turns_left"] = 2  # refresh
+                        else:
+                            target.setdefault("status_effects", []).append(
+                                {"type": "burn", "damage": 8, "turns_left": 2}
+                            )
+                        lines.append(f"🔥 {target['name']} is set on fire!")
                 elif dmg == 0:
                     label2 = _effectiveness_label(e_mod, p_mod)
                     if not label2:
@@ -497,9 +516,10 @@ def create_battle(a_data, b_data):
             "type2":    data.get("type2", "none"),
             "block":    data.get("block"),
             "dodge":    data.get("dodge"),
-            "haki":     data.get("haki", False),
-            "escaped":  False,
-            "charging": False,
+            "haki":           data.get("haki", False),
+            "status_effects": [],
+            "escaped":        False,
+            "charging":       False,
         }
 
     return {
@@ -593,6 +613,22 @@ def resolve_turn(state, action_a, action_b):
     elif not second.get("escaped"):
         log.append(f"{second['name']} was knocked out before they could act!")
 
+    # ── burn DoT ─────────────────────────────────────────────────────────────
+    for fighter in (fa, fb):
+        effects = fighter.get("status_effects", [])
+        remaining = []
+        for eff in effects:
+            if eff["type"] == "burn":
+                dmg = eff["damage"]
+                fighter["hp"] = max(0, fighter["hp"] - dmg)
+                log.append(f"🔥 {fighter['name']} is burning! (-{dmg} HP)")
+                eff["turns_left"] -= 1
+                if eff["turns_left"] > 0:
+                    remaining.append(eff)
+            else:
+                remaining.append(eff)
+        fighter["status_effects"] = remaining
+
     # end conditions
     a_escaped = fa.get("escaped")
     b_escaped = fb.get("escaped")
@@ -608,14 +644,10 @@ def resolve_turn(state, action_a, action_b):
         state["status"]     = "finished"
         state["winner"]     = "b"
         state["end_reason"] = "escape" if a_escaped else "hp"
-        if not a_escaped:
-            log.append(f"🏆 **{fb['name']}** wins!")
     elif b_down:
         state["status"]     = "finished"
         state["winner"]     = "a"
         state["end_reason"] = "escape" if b_escaped else "hp"
-        if not b_escaped:
-            log.append(f"🏆 **{fa['name']}** wins!")
 
     state["log"] = log
     return state, log
@@ -635,10 +667,12 @@ def status_block(state):
     """
     lines = []
     for side in ("a", "b"):
-        f    = state["fighters"][side]
-        name = f["name"][:20]  # guard against unexpectedly long display names
-        bar  = hp_bar(f["hp"], f["max_hp"])
-        lines.append(f"`{name:<12} [{bar}] {f['hp']}/{f['max_hp']} HP`")
+        f      = state["fighters"][side]
+        name   = f["name"][:20]
+        bar    = hp_bar(f["hp"], f["max_hp"])
+        burned = any(e["type"] == "burn" for e in f.get("status_effects", []))
+        suffix = " 🔥" if burned else ""
+        lines.append(f"`{name:<12} [{bar}] {f['hp']}/{f['max_hp']} HP`{suffix}")
     return lines
 
 

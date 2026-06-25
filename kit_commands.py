@@ -14,7 +14,8 @@ from config import GUILD_ID
 
 SLOTS = 4
 BASE  = {"power": 3, "accuracy": 75, "speed": 0,
-         "tracking": 5, "hits": 1, "hp_cost": 0, "recoil": 0.0}
+         "tracking": 5, "hits": 1, "hp_cost": 0, "recoil": 0.0,
+         "burn": False, "hot": False}
 
 POWER_TIERS = {"CHIP", "LIGHT", "MEDIUM", "HEAVY", "CRUSHER"}
 HIT_TIERS   = {"FLURRY", "BARRAGE"}   # mutually exclusive — can't combine
@@ -44,9 +45,11 @@ KEYWORDS = {
     "FLURRY":      {"slots":  2, "apply": {"hits": +5},  "sign": "+", "desc": "+5 hit rolls (power spread, independent rolls)", "cat": "descriptor", "stat": "hits"},
     "BARRAGE":     {"slots":  3, "apply": {"hits": +29}, "sign": "+", "desc": "+29 hit rolls (30 total, 2× scale on full connect)", "cat": "descriptor", "stat": "hits"},
     # conditions
-    "DRAINING":    {"slots": -1, "apply": {"hp_cost": 15},    "sign": "-", "desc": "15 HP on use",  "cat": "condition", "stat": "hp_cost"},
-    "EXHAUSTING":  {"slots": -1, "apply": {"hp_cost": 25},    "sign": "-", "desc": "25 HP on use",  "cat": "condition", "stat": "hp_cost"},
-    "RISKY":       {"slots": -1, "apply": {"recoil": 0.20},   "sign": "-", "desc": "20% recoil",    "cat": "condition", "stat": "recoil"},
+    "DRAINING":    {"slots": -1, "apply": {"hp_cost": 15},    "sign": "-", "desc": "15 HP on use",       "cat": "condition", "stat": "hp_cost"},
+    "EXHAUSTING":  {"slots": -1, "apply": {"hp_cost": 25},    "sign": "-", "desc": "25 HP on use",       "cat": "condition", "stat": "hp_cost"},
+    "RISKY":       {"slots": -1, "apply": {"recoil": 0.20},   "sign": "-", "desc": "20% recoil",         "cat": "condition", "stat": "recoil"},
+    "BURN":        {"slots":  1, "apply": {},                  "sign": "+", "desc": "30% burn on hit (8 dmg/turn, 2 turns)", "cat": "condition", "stat": "burn"},
+    "HOT":         {"slots":  1, "apply": {"power": +1},      "sign": "+", "desc": "ignores armor, +2 dmg vs blocks",       "cat": "condition", "stat": "hot"},
 }
 
 MAX_MOVES = 4
@@ -94,12 +97,16 @@ def _build_move(name, attack_type, keywords):
         entry = KEYWORDS[key]
         used += entry["slots"]
         log.append((key, entry))
+        if key == "BURN":
+            stats["burn"] = True
+        if key == "HOT":
+            stats["hot"] = True
         for stat, delta in entry["apply"].items():
             if stat == "recoil":
                 stats["recoil"] = round(stats["recoil"] + delta, 2)
             elif stat == "hp_cost":
                 stats["hp_cost"] += delta
-            else:
+            elif stat not in ("burn", "hot"):
                 stats[stat] += delta
 
     stats["power"]    = max(1,  min(10,  stats["power"]))
@@ -137,6 +144,8 @@ def _to_battle_dict(name, attack_type, built):
         "hits":        s["hits"],
         "speed":       s["speed"],
         "tracking":    s["tracking"],
+        "burn":        s.get("burn", False),
+        "hot":         s.get("hot", False),
         # display metadata (underscore = ignored by battle.py)
         "_keywords":   [kw for kw, _ in built["log"]],
         "_display":    s,
@@ -268,7 +277,7 @@ async def kit_help(interaction: discord.Interaction):
     embed.add_field(name="Speed",            value="`SLUGGISH` (+2, −pwr) · `SLOW` (+1) · `QUICK` (−1) · `BURST` (−2)", inline=False)
     embed.add_field(name="Tracking",         value="`TELEGRAPHED` (+1) · `FOCUSED` (−1) · `HOMING` (−2)", inline=False)
     embed.add_field(name="Hits",             value="`MULTI` (−1) · `FLURRY` (−2) · `BARRAGE` (−3)", inline=False)
-    embed.add_field(name="Extra conditions", value="`DRAINING` (+1) · `EXHAUSTING` (+1) · `RISKY` (+1)", inline=False)
+    embed.add_field(name="Extra conditions", value="`DRAINING` (+1) · `EXHAUSTING` (+1) · `RISKY` (+1) · `BURN` (−1) · `HOT` (−1)", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 

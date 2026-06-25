@@ -256,7 +256,7 @@ INFO_PAGES = {
             ("Speed",               "`SLUGGISH` (+2, −pwr) · `SLOW` (+1) · `QUICK` (−1) · `BURST` (−2)"),
             ("Tracking",            "`TELEGRAPHED` (+1) · `FOCUSED` (−1) · `HOMING` (−2)"),
             ("Hits",                "`MULTI` (−1) · `FLURRY` (−2) · `BARRAGE` (−3)"),
-            ("Extra conditions",    "`DRAINING` (+1) · `EXHAUSTING` (+1) · `RISKY` (+1)"),
+            ("Extra conditions",    "`DRAINING` (+1) · `EXHAUSTING` (+1) · `RISKY` (+1) · `BURN` (−1) · `HOT` (−1)"),
         ],
     },
     "Defenses": {
