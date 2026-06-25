@@ -308,13 +308,140 @@ async def kit_show(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-class ConfirmMoveView(discord.ui.View):
-    def __init__(self, uid: str, move_dict: dict, built: dict, move_count: int):
-        super().__init__(timeout=120)
-        self.uid        = uid
-        self.move_dict  = move_dict
-        self.built      = built
-        self.move_count = move_count
+_VALID_TYPES = {"blunt", "slash", "pierce"}
+
+
+def _render_move_result(uid: str, name_raw: str, type_raw: str, kw_raw: str):
+    """
+    Validate and build a move from raw modal input.
+    Returns (embed, view) — view always has an Edit button; an Add button too
+    when the move is valid and within budget.
+    """
+    name        = (name_raw or "").strip()[:50] or "Unnamed"
+    attack_type = (type_raw or "").strip().lower()
+    keywords    = [k.upper() for k in (kw_raw or "").split()]
+    moves       = db.get_player_moves(uid)
+
+    # invalid attack type → reject
+    if attack_type not in _VALID_TYPES:
+        embed = discord.Embed(
+            title="⚠  Invalid attack type",
+            description=(
+                f"`{type_raw}` isn't a valid attack type.\n"
+                "Use one of: `blunt` · `slash` · `pierce`."
+            ),
+            color=0xe05555,
+        )
+        view = MoveResultView(uid, name_raw, type_raw, kw_raw, addable=False)
+        return embed, view
+
+    built = _build_move(name, attack_type, keywords)
+
+    # unknown keywords → reject
+    if built["errors"]:
+        embed = discord.Embed(
+            title="⚠  Unknown keyword(s)",
+            description=(
+                f"These aren't valid keywords: `{'`, `'.join(built['errors'])}`\n"
+                "Use `/kit help` for the full list, then press **Edit** to fix them."
+            ),
+            color=0xe05555,
+        )
+        view = MoveResultView(uid, name_raw, type_raw, kw_raw, addable=False)
+        return embed, view
+
+    over  = built["remaining"] < 0
+    embed = discord.Embed(
+        title=f"{'⚠  Over budget: ' if over else 'Preview: '}{name}  ·  `{attack_type}`",
+        description=_format_built(built),
+        color=0xe05555 if over else 0x1a3f6b,
+    )
+    if built["warnings"]:
+        embed.add_field(name="⚠ Warning", value="\n".join(built["warnings"]), inline=False)
+
+    if over:
+        embed.set_footer(text=f"Over budget by {-built['remaining']} slot(s) — press Edit to adjust.")
+        view = MoveResultView(uid, name_raw, type_raw, kw_raw, addable=False)
+        return embed, view
+
+    embed.set_footer(text=f"Slot budget: {built['used']}/{SLOTS}  ·  Kit: {len(moves)}/{MAX_MOVES}")
+    move_dict = _to_battle_dict(name, attack_type, built)
+    view = MoveResultView(
+        uid, name_raw, type_raw, kw_raw,
+        addable=True, move_dict=move_dict, built=built, move_count=len(moves),
+    )
+    return embed, view
+
+
+class KitAddModal(discord.ui.Modal):
+    def __init__(self, uid: str, name: str = "", attack_type: str = "",
+                 keywords: str = "", edit_existing: bool = False):
+        super().__init__(title="Build a Move")
+        self.uid           = uid
+        self.edit_existing = edit_existing
+
+        self.name_input = discord.ui.TextInput(
+            label="Move name",
+            default=name,
+            max_length=50,
+            required=True,
+        )
+        self.type_input = discord.ui.TextInput(
+            label="Attack type (blunt / slash / pierce)",
+            default=attack_type or "blunt",
+            max_length=10,
+            required=True,
+        )
+        self.kw_input = discord.ui.TextInput(
+            label="Keywords (space-separated)",
+            placeholder="e.g. CRUSHER BURST HOMING",
+            default=keywords,
+            style=discord.TextStyle.paragraph,
+            max_length=200,
+            required=False,
+        )
+        self.add_item(self.name_input)
+        self.add_item(self.type_input)
+        self.add_item(self.kw_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        if not db.get_player(self.uid):
+            await interaction.response.send_message(
+                "Register first — pick your allegiance from the role picker.", ephemeral=True
+            )
+            return
+
+        if len(db.get_player_moves(self.uid)) >= MAX_MOVES:
+            await interaction.response.send_message(
+                f"Kit is full ({MAX_MOVES}/{MAX_MOVES}). Remove a move first with `/kit remove`.",
+                ephemeral=True,
+            )
+            return
+
+        embed, view = _render_move_result(
+            self.uid, str(self.name_input.value),
+            str(self.type_input.value), str(self.kw_input.value),
+        )
+        if self.edit_existing:
+            await interaction.response.edit_message(content=None, embed=embed, view=view)
+        else:
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+
+class MoveResultView(discord.ui.View):
+    def __init__(self, uid: str, raw_name: str, raw_type: str, raw_keywords: str,
+                 addable: bool = False, move_dict: dict = None,
+                 built: dict = None, move_count: int = 0):
+        super().__init__(timeout=300)
+        self.uid          = uid
+        self.raw_name     = raw_name
+        self.raw_type     = raw_type
+        self.raw_keywords = raw_keywords
+        self.move_dict    = move_dict
+        self.built        = built
+        self.move_count   = move_count
+        if not addable:
+            self.remove_item(self.confirm)
 
     async def on_timeout(self):
         for child in self.children:
@@ -354,7 +481,21 @@ class ConfirmMoveView(discord.ui.View):
             color=0x2d9e5f,
         )
         embed.set_footer(text=f"{self.move_count + 1}/{MAX_MOVES} moves in kit")
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(content=None, embed=embed, view=self)
+
+    @discord.ui.button(label="Edit", style=discord.ButtonStyle.primary)
+    async def edit(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if str(interaction.user.id) != self.uid:
+            await interaction.response.send_message("This isn't your move.", ephemeral=True)
+            return
+        modal = KitAddModal(
+            self.uid,
+            name=self.raw_name,
+            attack_type=self.raw_type,
+            keywords=self.raw_keywords,
+            edit_existing=True,
+        )
+        await interaction.response.send_modal(modal)
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -370,68 +511,20 @@ class ConfirmMoveView(discord.ui.View):
 
 
 @kit_group.command(name="add", description="Add a move to your kit")
-@discord.app_commands.describe(
-    name="Move name",
-    attack_type="Attack type",
-    kw1="Keyword 1",
-    kw2="Keyword 2",
-    kw3="Keyword 3",
-    kw4="Keyword 4",
-)
-@discord.app_commands.choices(attack_type=_TYPE_CHOICES)
-@discord.app_commands.autocomplete(kw1=_kw_autocomplete, kw2=_kw_autocomplete,
-                                   kw3=_kw_autocomplete, kw4=_kw_autocomplete)
-async def kit_add(
-    interaction: discord.Interaction,
-    name: str,
-    attack_type: str,
-    kw1: str = None,
-    kw2: str = None,
-    kw3: str = None,
-    kw4: str = None,
-):
+async def kit_add(interaction: discord.Interaction):
     uid = str(interaction.user.id)
     if not db.get_player(uid):
         await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
         return
 
-    moves = db.get_player_moves(uid)
-    if len(moves) >= MAX_MOVES:
+    if len(db.get_player_moves(uid)) >= MAX_MOVES:
         await interaction.response.send_message(
             f"Kit is full ({MAX_MOVES}/{MAX_MOVES}). Remove a move first with `/kit remove`.",
             ephemeral=True,
         )
         return
 
-    name     = name[:50]
-    keywords = [k.upper() for k in [kw1, kw2, kw3, kw4] if k]
-    built    = _build_move(name, attack_type, keywords)
-
-    if built["errors"]:
-        await interaction.response.send_message(
-            f"Unknown keyword(s): `{'`, `'.join(built['errors'])}`.", ephemeral=True
-        )
-        return
-
-    over = built["remaining"] < 0
-    embed = discord.Embed(
-        title=f"{'⚠  Over budget: ' if over else 'Preview: '}{name}  ·  `{attack_type}`",
-        description=_format_built(built),
-        color=0xe05555 if over else 0x1a3f6b,
-    )
-
-    if built["warnings"]:
-        embed.add_field(name="⚠ Warning", value="\n".join(built["warnings"]), inline=False)
-
-    if over:
-        embed.set_footer(text=f"Over budget by {-built['remaining']} slot(s) — adjust your keywords.")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-        return
-
-    embed.set_footer(text=f"Slot budget: {built['used']}/{SLOTS}  ·  Kit: {len(moves)}/{MAX_MOVES}")
-    move_dict = _to_battle_dict(name, attack_type, built)
-    view      = ConfirmMoveView(uid=uid, move_dict=move_dict, built=built, move_count=len(moves))
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+    await interaction.response.send_modal(KitAddModal(uid))
 
 
 @kit_group.command(name="remove", description="Remove a move from your kit")
