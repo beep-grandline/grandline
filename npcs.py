@@ -111,8 +111,10 @@ def _build_npc_move(name: str, type_code: str, tags_str: str) -> dict:
 
 # ── Fighter builder ───────────────────────────────────────────────────────────
 
-def build_npc_fighter(npc_row: dict) -> dict:
+def build_npc_fighter(npc_row) -> dict:
     """Convert a CSV row into the fighter state dict the battle engine expects."""
+    if not isinstance(npc_row, dict):
+        npc_row = dict(npc_row)
     moves = []
     for i in range(1, 5):
         name     = (npc_row.get(f"move{i}") or "").strip()
@@ -171,13 +173,15 @@ def build_npc_fighter(npc_row: dict) -> dict:
 
 # ── NPC AI ────────────────────────────────────────────────────────────────────
 
-def should_npc_initiate(npc_row: dict, player_row: dict) -> bool:
+def should_npc_initiate(npc_row: dict, player_row) -> bool:
     """
     Returns True if the NPC should initiate combat with the player.
     initiate=0: passive, never initiates.
     initiate=1: neutral, checks affiliation rules.
     initiate=2: aggressive, always initiates.
     """
+    if not isinstance(player_row, dict):
+        player_row = dict(player_row)
     initiate = int(npc_row.get("initiate") or 0)
     if initiate == 0:
         return False
