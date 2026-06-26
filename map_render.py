@@ -281,21 +281,33 @@ def get_wind(q, r):
 
 # ── Whirlpool helper ──────────────────────────────────────────────────────────
 
-def _draw_whirlpools(ax, whirlpool_tiles, pq, pr, radius):
+# 8-way compass arrows, keyed by sector index (0 = East, going CCW)
+_COMPASS_ARROWS = ["→", "↗", "↑", "↖", "←", "↙", "↓", "↘"]
+
+def _compass_arrow(dx, dy):
+    """Return the unicode arrow nearest the pixel-space direction (dy up)."""
+    ang = math.degrees(math.atan2(dy, dx)) % 360
+    return _COMPASS_ARROWS[int((ang + 22.5) % 360 // 45)]
+
+
+def _draw_whirlpools(ax, whirlpools, pq, pr, radius):
     """
     Draw concentric-ring whirlpool effect on any whirlpool hex that
-    falls within the current viewport.
+    falls within the current viewport, plus a small label showing the
+    direction and number of tiles it teleports a ship.
 
+    `whirlpools` maps (q, r) source -> (q, r) destination.
     Rings are clipped to the hex shape so they don't bleed into neighbours.
     """
     from matplotlib.path import Path as MPath
     from matplotlib.patches import PathPatch
+    import matplotlib.patheffects as pe
 
     RINGS      = 6          # number of concentric rings
     RING_COLOR = (0.08, 0.25, 0.55)   # deep blue RGB
     PIT_COLOR  = (0.05, 0.15, 0.42)   # darker centre
 
-    for (wq, wr) in whirlpool_tiles:
+    for (wq, wr), dest in whirlpools.items():
         if _hex_distance(wq, wr, pq, pr) > radius:
             continue
 
@@ -342,6 +354,20 @@ def _draw_whirlpools(ax, whirlpool_tiles, pq, pr, radius):
         )
         pit.set_clip_path(clip_patch)
         ax.add_patch(pit)
+
+        # Direction + number of tiles it teleports to (predetermined).
+        if dest:
+            dq, dr = dest
+            dist   = _hex_distance(wq, wr, dq, dr)
+            tx, ty = _hex_to_pixel(dq, dr)
+            arrow  = _compass_arrow(tx - cx, ty - cy)
+            ax.text(
+                cx, cy + SIZE * 0.62, f"{arrow}{dist}",
+                ha="center", va="bottom",
+                fontsize=6, color="#eaf4ff", fontweight="bold",
+                zorder=6, clip_on=True,
+                path_effects=[pe.withStroke(linewidth=1.6, foreground=(0.03, 0.10, 0.30))],
+            )
 
 
 # ── Log pose arrow helper ─────────────────────────────────────────────────────
@@ -747,8 +773,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
     # Whirlpool effects — drawn above sea, below labels and player.
     # Only navigators can see them, so the caller gates this.
     if show_whirlpools:
-        whirl_tiles = list(game.get_whirlpools().keys())
-        _draw_whirlpools(ax, whirl_tiles, pq, pr, radius)
+        _draw_whirlpools(ax, game.get_whirlpools(), pq, pr, radius)
 
     # Impel Down — concentric circles, outer rings behind the hex grid
     if impel_down_center is not None:
