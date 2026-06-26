@@ -1572,6 +1572,11 @@ async def admin_help(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
+@admin_group.command(name="errortest", description="Throw a test error to verify the error handler")
+async def admin_errortest(interaction: discord.Interaction):
+    raise RuntimeError("This is a test error from /admin errortest.")
+
+
 bot.tree.add_command(admin_group)
 
 
