@@ -12,8 +12,29 @@ import db
 import game
 import battle as battle_logic
 from config import MY_GUILD
-from fruits import get_fighter_types
+from fruits import get_fighter_types, get_fruit_by_id
 from npcs import get_npc_by_id, get_npcs_at, build_npc_fighter, npc_pick_action
+
+
+# Fruit categories that can transform (cat column in fruits.csv)
+ZOAN_CATS = {"2", "4"}  # 2 = Zoan, 4 = Mythical Zoan
+
+
+def _is_zoan(fruit_id: str) -> bool:
+    if not fruit_id:
+        return False
+    row = get_fruit_by_id(fruit_id)
+    if not row:
+        return False
+    return str(row.get("cat", "")).strip() in ZOAN_CATS
+
+
+# Transformation states, in order. Label shown to players for each.
+_TRANSFORM_LABELS = {
+    "base":   "Base",
+    "hybrid": "Hybrid Zoan",
+    "full":   "Full Zoan",
+}
 
 
 
@@ -317,6 +338,41 @@ class MoveSelectView(discord.ui.View):
         self.add_item(MoveSelect(moves, battle_id, channel_id, side, fighter_a_id, fighter_b_id))
 
 
+# ── Transform select (Zoan special) ───────────────────────────────────────────
+
+class TransformSelect(discord.ui.Select):
+    def __init__(self, battle_id: str, side: str, current: str):
+        # show every transformation state except the one we're already in
+        options = [
+            discord.SelectOption(label=f"Transform: {label}", value=key)
+            for key, label in _TRANSFORM_LABELS.items()
+            if key != current
+        ]
+        super().__init__(placeholder="Choose a form...", min_values=1, max_values=1, options=options)
+        self.battle_id = battle_id
+        self.side      = side
+
+    async def callback(self, interaction: discord.Interaction):
+        target = self.values[0]
+        for item in self.view.children:
+            item.disabled = True
+        state = db.get_battle_state(self.battle_id)
+        if not state:
+            await interaction.response.edit_message(content="Battle not found.", view=self.view)
+            return
+        state["fighters"][self.side]["transform"] = target
+        db.update_battle_state(self.battle_id, state)
+        await interaction.response.edit_message(
+            content=f"You transform into **{_TRANSFORM_LABELS[target]}**.", view=self.view
+        )
+
+
+class TransformSelectView(discord.ui.View):
+    def __init__(self, battle_id: str, side: str, current: str):
+        super().__init__(timeout=120)
+        self.add_item(TransformSelect(battle_id, side, current))
+
+
 # ── Battle view ───────────────────────────────────────────────────────────────
 
 class BattleView(discord.ui.View):
@@ -336,11 +392,7 @@ class BattleView(discord.ui.View):
             if state:
                 fa = state["fighters"]["a"]
                 fb = state["fighters"]["b"]
-                embed = discord.Embed(
-                    title="⏱ Battle timed out",
-                    description="Neither side acted in time. The battle has been cancelled.",
-                    color=0x888888,
-                )
+                embed = discord.Embed(title="⏱ Battle timed out", color=0x888888)
                 embed.set_author(name=f"⚔  {fa['name']}  vs  {fb['name']}")
                 # restore both players' HP to what it was at timeout
                 for side_key in ("a", "b"):
@@ -467,6 +519,28 @@ class BattleView(discord.ui.View):
             "Charging up — your next attack will hit twice as hard!", ephemeral=True
         )
         await self._submit_action(interaction, side, ["charge", None])
+
+    @discord.ui.button(label="Special", style=discord.ButtonStyle.primary, row=1)
+    async def special(self, interaction: discord.Interaction, button: discord.ui.Button):
+        side = await self._guard(interaction)
+        if not side:
+            return
+        state = db.get_battle_state(self.battle_id)
+        if not state:
+            await interaction.response.send_message("Battle not found.", ephemeral=True)
+            return
+        fighter = state["fighters"][side]
+        if not _is_zoan(fighter.get("fruit_id")):
+            await interaction.response.send_message(
+                "You have no special abilities.", ephemeral=True
+            )
+            return
+        current = fighter.get("transform", "base")
+        view    = TransformSelectView(self.battle_id, side, current)
+        await interaction.response.send_message(
+            f"Current form: **{_TRANSFORM_LABELS.get(current, 'Base')}**. Choose a transformation:",
+            view=view, ephemeral=True,
+        )
 
 
 # ── Challenge view ────────────────────────────────────────────────────────────

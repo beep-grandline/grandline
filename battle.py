@@ -520,6 +520,7 @@ def create_battle(a_data, b_data):
             "dodge":    data.get("dodge"),
             "haki":           data.get("haki", False),
             "fruit_id":       data.get("fruit_id", ""),
+            "transform":      "base",
             "status_effects": [],
             "escaped":        False,
             "charging":       False,
