@@ -485,6 +485,19 @@ def _resolve_action(actor, target, action, move_name, opp_action):
         actor["charging"] = True
         lines.append(f"⚡ {actor['name']} is charging up — next attack hits twice as hard!")
 
+    elif action == "transform":
+        target_form = move_name  # transform reuses the move slot for the target form
+        actor["transform"] = target_form
+        name   = actor["name"]
+        animal = (actor.get("animal") or "beast")
+        if target_form == "base":
+            lines.append(f"{name} transforms into a human!")
+        elif target_form == "hybrid":
+            lines.append(f"{name} transforms into their **hybrid-{animal}** form!")
+        else:
+            article = "an" if animal[:1].lower() in "aeiou" else "a"
+            lines.append(f"{name} transforms into {article} **{animal}**!")
+
     elif action == "escape":
         ok, pct = _roll_escape(actor, target)
         if ok:
@@ -520,6 +533,7 @@ def create_battle(a_data, b_data):
             "dodge":    data.get("dodge"),
             "haki":           data.get("haki", False),
             "fruit_id":       data.get("fruit_id", ""),
+            "animal":         data.get("animal", ""),
             "transform":      "base",
             "status_effects": [],
             "escaped":        False,

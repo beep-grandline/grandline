@@ -29,6 +29,23 @@ def _is_zoan(fruit_id: str) -> bool:
     return str(row.get("cat", "")).strip() in ZOAN_CATS
 
 
+def _extract_animal(fruit_id: str) -> str:
+    """Pull the animal name from a fruit's English name.
+
+    If the name has a colon, take the text after it ("Dog-Dog Fruit Model:
+    Jackal" -> "jackal"); otherwise take the text before the first dash
+    ("Otter-Otter Fruit" -> "otter")."""
+    if not fruit_id:
+        return ""
+    row = get_fruit_by_id(fruit_id)
+    eng = (row.get("eng") or "") if row else ""
+    if ":" in eng:
+        animal = eng.split(":", 1)[1].strip()
+    else:
+        animal = eng.split("-")[0].strip()
+    return animal.lower()
+
+
 # Transformation states, in order. Label shown to players for each.
 _TRANSFORM_LABELS = {
     "base":   "Base",
@@ -157,6 +174,7 @@ def _build_fighter_data(player_row, member: discord.Member):
         "moves":   moves,
         "haki":    haki,
         "fruit_id": fruit_id,
+        "animal":   _extract_animal(fruit_id),
     }
 
 
@@ -341,7 +359,7 @@ class MoveSelectView(discord.ui.View):
 # ── Transform select (Zoan special) ───────────────────────────────────────────
 
 class TransformSelect(discord.ui.Select):
-    def __init__(self, battle_id: str, side: str, current: str):
+    def __init__(self, battle_view, side: str, current: str):
         # show every transformation state except the one we're already in
         options = [
             discord.SelectOption(label=f"Transform: {label}", value=key)
@@ -349,47 +367,27 @@ class TransformSelect(discord.ui.Select):
             if key != current
         ]
         super().__init__(placeholder="Choose a form...", min_values=1, max_values=1, options=options)
-        self.battle_id = battle_id
-        self.side      = side
+        self.battle_view = battle_view
+        self.side        = side
 
     async def callback(self, interaction: discord.Interaction):
         target = self.values[0]
         for item in self.view.children:
             item.disabled = True
-        state = db.get_battle_state(self.battle_id)
-        if not state:
-            await interaction.response.edit_message(content="Battle not found.", view=self.view)
-            return
-        fighter = state["fighters"][self.side]
-        fighter["transform"] = target
-        db.update_battle_state(self.battle_id, state)
-
-        # resolve animal name from fruit eng string
-        from fruits import get_fruit_by_id as _get_fruit
-        fruit = _get_fruit((fighter.get("fruit_id") or "").lower())
-        eng = (fruit.get("eng") or "") if fruit else ""
-        if ":" in eng:
-            animal = eng.split(":", 1)[1].strip()
-        else:
-            animal = eng.split("-")[0].strip()
-        animal = animal.lower() or "beast"
-
-        name = fighter["name"]
-        if target == "base":
-            flavor = f"{name} transforms back to a human."
-        elif target == "hybrid":
-            flavor = f"{name} transforms into their hybrid-{animal} form!"
-        else:
-            flavor = f"{name} transforms into a {animal}."
-
-        await interaction.response.edit_message(content="Transformed!", view=self.view)
-        await interaction.channel.send(flavor)
+        bv = self.battle_view
+        waiting = "" if bv.fighter_b_id.startswith("npc:") else " Waiting for your opponent..."
+        await interaction.response.edit_message(
+            content=f"Transforming into **{_TRANSFORM_LABELS[target]}**." + waiting,
+            view=self.view,
+        )
+        # transforming costs a turn — submit it like any other action
+        await bv._submit_action(interaction, self.side, ["transform", target])
 
 
 class TransformSelectView(discord.ui.View):
-    def __init__(self, battle_id: str, side: str, current: str):
+    def __init__(self, battle_view, side: str, current: str):
         super().__init__(timeout=120)
-        self.add_item(TransformSelect(battle_id, side, current))
+        self.add_item(TransformSelect(battle_view, side, current))
 
 
 # ── Battle view ───────────────────────────────────────────────────────────────
@@ -555,7 +553,7 @@ class BattleView(discord.ui.View):
             )
             return
         current = fighter.get("transform", "base")
-        view    = TransformSelectView(self.battle_id, side, current)
+        view    = TransformSelectView(self, side, current)
         await interaction.response.send_message(
             f"Current form: **{_TRANSFORM_LABELS.get(current, 'Base')}**. Choose a transformation:",
             view=view, ephemeral=True,
