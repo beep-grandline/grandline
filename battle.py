@@ -137,23 +137,47 @@ def _eff_type2(fighter):
 def _eff_fruit_id(fighter):
     return fighter.get("fruit_id", "") if _modifiers_active(fighter) else ""
 
+# Transform stat boosts. Only reachable by Zoan users (non-Zoan are locked to
+# "base"). Hybrid trades on a balanced beast-and-man build (power + speed);
+# full beast form sacrifices the human's agility for raw mass (power + defense).
+TRANSFORM_STAT_MULT = {
+    "base":   {"atk": 1.0,  "defense": 1.0,  "spd": 1.0},
+    "hybrid": {"atk": 1.25, "defense": 1.0,  "spd": 1.25},
+    "full":   {"atk": 1.25, "defense": 1.25, "spd": 1.0},
+}
+
+def _stat_mult(fighter, stat):
+    table = TRANSFORM_STAT_MULT.get(fighter.get("transform", "base"), TRANSFORM_STAT_MULT["base"])
+    return table.get(stat, 1.0)
+
+def _eff_atk(fighter):
+    return fighter["atk"] * _stat_mult(fighter, "atk")
+
+def _eff_def(fighter):
+    return max(1, fighter["defense"] * _stat_mult(fighter, "defense"))
+
+def _eff_spd(fighter):
+    return fighter["spd"] * _stat_mult(fighter, "spd")
+
 # ── Rolls ─────────────────────────────────────────────────────────────────────
 
 def _roll_dodge(defender, attacker, move):
     move_spd           = move.get("spd", 5)
-    attacker_effective = attacker["spd"] + move_spd
-    chance             = defender["spd"] / (defender["spd"] + attacker_effective)
+    def_spd            = _eff_spd(defender)
+    attacker_effective = _eff_spd(attacker) + move_spd
+    chance             = def_spd / (def_spd + attacker_effective)
     return random.random() < chance, round(chance * 100)
 
 def _roll_block(defender, attacker):
     if _eff_fruit_id(defender) == "bari":  # Bari Bari — blocks never fail
         return True, 100
-    delta   = (defender["defense"] - attacker["atk"]) * 3
+    delta   = (_eff_def(defender) - _eff_atk(attacker)) * 3
     chance  = max(10, min(90, 50 + delta)) / 100
     return random.random() < chance, round(chance * 100)
 
 def _roll_escape(escaper, pursuer):
-    speed_ratio = escaper["spd"] / (escaper["spd"] + pursuer["spd"])
+    esc_spd, pur_spd = _eff_spd(escaper), _eff_spd(pursuer)
+    speed_ratio = esc_spd / (esc_spd + pur_spd)
     escape_mod  = ESCAPE_MODIFIERS.get(_eff_type2(escaper), 1.0)
     chance      = min(0.99, speed_ratio * escape_mod)
     return random.random() < chance, round(chance * 100)
@@ -170,7 +194,7 @@ def _calculate_damage(attacker, defender, move, is_blocking=False):
     if not hit:
         return 0, False, False, 1.0, 1.0
 
-    ratio = attacker["atk"] / max(defender["defense"], 1)
+    ratio = _eff_atk(attacker) / max(_eff_def(defender), 1)
     base  = move["power"] * (ratio ** ATK_DEF_EXPONENT) * DAMAGE_SCALE
     base *= random.uniform(0.85, 1.15)
 
@@ -396,7 +420,7 @@ def _resolve_action(actor, target, action, move_name, opp_action):
 
                 # counter fires whenever block succeeded, even on full block
                 if is_blocking:
-                    counter_dmg = max(1, round(target["atk"] * COUNTER_ATK_FRACTION))
+                    counter_dmg = max(1, round(_eff_atk(target) * COUNTER_ATK_FRACTION))
                     actor["hp"] = max(0, actor["hp"] - counter_dmg)
                     lines.append(f"→ {target['name']} counters! **{counter_dmg}** damage.")
 
@@ -489,7 +513,7 @@ def _resolve_action(actor, target, action, move_name, opp_action):
 
                 # counter fires if any hit was blocked (consistent with single-hit)
                 if any_blocked:
-                    counter_dmg = max(1, round(target["atk"] * COUNTER_ATK_FRACTION))
+                    counter_dmg = max(1, round(_eff_atk(target) * COUNTER_ATK_FRACTION))
                     actor["hp"] = max(0, actor["hp"] - counter_dmg)
                     lines.append(f"→ {target['name']} counters! **{counter_dmg}** damage.")
 
@@ -630,8 +654,8 @@ def resolve_turn(state, action_a, action_b):
         pri_move_a = (_find_move(fa, move_a) or {}).get("speed", 0) if act_a == "attack" else 0
         pri_move_b = (_find_move(fb, move_b) or {}).get("speed", 0) if act_b == "attack" else 0
         # priority is a discrete tier; weight heavily so it overrides speed
-        total_a = fa["spd"] + pri_move_a * 10
-        total_b = fb["spd"] + pri_move_b * 10
+        total_a = _eff_spd(fa) + pri_move_a * 10
+        total_b = _eff_spd(fb) + pri_move_b * 10
         a_goes_first = total_a >= total_b
 
     if a_goes_first:
