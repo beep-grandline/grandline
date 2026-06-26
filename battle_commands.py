@@ -175,6 +175,7 @@ def _build_fighter_data(player_row, member: discord.Member):
         "haki":    haki,
         "fruit_id": fruit_id,
         "animal":   _extract_animal(fruit_id),
+        "is_zoan":  _is_zoan(fruit_id),
     }
 
 

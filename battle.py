@@ -117,6 +117,26 @@ def _accuracy_mod(attack_type, defender_type2):
         return 1.0
     return PHYSICAL_CHART.get(defender_type2, {}).get(attack_type, 1.0)
 
+# ── Transform-gated fruit modifiers ───────────────────────────────────────────
+# A Zoan user only projects their fruit's battle modifiers (elemental type,
+# defensive passive, fruit-specific tricks like Bari blocks) while transformed.
+# In base/human form they fight as if they had no fruit. Non-Zoan users are
+# always "base" but keep their modifiers — hence the is_zoan gate.
+
+def _modifiers_active(fighter):
+    if fighter.get("is_zoan") and fighter.get("transform", "base") == "base":
+        return False
+    return True
+
+def _eff_type1(fighter):
+    return fighter.get("type1", "Normal") if _modifiers_active(fighter) else "Normal"
+
+def _eff_type2(fighter):
+    return fighter.get("type2", "none") if _modifiers_active(fighter) else "none"
+
+def _eff_fruit_id(fighter):
+    return fighter.get("fruit_id", "") if _modifiers_active(fighter) else ""
+
 # ── Rolls ─────────────────────────────────────────────────────────────────────
 
 def _roll_dodge(defender, attacker, move):
@@ -126,7 +146,7 @@ def _roll_dodge(defender, attacker, move):
     return random.random() < chance, round(chance * 100)
 
 def _roll_block(defender, attacker):
-    if defender.get("fruit_id") == "bari":  # Bari Bari — blocks never fail
+    if _eff_fruit_id(defender) == "bari":  # Bari Bari — blocks never fail
         return True, 100
     delta   = (defender["defense"] - attacker["atk"]) * 3
     chance  = max(10, min(90, 50 + delta)) / 100
@@ -134,7 +154,7 @@ def _roll_block(defender, attacker):
 
 def _roll_escape(escaper, pursuer):
     speed_ratio = escaper["spd"] / (escaper["spd"] + pursuer["spd"])
-    escape_mod  = ESCAPE_MODIFIERS.get(escaper.get("type2", "none"), 1.0)
+    escape_mod  = ESCAPE_MODIFIERS.get(_eff_type2(escaper), 1.0)
     chance      = min(0.99, speed_ratio * escape_mod)
     return random.random() < chance, round(chance * 100)
 
@@ -144,7 +164,7 @@ def _calculate_damage(attacker, defender, move, is_blocking=False):
     attack_type = move.get("attack_type", "blunt")
 
     base_acc      = move["accuracy"]
-    acc_mod       = _accuracy_mod(attack_type, defender.get("type2", "none"))
+    acc_mod       = _accuracy_mod(attack_type, _eff_type2(defender))
     effective_acc = base_acc * acc_mod
     hit           = random.uniform(0, 100) <= effective_acc
     if not hit:
@@ -159,10 +179,10 @@ def _calculate_damage(attacker, defender, move, is_blocking=False):
         base *= 1.5
 
     hot           = move.get("hot", False)
-    move_element  = move.get("element", attacker.get("type1", "Normal"))
-    e_mod         = _elemental_mod(move_element, defender.get("type1", "Normal"))
+    move_element  = move.get("element", _eff_type1(attacker))
+    e_mod         = _elemental_mod(move_element, _eff_type1(defender))
     haki          = attacker.get("haki", False)
-    defender_type2 = defender.get("type2", "none")
+    defender_type2 = _eff_type2(defender)
     # HOT bypasses armor passive resistance
     if hot and defender_type2 == "armor":
         p_mod_passive = 1.0
@@ -534,6 +554,7 @@ def create_battle(a_data, b_data):
             "haki":           data.get("haki", False),
             "fruit_id":       data.get("fruit_id", ""),
             "animal":         data.get("animal", ""),
+            "is_zoan":        data.get("is_zoan", False),
             "transform":      "base",
             "status_effects": [],
             "escaped":        False,
