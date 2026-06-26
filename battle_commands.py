@@ -112,21 +112,29 @@ def _finished_embed(state):
         title = "Battle Over"
         desc  = None
 
-    embed = discord.Embed(title=title, description=desc, color=0x2d9e5f)
+    embed = discord.Embed(title=title, color=0x2d9e5f)
     embed.set_author(name=f"⚔  {fa['name']}  vs  {fb['name']}")
-    embed.add_field(
-        name  = "\u200b",
-        value = "\n".join(battle_logic.status_block(state)),
-        inline= False,
-    )
+
+    # build the whole body in the description so there are no blank
+    # field-name gaps between the HP bars and the log
+    parts = []
+    if desc:
+        parts.append(desc)
+    parts.append("\n".join(battle_logic.status_block(state)))
     log = state.get("log", [])
     if log:
-        lines   = [l for l in log if not l.startswith("**──")]
-        log_str = "\n".join(lines)
-        if len(log_str) > 1024:
-            log_str = log_str[-1021:] + "..."
-        if log_str.strip():
-            embed.add_field(name="\u200b", value=log_str, inline=False)
+        # the win is shown in the title — never let a stray "wins!" line in the
+        # log repeat it, and drop the turn header
+        lines   = [l for l in log
+                   if not l.startswith("**──") and "wins!" not in l]
+        log_str = "\n".join(lines).strip()
+        if log_str:
+            parts.append(log_str)
+
+    body = "\n".join(parts)
+    if len(body) > 4096:
+        body = body[-4093:] + "..."
+    embed.description = body
     return embed
 
 
