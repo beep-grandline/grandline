@@ -106,6 +106,7 @@ async def on_ready():
     setup_travel_task(bot)
     load_npcs()
     load_islands()
+    game.ensure_whirlpools(force=True)   # fresh whirlpool field each bootup
     asyncio.create_task(prerender_all_flags())
     bot.add_view(RolePicker())
     bot.add_view(JobPicker())
@@ -837,9 +838,16 @@ async def gm_moveship(interaction: discord.Interaction, crew: str, q: int, r: in
         return
 
     db.move_crew(crew, q, r)
-    await interaction.response.send_message(
-        f"Moved **{crew_row['name']}**'s ship to `q={q}, r={r}`."
-    )
+    fq, fr, swept = game.check_ship_whirlpool(crew, q, r)
+    if swept:
+        await interaction.response.send_message(
+            f"Moved **{crew_row['name']}**'s ship to `q={q}, r={r}` — "
+            f"🌀 a whirlpool there swept it to `q={fq}, r={fr}`!"
+        )
+    else:
+        await interaction.response.send_message(
+            f"Moved **{crew_row['name']}**'s ship to `q={q}, r={r}`."
+        )
 
 
 # ── /gm addrolls — give extra rolls to a crew ─────────────────────────────────

@@ -77,9 +77,6 @@ GRAY_HEXES = {tile for tiles in GRAY_FACILITIES.values() for tile in tiles}
 # Calm belt overlay — translucent white drawn above the sea texture
 CALM_BELT_COLOR = (1.0, 1.0, 1.0, 0.38)
 
-# Whirlpool tiles — list of (q, r) that get the concentric-ring effect
-WHIRLPOOL_TILES = [(-3, 5)]
-
 # Player ship icon — loaded once, falls back to dot if file missing.
 # SHIP_ROTATION: number of 90° counter-clockwise turns (1=90°, 2=180°, 3=270°)
 SHIP_ROTATION  = 3  # 3 × 90° CCW = 270° CCW = 90° clockwise
@@ -284,65 +281,67 @@ def get_wind(q, r):
 
 # ── Whirlpool helper ──────────────────────────────────────────────────────────
 
-# def _draw_whirlpools(ax, whirlpool_tiles, pq, pr, radius):
-#     """
-#     Draw concentric-ring whirlpool effect on any WHIRLPOOL_TILES hex that
-#     falls within the current viewport.
+def _draw_whirlpools(ax, whirlpool_tiles, pq, pr, radius):
+    """
+    Draw concentric-ring whirlpool effect on any whirlpool hex that
+    falls within the current viewport.
 
-#     Rings are clipped to the hex shape so they don't bleed into neighbours.
-#     """
-#     from matplotlib.path import Path as MPath
-#     from matplotlib.patches import PathPatch
+    Rings are clipped to the hex shape so they don't bleed into neighbours.
+    """
+    from matplotlib.path import Path as MPath
+    from matplotlib.patches import PathPatch
 
-#     RINGS      = 6          # number of concentric rings
-#     RING_COLOR = (0.08, 0.25, 0.55)   # deep blue RGB
-#     PIT_COLOR  = (0.05, 0.15, 0.42)   # darker centre
+    RINGS      = 6          # number of concentric rings
+    RING_COLOR = (0.08, 0.25, 0.55)   # deep blue RGB
+    PIT_COLOR  = (0.05, 0.15, 0.42)   # darker centre
 
-#     for (wq, wr) in whirlpool_tiles:
-#         if _hex_distance(wq, wr, pq, pr) > radius:
-#             continue
+    for (wq, wr) in whirlpool_tiles:
+        if _hex_distance(wq, wr, pq, pr) > radius:
+            continue
 
-#         cx, cy  = _hex_to_pixel(wq, wr)
-#         corners = _hex_corners(wq, wr)
+        cx, cy  = _hex_to_pixel(wq, wr)
+        corners = _hex_corners(wq, wr)
 
-#         # Build hex clip path
-#         verts = corners + [corners[0]]
-#         codes = ([MPath.MOVETO]
-#                  + [MPath.LINETO] * (len(corners) - 1)
-#                  + [MPath.CLOSEPOLY])
-#         clip_patch = PathPatch(
-#             MPath(verts, codes),
-#             transform=ax.transData,
-#         )
-#         ax.add_patch(clip_patch)
+        # Build hex clip path
+        verts = corners + [corners[0]]
+        codes = ([MPath.MOVETO]
+                 + [MPath.LINETO] * (len(corners) - 1)
+                 + [MPath.CLOSEPOLY])
+        clip_patch = PathPatch(
+            MPath(verts, codes),
+            transform=ax.transData,
+            facecolor="none",
+            edgecolor="none",
+        )
+        ax.add_patch(clip_patch)
 
-#         # Draw rings from outermost inward so inner ones paint over outer
-#         for i in range(RINGS, 0, -1):
-#             r_frac = i / RINGS
-#             ring_r = r_frac * SIZE * 0.88
-#             alpha  = 0.10 + (RINGS - i) * 0.07   # inner rings darker
-#             lw     = 0.8 + (RINGS - i) * 0.25
+        # Draw rings from outermost inward so inner ones paint over outer
+        for i in range(RINGS, 0, -1):
+            r_frac = i / RINGS
+            ring_r = r_frac * SIZE * 0.88
+            alpha  = 0.10 + (RINGS - i) * 0.07   # inner rings darker
+            lw     = 0.8 + (RINGS - i) * 0.25
 
-#             circle = mpatches.Circle(
-#                 (cx, cy), ring_r,
-#                 fill=False,
-#                 edgecolor=(*RING_COLOR, alpha),
-#                 linewidth=lw,
-#                 zorder=4,
-#             )
-#             circle.set_clip_path(clip_patch)
-#             ax.add_patch(circle)
+            circle = mpatches.Circle(
+                (cx, cy), ring_r,
+                fill=False,
+                edgecolor=(*RING_COLOR, alpha),
+                linewidth=lw,
+                zorder=4,
+            )
+            circle.set_clip_path(clip_patch)
+            ax.add_patch(circle)
 
-#         # Dark centre pit
-#         pit = mpatches.Circle(
-#             (cx, cy), SIZE * 0.10,
-#             fill=True,
-#             facecolor=(*PIT_COLOR, 0.55),
-#             edgecolor="none",
-#             zorder=4,
-#         )
-#         pit.set_clip_path(clip_patch)
-#         ax.add_patch(pit)
+        # Dark centre pit
+        pit = mpatches.Circle(
+            (cx, cy), SIZE * 0.10,
+            fill=True,
+            facecolor=(*PIT_COLOR, 0.55),
+            edgecolor="none",
+            zorder=4,
+        )
+        pit.set_clip_path(clip_patch)
+        ax.add_patch(pit)
 
 
 # ── Log pose arrow helper ─────────────────────────────────────────────────────
@@ -480,12 +479,14 @@ def _get_ocean_texture(pq, pr, radius, hex_lookup):
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def render_map(uid: str, radius: int = 10, view: str = "default"):
+def render_map(uid: str, radius: int = 10, view: str = "default",
+               show_whirlpools: bool = False):
     """
     Render a viewport map centred on the player's position.
 
     view: "default" — normal map
           "roll"    — highlights reachable ocean hexes within move_range
+    show_whirlpools: draw whirlpool tiles (navigators only).
     Returns a BytesIO PNG buffer, or None if the player isn't registered.
     """
     import db
@@ -743,8 +744,11 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         )
         ax.add_collection(lc)
 
-    # Whirlpool effects — drawn above sea, below labels and player
-    # _draw_whirlpools(ax, WHIRLPOOL_TILES, pq, pr, radius)
+    # Whirlpool effects — drawn above sea, below labels and player.
+    # Only navigators can see them, so the caller gates this.
+    if show_whirlpools:
+        whirl_tiles = list(game.get_whirlpools().keys())
+        _draw_whirlpools(ax, whirl_tiles, pq, pr, radius)
 
     # Impel Down — concentric circles, outer rings behind the hex grid
     if impel_down_center is not None:

@@ -136,6 +136,7 @@ class HelmView(discord.ui.View):
                 content=MOVE_FAILURE.get(reason, reason)
             )
             return
+        new_q, new_r, swept = game.check_ship_whirlpool(self.crew_id, new_q, new_r)
         crew  = db.get_crew(self.crew_id)
         rolls = crew["roll"] or 0
         alert = _tile_alert(new_q, new_r, str(interaction.user.id))
@@ -143,6 +144,8 @@ class HelmView(discord.ui.View):
             f"⛵ `q={new_q}, r={new_r}`\n"
             f"`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls"
         )
+        if swept:
+            msg = f"🌀 A whirlpool swallows the ship and spits it out at `q={new_q}, r={new_r}`!\n" + msg.split("\n", 1)[1]
         if alert:
             msg += f"\n{alert}"
         await interaction.response.edit_message(content=msg)
@@ -210,15 +213,23 @@ async def travel_auto(interaction: discord.Interaction):
         await interaction.response.send_message(MOVE_FAILURE.get(reason, reason), ephemeral=True)
         return
 
+    new_q, new_r, swept = game.check_ship_whirlpool(player["crew_id"], new_q, new_r)
     crew    = db.get_crew(player["crew_id"])
     rolls   = crew["roll"] or 0
     dir_lbl = game.DIRECTION_LABELS.get(reason, reason)
     log     = ((crew["log_pose"] if crew["log_pose"] else game.DEFAULT_LOG_POSE)).title()
     alert   = _tile_alert(new_q, new_r, uid)
-    msg = (
-        f"⛵ Heading toward **{log}** — moved **{dir_lbl}** → `q={new_q}, r={new_r}`\n"
-        f"`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls remaining."
-    )
+    if swept:
+        msg = (
+            f"🌀 Heading toward **{log}**, a whirlpool swallows the ship and "
+            f"spits it out at `q={new_q}, r={new_r}`!\n"
+            f"`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls remaining."
+        )
+    else:
+        msg = (
+            f"⛵ Heading toward **{log}** — moved **{dir_lbl}** → `q={new_q}, r={new_r}`\n"
+            f"`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls remaining."
+        )
     if alert:
         msg += f"\n{alert}"
     await interaction.response.send_message(msg)
@@ -522,10 +533,27 @@ async def travel_pose(interaction: discord.Interaction, destination: str):
     discord.app_commands.Choice(name="roll",    value="roll"),
 ])
 async def travel_map(interaction: discord.Interaction, view: str = "default"):
+    uid    = str(interaction.user.id)
+    member = interaction.user
+    is_navigator = any(r.name == "Navigator" for r in getattr(member, "roles", []))
+
+    # The roll view (reachable-tile preview) is captain/helmsman only.
+    if view == "roll":
+        player      = db.get_player(uid)
+        crew        = db.get_crew(player["crew_id"]) if player and player["crew_id"] else None
+        is_helmsman = any(r.name == "Helmsman" for r in getattr(member, "roles", []))
+        is_captain  = crew and str(crew["captain_id"]) == uid
+        if not (is_captain or is_helmsman):
+            await interaction.response.send_message(
+                "Only the captain or helmsman can use the roll view.", ephemeral=True
+            )
+            return
+
     await interaction.response.defer(ephemeral=True)
-    uid  = str(interaction.user.id)
     loop = asyncio.get_event_loop()
-    buf  = await loop.run_in_executor(None, map_render.render_map, uid, 10, view)
+    buf  = await loop.run_in_executor(
+        None, map_render.render_map, uid, 10, view, is_navigator
+    )
     if not buf:
         await interaction.followup.send(
             "You are not registered yet. Use `/register` first.", ephemeral=True

@@ -3,6 +3,9 @@
 #  Import this everywhere instead of reading q/r directly from the DB.
 # ═══════════════════════════════════════════════════════════════════════════════
 
+import datetime
+import random as _random
+
 import db
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -384,8 +387,6 @@ def hourly_regen():
 
 # ── Cannon system ─────────────────────────────────────────────────────────────
 
-import random as _random
-
 CANNON_RANGE = 7
 CANNON_DMG_MIN = 40
 CANNON_DMG_MAX = 80
@@ -428,3 +429,154 @@ def crews_in_cannon_range(crew_id: str) -> list:
         if c["id"] != crew_id
         and _hex_dist(mq, mr, c["q"] or 0, c["r"] or 0) <= CANNON_RANGE
     ]
+
+
+# ── Whirlpool field ───────────────────────────────────────────────────────────
+# A field of whirlpools is generated once per day (and on every bootup). Each
+# whirlpool stores a fixed destination 4-10 tiles away, decided at creation
+# time so the teleport is deterministic at runtime — a ship that sails onto a
+# whirlpool is always flung to the same place until the next daily refresh.
+# Whirlpools only ever sit on open, navigable sea: never on islands, the Red
+# Line, the Calm Belt, marine facilities, Impel Down, or other reserved tiles.
+
+WHIRLPOOL_COUNT      = 40
+WHIRLPOOL_MIN_HOP    = 4
+WHIRLPOOL_MAX_HOP    = 10
+WHIRLPOOL_R_LIMIT    = 34
+# Playable-region quadrilateral (q, r). Whirlpools only spawn inside this.
+WHIRLPOOL_CORNERS    = [(10, -40), (-27, 34), (211, 34), (246, -39)]
+# Always-present test whirlpool(s).
+WHIRLPOOL_TEST_TILES = [(100, -30)]
+
+_whirlpools: dict = {}        # {(q, r): (dest_q, dest_r)}
+_whirlpool_day            = None   # iso date the current set was generated for
+
+
+def _point_in_quad(q, r, poly):
+    """Ray-cast point-in-polygon test, run directly in axial (q, r) space."""
+    inside = False
+    n = len(poly)
+    j = n - 1
+    for i in range(n):
+        xi, yi = poly[i]
+        xj, yj = poly[j]
+        if (yi > r) != (yj > r):
+            x_cross = xi + (r - yi) * (xj - xi) / (yj - yi)
+            if q < x_cross:
+                inside = not inside
+        j = i
+    return inside
+
+
+def _whirlpool_usable(q, r):
+    """True only for open navigable sea — excludes every reserved tile type."""
+    if abs(r) > CALM_BELT_R:
+        return False
+    if (q, r) in BLOCKED_TILES:
+        return False
+    if (q, r) == (IMPEL_DOWN_Q, IMPEL_DOWN_R):
+        return False
+    try:
+        from map_render import _cache, _load_map, GRAY_HEXES, MARINE_SHIP_START
+        _load_map()
+        if (q, r) in GRAY_HEXES or (q, r) == MARINE_SHIP_START:
+            return False
+        terrain = _cache["hex_lookup"].get((q, r), "sea")
+        if terrain not in ("sea", "calm_belt"):
+            return False
+    except Exception:
+        return False
+    return True
+
+
+def _ring_offsets(dist):
+    """All (dq, dr) offsets exactly `dist` hexes away (hex distance)."""
+    out = []
+    for dq in range(-dist, dist + 1):
+        for dr in range(-dist, dist + 1):
+            if max(abs(dq), abs(dr), abs(dq + dr)) == dist:
+                out.append((dq, dr))
+    return out
+
+
+def _pick_whirlpool_dest(q, r, taken):
+    """Pick a destination exactly 4-10 tiles from (q, r) on open sea, or None."""
+    for _ in range(60):
+        dist = _random.randint(WHIRLPOOL_MIN_HOP, WHIRLPOOL_MAX_HOP)
+        odq, odr = _random.choice(_ring_offsets(dist))
+        dq, dr = q + odq, r + odr
+        if (dq, dr) in taken:
+            continue
+        if _whirlpool_usable(dq, dr):
+            return (dq, dr)
+    return None
+
+
+def _generate_whirlpools():
+    qs = [c[0] for c in WHIRLPOOL_CORNERS]
+    rs = [c[1] for c in WHIRLPOOL_CORNERS]
+    qmin, qmax = min(qs), max(qs)
+    rmin = max(-WHIRLPOOL_R_LIMIT, min(rs))
+    rmax = min(WHIRLPOOL_R_LIMIT, max(rs))
+
+    result: dict = {}
+    taken: set = set()
+
+    # Always seed the test whirlpool(s) first.
+    for (tq, tr) in WHIRLPOOL_TEST_TILES:
+        dest = _pick_whirlpool_dest(tq, tr, taken | {(tq, tr)})
+        if dest:
+            result[(tq, tr)] = dest
+            taken.update({(tq, tr), dest})
+
+    attempts = 0
+    while (len([k for k in result if k not in WHIRLPOOL_TEST_TILES]) < WHIRLPOOL_COUNT
+           and attempts < 20000):
+        attempts += 1
+        q = _random.randint(qmin, qmax)
+        r = _random.randint(rmin, rmax)
+        if (q, r) in taken:
+            continue
+        if not _point_in_quad(q, r, WHIRLPOOL_CORNERS):
+            continue
+        if not _whirlpool_usable(q, r):
+            continue
+        dest = _pick_whirlpool_dest(q, r, taken | {(q, r)})
+        if not dest:
+            continue
+        result[(q, r)] = dest
+        taken.update({(q, r), dest})
+
+    return result
+
+
+def ensure_whirlpools(force=False):
+    """Regenerate the whirlpool set on first use, on a new day, or on demand."""
+    global _whirlpools, _whirlpool_day
+    today = datetime.date.today().isoformat()
+    if force or not _whirlpools or _whirlpool_day != today:
+        _whirlpools = _generate_whirlpools()
+        _whirlpool_day = today
+    return _whirlpools
+
+
+def get_whirlpools():
+    """Return {(q, r): (dest_q, dest_r)} for all active whirlpools."""
+    return dict(ensure_whirlpools())
+
+
+def whirlpool_dest(q, r):
+    """Return the (dest_q, dest_r) for a whirlpool at (q, r), or None."""
+    return ensure_whirlpools().get((q, r))
+
+
+def check_ship_whirlpool(crew_id, q, r):
+    """If (q, r) holds a whirlpool, sweep the crew to its destination.
+
+    Returns (final_q, final_r, teleported)."""
+    dest = whirlpool_dest(q, r)
+    if dest:
+        dq, dr = dest
+        db.move_crew(crew_id, dq, dr)
+        return dq, dr, True
+    return q, r, False
