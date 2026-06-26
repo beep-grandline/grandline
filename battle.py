@@ -142,8 +142,8 @@ def _eff_fruit_id(fighter):
 # full beast form sacrifices the human's agility for raw mass (power + defense).
 TRANSFORM_STAT_MULT = {
     "base":   {"atk": 1.0,  "defense": 1.0,  "spd": 1.0},
-    "hybrid": {"atk": 1.25, "defense": 1.0,  "spd": 1.25},
-    "full":   {"atk": 1.25, "defense": 1.25, "spd": 1.0},
+    "hybrid": {"atk": 1.5,  "defense": 1.0,  "spd": 1.5},
+    "full":   {"atk": 1.5,  "defense": 1.5,  "spd": 1.0},
 }
 
 def _stat_mult(fighter, stat):

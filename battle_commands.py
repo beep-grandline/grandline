@@ -68,22 +68,20 @@ def _battle_embed(state, log=None):
     )
     embed.set_author(name=f"⚔  {fa['name']}  vs  {fb['name']}")
 
-    # both HP bars in one field — no gap between them
-    status_val = "\n".join(battle_logic.status_block(state))
-    if len(status_val) > 1024:
-        status_val = status_val[:1021] + "..."
-    embed.add_field(name="\u200b", value=status_val, inline=False)
-
+    # build the whole body in the description so there are no blank
+    # field-name gaps between the HP bars and the log
+    parts = ["\n".join(battle_logic.status_block(state))]
     if log:
-        # strip the turn header line from the log since it's now the embed title
         lines   = [l for l in log if not l.startswith("**──")]
-        log_str = "\n".join(lines)
-        if len(log_str) > 1024:
-            log_str = log_str[-1021:] + "..."
-        if log_str.strip():
-            embed.add_field(name="\u200b", value=log_str, inline=False)
+        log_str = "\n".join(lines).strip()
+        if log_str:
+            parts.append(log_str)
     else:
-        embed.description = "Battle started! Choose your action."
+        parts.append("Battle started! Choose your action.")
+    desc = "\n".join(parts)
+    if len(desc) > 4096:
+        desc = desc[:4093] + "..."
+    embed.description = desc
 
     embed.set_footer(text="Choose your action")
     return embed

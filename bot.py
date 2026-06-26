@@ -288,6 +288,7 @@ async def help_command(
 INFO_PAGES = {
     "Kit": {
         "title": "How to build your kit",
+        "blurb": "Build your four-move kit from keywords.",
         "description": (
             "Your kit is your moveset - build four unique moves that represent your character! "
             "Each move can be built from any mix of the keywords below so long as you follow these constraints:\n\n"
@@ -307,6 +308,7 @@ INFO_PAGES = {
     },
     "Defenses": {
         "title": "🛡️ Defenses — Devil Fruit Body Types",
+        "blurb": "Devil fruit body types and how they resist each attack.",
         "description": (
             "Each fruit gives a **body type** that reacts differently to the "
             "three attack types: slash, blunt, pierce. Numbers are damage "
@@ -355,6 +357,7 @@ INFO_PAGES = {
     },
     "Factions": {
         "title": "⚑ Factions",
+        "blurb": "The three factions of the Grand Line.",
         "description": "The three factions of the Grand Line.",
         "fields": [
             ("Pirate",         "Sail, fight, plunder, and find your way to the One Piece."),
@@ -378,7 +381,7 @@ async def info_command(
             color=0x3a7ebf,
         )
         for key, page in INFO_PAGES.items():
-            embed.add_field(name=page["title"], value=page["description"], inline=False)
+            embed.add_field(name=f"`{key}`", value=page.get("blurb", ""), inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
