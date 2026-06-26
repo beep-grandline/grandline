@@ -360,11 +360,30 @@ class TransformSelect(discord.ui.Select):
         if not state:
             await interaction.response.edit_message(content="Battle not found.", view=self.view)
             return
-        state["fighters"][self.side]["transform"] = target
+        fighter = state["fighters"][self.side]
+        fighter["transform"] = target
         db.update_battle_state(self.battle_id, state)
-        await interaction.response.edit_message(
-            content=f"You transform into **{_TRANSFORM_LABELS[target]}**.", view=self.view
-        )
+
+        # resolve animal name from fruit eng string
+        from fruits import get_fruit_by_id as _get_fruit
+        fruit = _get_fruit((fighter.get("fruit_id") or "").lower())
+        eng = (fruit.get("eng") or "") if fruit else ""
+        if ":" in eng:
+            animal = eng.split(":", 1)[1].strip()
+        else:
+            animal = eng.split("-")[0].strip()
+        animal = animal.lower() or "beast"
+
+        name = fighter["name"]
+        if target == "base":
+            flavor = f"{name} transforms back to a human."
+        elif target == "hybrid":
+            flavor = f"{name} transforms into their hybrid-{animal} form!"
+        else:
+            flavor = f"{name} transforms into a {animal}."
+
+        await interaction.response.edit_message(content="Transformed!", view=self.view)
+        await interaction.channel.send(flavor)
 
 
 class TransformSelectView(discord.ui.View):
