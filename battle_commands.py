@@ -17,7 +17,7 @@ from npcs import get_npc_by_id, get_npcs_at, build_npc_fighter, npc_pick_action
 
 
 # Fruit categories that can transform (cat column in fruits.csv)
-ZOAN_CATS = {"2", "4"}  # 2 = Zoan, 4 = Mythical Zoan
+ZOAN_CATS = {"2", "4", "5"}  # 2 = Zoan, 4 = Mythical Zoan, 5 = Ancient Zoan
 
 
 def _is_zoan(fruit_id: str) -> bool:
