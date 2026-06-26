@@ -79,14 +79,25 @@ async def on_app_command_error(
     except Exception:
         pass  # interaction token may have expired — nothing we can do
 
-    # detailed traceback to the log channel
+    # concise summary to the log channel — no full paths or frame internals
     try:
         channel = bot.get_channel(ERROR_LOG_CHANNEL_ID)
         if channel:
-            cmd = interaction.command.qualified_name if interaction.command else "unknown"
+            cmd  = interaction.command.qualified_name if interaction.command else "unknown"
             user = getattr(interaction.user, "display_name", "unknown")
-            tb = "".join(traceback.format_exception(type(error), error, error.__traceback__))
-            await channel.send(f"⚠ Error in `/{cmd}` (by {user}):\n```py\n{tb[-1800:]}\n```")
+            # unwrap CommandInvokeError to get the real exception
+            exc  = getattr(error, "original", error)
+            etype = type(exc).__name__
+            emsg  = str(exc)[:200] or "(no message)"
+            # last frame only, with the bare filename instead of the absolute path
+            frames = traceback.extract_tb(exc.__traceback__)
+            where  = ""
+            if frames:
+                f = frames[-1]
+                where = f" at `{os.path.basename(f.filename)}:{f.lineno}` in `{f.name}()`"
+            await channel.send(
+                f"⚠ Error in `/{cmd}` (by {user}): `{etype}: {emsg}`{where}"
+            )
     except Exception:
         pass
 
