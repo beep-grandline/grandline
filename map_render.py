@@ -126,15 +126,35 @@ NEIGHBOR_TO_EDGE = {
 
 _cache = {
     "mtime":      None,
-    "hex_lookup": {},   # (q, r) -> hex_type string
+    "hex_lookup": {},   # (q, r) -> hex_type string ("island")
     "labels":     {},   # (q, r) -> hex_label string (per-hex labels only)
     "island_names": {}, # (q, r) -> island_name string
     "origins":    {},   # island_name -> (q, r) origin or None
+    "tile_meta":  {},   # (q, r) -> per-tile meta dict (npcs, dialogue, buildings, …)
+    "islands":    [],   # [ {name, oq, orr, radius, tiles:set((q,r))} ] for broad-phase
 }
 
 
 def _load_map():
-    """Load map JSON into module-level cache. No-op if file unchanged."""
+    """
+    Load map JSON into module-level cache. No-op if file unchanged.
+
+    Expects the island-editor compact format:
+      {
+        "islands": {
+          "<name>": {
+            "origin": {"q":..,"r":..},
+            "radius": int,
+            "hexes":  [[dq,dr], ...],         # offsets from origin
+            "elev":   [int, ...],             # parallel to hexes (ignored here)
+            "meta":   {"dq,dr": {...}, ...}   # sparse per-tile metadata
+          }
+        }
+      }
+
+    Note: marine facilities / Impel Down are hardcoded constants in this module,
+    not part of map.json, so they are unaffected by this loader.
+    """
     try:
         mtime = os.path.getmtime(MAP_PATH)
     except FileNotFoundError:
@@ -146,50 +166,90 @@ def _load_map():
     with open(MAP_PATH, "r") as f:
         data = json.load(f)
 
-    hex_lookup    = {}
-    labels        = {}
-    island_names  = {}
+    hex_lookup   = {}   # (q,r) -> "island"   (global; used by game passability)
+    labels       = {}   # (q,r) -> hex_label
+    island_names = {}   # (q,r) -> name
+    origins      = {}   # name  -> (q,r)
+    tile_meta    = {}   # (q,r) -> meta dict
+    islands      = []   # per-island broad-phase index
 
-    for tile in data.get("tiles", []):
-        q, r = tile.get("q"), tile.get("r")
-        if q is None or r is None:
+    for name, isl in data.get("islands", {}).items():
+        if not isinstance(isl, dict):
             continue
-        hex_type = tile.get("hex_type", "sea")
-        hex_lookup[(q, r)] = hex_type
+        o = isl.get("origin") or {}
+        oq, orr = o.get("q"), o.get("r")
+        if oq is None or orr is None:
+            continue
+        origins[name] = (oq, orr)
 
-        # hex_label is a per-hex label (e.g. "Royal Palace") — shown on that hex
-        hex_label = tile.get("hex_label", "")
-        if hex_label:
-            labels[(q, r)] = hex_label
+        hexes = isl.get("hexes", []) or []
+        meta  = isl.get("meta", {}) or {}
+        tiles = set()
+        max_d = 0
 
-        # island_name links the hex to a named island — used for island label
-        name = tile.get("island_name", "")
-        if name:
+        for (dq, dr) in hexes:
+            q, r = oq + dq, orr + dr
+            hex_lookup[(q, r)]   = "island"
             island_names[(q, r)] = name
+            tiles.add((q, r))
+            d = max(abs(dq), abs(dr), abs(dq + dr))
+            if d > max_d:
+                max_d = d
 
-    _cache["island_names"] = {}
-    for hex_data in data.get("hexes", []):
-        name = hex_data.get("island_name")
-        if name:
-            _cache["island_names"][(hex_data["q"], hex_data["r"])] = name
-    
-    # Load per-island origins from the islands block if present
-    origins = {}
-    for name, idata in data.get("islands", {}).items():
-        orig = idata.get("origin")
-        if orig and orig.get("q") is not None and orig.get("r") is not None:
-            origins[name] = (orig["q"], orig["r"])
-        else:
-            origins[name] = None
+            m = meta.get("%d,%d" % (dq, dr))
+            if m:
+                tile_meta[(q, r)] = m
+                if m.get("hex_label"):
+                    labels[(q, r)] = m["hex_label"]
+
+        radius = isl.get("radius")
+        if not isinstance(radius, int):
+            radius = max_d
+
+        islands.append({
+            "name":   name,
+            "oq":     oq,
+            "orr":    orr,
+            "radius": radius,
+            "tiles":  tiles,
+        })
 
     _cache["mtime"]        = mtime
     _cache["hex_lookup"]   = hex_lookup
     _cache["labels"]       = labels
     _cache["island_names"] = island_names
     _cache["origins"]      = origins
+    _cache["tile_meta"]    = tile_meta
+    _cache["islands"]      = islands
 
     # Invalidate texture cache whenever the map file changes
     _texture_cache.clear()
+
+
+# ── Per-tile metadata accessors ────────────────────────────────────────────────
+
+def get_tile_meta(q, r):
+    """Return the per-tile meta dict at (q, r), or None."""
+    _load_map()
+    return _cache["tile_meta"].get((q, r))
+
+
+def get_dialogue(q, r):
+    """Return the list of dialogue boxes at (q, r) (possibly empty)."""
+    m = get_tile_meta(q, r)
+    return list(m.get("dialogue", [])) if m else []
+
+
+def islands_near(pq, pr, reach):
+    """
+    Broad-phase: island index entries whose tiles could fall within `reach`
+    hexes of (pq, pr) — i.e. centre distance <= reach + island radius.
+    """
+    _load_map()
+    return [
+        isl for isl in _cache["islands"]
+        if _hex_distance(isl["oq"], isl["orr"], pq, pr) <= reach + isl["radius"]
+    ]
 
 
 # ── Geometry helpers ──────────────────────────────────────────────────────────
@@ -536,8 +596,16 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
     hex_lookup    = _cache["hex_lookup"]
     reachable_set = _reachable_sea(pq, pr, MOVE_RANGE, hex_lookup) if view == "roll" else set()
     labels        = _cache["labels"]
-    island_names  = _cache["island_names"]
     origins       = _cache["origins"]
+
+    # ── Broad-phase: only islands whose centre is near enough to reach the ──────
+    # viewport contribute land tiles. Build a local land set + name map.
+    nearby_tiles = set()        # (q, r) of every land tile on a nearby island
+    nearby_name  = {}           # (q, r) -> island_name
+    for isl in islands_near(pq, pr, radius):
+        for t in isl["tiles"]:
+            nearby_tiles.add(t)
+            nearby_name[t] = isl["name"]
 
     # ── Collect hexes in viewport ─────────────────────────────────────────────
     land_patches      = []
@@ -603,17 +671,15 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
                 for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
                     nq, nr = q + dq, r + dr
                     neighbor_is_land = (
-                        hex_lookup.get((nq, nr), "sea") != "sea"
+                        (nq, nr) in nearby_tiles
                         or (nq, nr) in GRAY_HEXES
                     )
                     if not neighbor_is_land:
                         border_segs.append([corners[i1], corners[i2]])
                 continue
 
-            # Ignore calm_belt terrain from JSON — treat as plain sea
-            terrain = hex_lookup.get((q, r), "sea")
-            if terrain == "calm_belt":
-                terrain = "sea"
+            # Land iff this tile belongs to a nearby island, else open sea.
+            terrain = "island" if (q, r) in nearby_tiles else "sea"
 
             cx, cy  = _hex_to_pixel(q, r)
             corners = _hex_corners(q, r)   # cached
@@ -646,13 +712,13 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
                 if (q, r) in labels:
                     hex_label_data.append((cx, cy, labels[(q, r)]))
                 # Accumulate pixel positions for island name centroid
-                name = island_names.get((q, r), "")
+                name = nearby_name.get((q, r), "")
                 if name:
                     island_accum.setdefault(name, []).append((cx, cy))
 
             for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
                 nq, nr = q + dq, r + dr
-                if hex_lookup.get((nq, nr), "sea") == "sea":
+                if (nq, nr) not in nearby_tiles:
                     p1, p2 = corners[i1], corners[i2]
                     border_segs.append([p1, p2])
 
@@ -689,7 +755,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
             # Only draw arrow if no tiles of the target island are in the viewport
             target_visible = any(
                 n == target_name
-                for (q2, r2), n in island_names.items()
+                for (q2, r2), n in nearby_name.items()
                 if _hex_distance(q2, r2, pq, pr) <= radius
             )
             if not target_visible:

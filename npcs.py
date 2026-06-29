@@ -68,15 +68,18 @@ def get_npc_by_id(npc_id: str):
 
 
 def get_npcs_at(q: int, r: int) -> list:
+    """
+    Which NPCs are at (q, r) is driven by the map JSON (tile meta `npcs`: a
+    list of NPC ids placed in the island editor). Their stats/behaviour still
+    come from data/npcs.csv, looked up by id. NPC q/r columns are ignored.
+    """
+    from map_render import get_tile_meta   # lazy import avoids circular load
+    meta = get_tile_meta(q, r) or {}
     out = []
-    for npc in NPCS:
-        try:
-            nq = int(npc.get("q") or 0)
-            nr = int(npc.get("r") or 0)
-            if nq == q and nr == r:
-                out.append(npc)
-        except (ValueError, TypeError):
-            continue
+    for npc_id in meta.get("npcs", []):
+        npc = get_npc_by_id(str(npc_id))
+        if npc:
+            out.append(npc)
     return out
 
 
