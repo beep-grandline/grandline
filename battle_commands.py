@@ -402,46 +402,15 @@ class TransformSelectView(discord.ui.View):
 class BattleView(discord.ui.View):
     def __init__(self, fighter_a_id: str, fighter_b_id: str,
                  battle_id: str, channel_id: str):
-        super().__init__(timeout=300)
+        # No timeout: the battle's lifecycle is owned solely by its DB row.
+        # A timeout here would let a stale per-turn view delete an active
+        # battle out from under the players ("Battle not found"). The battle
+        # is removed only when it actually ends (win / escape / teleport).
+        super().__init__(timeout=None)
         self.fighter_a_id = fighter_a_id
         self.fighter_b_id = fighter_b_id
         self.battle_id    = battle_id
         self.channel_id   = channel_id
-
-    async def on_timeout(self):
-        for child in self.children:
-            child.disabled = True
-        try:
-            state = db.get_battle_state(self.battle_id)
-            if state:
-                fa = state["fighters"]["a"]
-                fb = state["fighters"]["b"]
-                embed = discord.Embed(title="⏱ Battle timed out", color=0x888888)
-                embed.set_author(name=f"⚔  {fa['name']}  vs  {fb['name']}")
-                # restore both players' HP to what it was at timeout
-                for side_key in ("a", "b"):
-                    f = state["fighters"][side_key]
-                    if not str(f["id"]).startswith("npc:"):
-                        db.update_player_hp(str(f["id"]), max(0, f["hp"]))
-            else:
-                embed = discord.Embed(title="⏱ Battle timed out", color=0x888888)
-
-            battle_row = db.get_battle(self.battle_id)
-            msg_id     = battle_row["message_id"] if battle_row else None
-            db.delete_battle(self.battle_id)
-
-            channel = bot.get_channel(int(self.channel_id))
-            if channel:
-                if msg_id:
-                    try:
-                        msg = await channel.fetch_message(int(msg_id))
-                        await msg.edit(embed=embed, view=self)
-                        return
-                    except Exception:
-                        pass
-                await channel.send(embed=embed)
-        except Exception:
-            pass
 
     def _side(self, uid: str):
         if uid == self.fighter_a_id: return "a"
