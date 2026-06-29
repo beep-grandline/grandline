@@ -55,8 +55,50 @@ def _tile_alert(q: int, r: int, uid: str) -> str:
     return "\n".join(lines)
 
 
+# ── Tile dialogue ──────────────────────────────────────────────────────────────
 
-    return crew and str(crew["captain_id"]) == str(interaction.user.id)
+class DialogueView(discord.ui.View):
+    """
+    Minimal click-through dialogue. Shows one box at a time in a bare embed
+    (just the text) with left/right buttons to page between boxes.
+    """
+    def __init__(self, uid: str, boxes: list):
+        super().__init__(timeout=300)
+        self.uid   = str(uid)
+        self.boxes = boxes
+        self.idx   = 0
+        self._sync()
+
+    def embed(self) -> discord.Embed:
+        return discord.Embed(description=self.boxes[self.idx], color=0x2b2d31)
+
+    def _sync(self):
+        self.prev_btn.disabled = self.idx <= 0
+        self.next_btn.disabled = self.idx >= len(self.boxes) - 1
+
+    async def _guard(self, interaction) -> bool:
+        if str(interaction.user.id) != self.uid:
+            await interaction.response.send_message("This isn't your dialogue.", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary)
+    async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await self._guard(interaction):
+            return
+        if self.idx > 0:
+            self.idx -= 1
+        self._sync()
+        await interaction.response.edit_message(embed=self.embed(), view=self)
+
+    @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.secondary)
+    async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await self._guard(interaction):
+            return
+        if self.idx < len(self.boxes) - 1:
+            self.idx += 1
+        self._sync()
+        await interaction.response.edit_message(embed=self.embed(), view=self)
 
 
 def _roll_bar(current, max_rolls=game.ROLL_MAX, width=12):
@@ -332,6 +374,12 @@ class WalkView(discord.ui.View):
         if alert:
             msg += f"\n{alert}"
         await interaction.response.edit_message(content=msg)
+
+        # Walking onto a tile with dialogue pops a click-through embed.
+        boxes = map_render.get_dialogue(new_q, new_r)
+        if boxes:
+            dview = DialogueView(self.uid, boxes)
+            await interaction.followup.send(embed=dview.embed(), view=dview, ephemeral=True)
 
     @discord.ui.button(emoji="↖️", style=discord.ButtonStyle.secondary, row=0)
     async def btn_bl(self, i, b): await self._walk(i, "bl")
