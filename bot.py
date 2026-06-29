@@ -1687,10 +1687,23 @@ class FruitPicker(discord.ui.View):
             )
             return
 
-        # one starter fruit only — eaten slot or held slot already filled blocks a reroll
-        if db.get_player_fruit(uid) or db.get_held_fruit(uid):
+        # Once a fruit has been eaten, that's permanent — no more rolling.
+        if db.get_player_fruit(uid):
             await interaction.response.send_message(
-                "You already have a Devil Fruit.", ephemeral=True
+                "You have already eaten a fruit.", ephemeral=True
+            )
+            return
+
+        # Otherwise allow one roll per hour.
+        import time
+        ROLL_COOLDOWN = 3600  # seconds
+        elapsed = time.time() - (db.get_last_fruit_roll(uid) or 0)
+        if elapsed < ROLL_COOLDOWN:
+            remaining = int(ROLL_COOLDOWN - elapsed)
+            mins, secs = divmod(remaining, 60)
+            wait = f"{mins}m {secs}s" if mins else f"{secs}s"
+            await interaction.response.send_message(
+                f"You can roll again in {wait}.", ephemeral=True
             )
             return
 
@@ -1705,6 +1718,7 @@ class FruitPicker(discord.ui.View):
 
         choice = random.choice(available)
         db.set_held_fruit(uid, choice["id"])
+        db.set_last_fruit_roll(uid)   # start the 1-hour cooldown
 
         jap = (choice.get("jap") or "").strip()
         eng = (choice.get("eng") or "").strip()

@@ -79,6 +79,7 @@ def init_db():
         "ALTER TABLE players ADD COLUMN recipes_json TEXT",
         "ALTER TABLE players ADD COLUMN captured_by  TEXT DEFAULT NULL",
         "ALTER TABLE crews   ADD COLUMN ship_type    TEXT DEFAULT NULL",
+        "ALTER TABLE players ADD COLUMN last_fruit_roll REAL DEFAULT 0",
     ]:
         try:
             db.execute(sql)
@@ -661,6 +662,22 @@ def set_held_fruit(player_id, fruit_id):
 def clear_held_fruit(player_id):
     db.execute(
         "UPDATE players SET held_fruit_id=NULL WHERE id=?", (player_id,)
+    )
+    db.commit()
+
+
+def get_last_fruit_roll(player_id):
+    """Unix timestamp of the player's last fruit roll (0 if never)."""
+    row = db.execute(
+        "SELECT last_fruit_roll FROM players WHERE id=?", (player_id,)
+    ).fetchone()
+    return (row["last_fruit_roll"] or 0) if row else 0
+
+
+def set_last_fruit_roll(player_id, ts=None):
+    db.execute(
+        "UPDATE players SET last_fruit_roll=? WHERE id=?",
+        (ts if ts is not None else time.time(), player_id),
     )
     db.commit()
  
