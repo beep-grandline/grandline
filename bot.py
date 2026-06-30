@@ -1599,6 +1599,74 @@ async def admin_errortest(interaction: discord.Interaction):
     raise RuntimeError("This is a test error from /admin errortest.")
 
 
+def _build_dummy_component():
+    """
+    A non-functional Components V2 layout that mimics the battle card, for
+    previewing the look. Buttons are placeholders — clicking one just silently
+    acknowledges and does nothing. Built lazily (not at import) so the bot still
+    starts on discord.py < 2.6, where these classes don't exist.
+    """
+    ui = discord.ui
+
+    class _DummyButton(ui.Button):
+        async def callback(self, interaction: discord.Interaction):
+            await interaction.response.defer()  # no-op placeholder
+
+    view      = ui.LayoutView(timeout=None)
+    container = ui.Container(accent_colour=0x1a3f6b)
+
+    # ── Header ──
+    container.add_item(ui.TextDisplay("## ⚔  Monkey D. Luffy  vs  Sir Crocodile"))
+    container.add_item(ui.TextDisplay("-# Turn 4 · waiting on both fighters"))
+    container.add_item(ui.Separator())
+
+    # ── Fighters (dummy text) ──
+    container.add_item(ui.TextDisplay(
+        "**Monkey D. Luffy**  ⚡ charging\n`██████████░░░░░░`  120 / 200"
+    ))
+    container.add_item(ui.Separator())
+    container.add_item(ui.TextDisplay(
+        "**Sir Crocodile**  🛡 blocking\n`████████░░░░░░░░`   95 / 200"
+    ))
+    container.add_item(ui.Separator())
+
+    # ── Dummy log ──
+    container.add_item(ui.TextDisplay(
+        "> Luffy used **Gum-Gum Red Hawk** — 42 dmg!\n"
+        "> Crocodile blocked, softening the blow."
+    ))
+
+    # ── 2x2 button grid (two action rows of two) — all non-functional ──
+    row1 = ui.ActionRow()
+    row1.add_item(_DummyButton(label="Attack", style=discord.ButtonStyle.danger))
+    row1.add_item(_DummyButton(label="Block",  style=discord.ButtonStyle.secondary))
+    row2 = ui.ActionRow()
+    row2.add_item(_DummyButton(label="Dodge",   style=discord.ButtonStyle.secondary))
+    row2.add_item(_DummyButton(label="Special", style=discord.ButtonStyle.primary))
+    container.add_item(row1)
+    container.add_item(row2)
+
+    view.add_item(container)
+    return view
+
+
+@admin_group.command(name="component", description="Preview a dummy Components V2 layout (no functions)")
+async def admin_component(interaction: discord.Interaction):
+    if not is_admin(interaction):
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+    try:
+        view = _build_dummy_component()
+    except Exception as e:
+        await interaction.response.send_message(
+            f"Couldn't build the Components V2 layout — this needs discord.py >= 2.6 "
+            f"(installed: {discord.__version__}). Error: `{e}`",
+            ephemeral=True,
+        )
+        return
+    await interaction.response.send_message(view=view, ephemeral=True)
+
+
 bot.tree.add_command(admin_group)
 
 
