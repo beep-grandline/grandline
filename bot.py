@@ -1667,6 +1667,61 @@ async def admin_component(interaction: discord.Interaction):
     await interaction.response.send_message(view=view, ephemeral=True)
 
 
+def _build_maptest_component():
+    """
+    Vertical-spacing test: a static map image with a compact 3-row helm
+    D-pad directly underneath, one divider between image and buttons.
+    Buttons are dummy — they just defer, no movement logic. Mirrors the
+    real HelmView's 6 hex directions (no N/S — hex grids don't have them).
+    """
+    ui = discord.ui
+
+    class _DummyButton(ui.Button):
+        async def callback(self, interaction: discord.Interaction):
+            await interaction.response.defer()
+
+    view      = ui.LayoutView(timeout=None)
+    container = ui.Container(accent_colour=0x1a3f6b)
+
+    container.add_item(ui.MediaGallery(ui.MediaGalleryItem("attachment://maptest.png")))
+    container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+    row1 = ui.ActionRow()
+    row1.add_item(_DummyButton(emoji="↖️", style=discord.ButtonStyle.secondary))
+    row1.add_item(_DummyButton(emoji="↗️", style=discord.ButtonStyle.secondary))
+    row2 = ui.ActionRow()
+    row2.add_item(_DummyButton(emoji="⬅️", style=discord.ButtonStyle.secondary))
+    row2.add_item(_DummyButton(emoji="➡️", style=discord.ButtonStyle.secondary))
+    row3 = ui.ActionRow()
+    row3.add_item(_DummyButton(emoji="↙️", style=discord.ButtonStyle.secondary))
+    row3.add_item(_DummyButton(emoji="↘️", style=discord.ButtonStyle.secondary))
+
+    container.add_item(row1)
+    container.add_item(row2)
+    container.add_item(row3)
+
+    view.add_item(container)
+    return view
+
+
+@admin_group.command(name="maptest", description="Test: map image + compact helm buttons (no functions)")
+async def admin_maptest(interaction: discord.Interaction):
+    if not is_admin(interaction):
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+    try:
+        view = _build_maptest_component()
+        file = discord.File("img/maptest.png", filename="maptest.png")
+    except Exception as e:
+        await interaction.response.send_message(
+            f"Couldn't build the Components V2 layout — this needs discord.py >= 2.6 "
+            f"(installed: {discord.__version__}). Error: `{e}`",
+            ephemeral=True,
+        )
+        return
+    await interaction.response.send_message(view=view, file=file, ephemeral=True)
+
+
 bot.tree.add_command(admin_group)
 
 
