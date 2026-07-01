@@ -1683,7 +1683,7 @@ def _build_maptest_component():
     view      = ui.LayoutView(timeout=None)
     container = ui.Container(accent_colour=0x1a3f6b)
 
-    container.add_item(ui.MediaGallery(ui.MediaGalleryItem("attachment://maptest.png")))
+    container.add_item(ui.MediaGallery(discord.MediaGalleryItem(media="attachment://maptest.png")))
     container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
     row1 = ui.ActionRow()
