@@ -9,147 +9,171 @@ import discord
 import db
 from config import GUILD_ID
 
-# ── Keyword system ────────────────────────────────────────────────────────────
-# Mirrored from move_builder.py (no IPython dependency here)
+# ── Pool stat system ──────────────────────────────────────────────────────────
+# Each move spends POOL_TOTAL points across Power / Accuracy / Speed, each stat
+# between STAT_MIN and STAT_MAX. Keywords are separate riders, not stat points.
+# Score → battle effect (kept in sync with battle.py's mapping):
+#   Power    p → damage ×(0.7 + 0.1·(p−1))    → 0.70 .. 1.20
+#   Accuracy a → hit chance 55 + 8·(a−1) %     → 55 .. 95
+#   Speed    s → evasion 7·(s−1)% + pierce 3·(s−1)% + initiative
 
-SLOTS = 4
-BASE  = {"power": 3, "accuracy": 75, "speed": 0,
-         "tracking": 5, "hits": 1, "hp_cost": 0, "recoil": 0.0,
-         "burn": False, "hot": False}
+POOL_TOTAL = 10
+STAT_MIN   = 1
+STAT_MAX   = 6
+MAX_MOVES  = 4
 
-POWER_TIERS = {"CHIP", "LIGHT", "MEDIUM", "HEAVY", "CRUSHER"}
-HIT_TIERS   = {"FLURRY", "BARRAGE"}   # mutually exclusive — can't combine
+
+def dmg_mult(power):     return round(0.7 + 0.1 * (power - 1), 2)   # 0.70 .. 1.20
+def hit_pct(accuracy):   return 55 + 8 * (accuracy - 1)            # 55 .. 95
+def evasion_pct(speed):  return max(0, 7 * (speed - 1))            # 0 .. 35
+def pierce_pct(speed):   return max(0, 3 * (speed - 1))            # 0 .. 15
+
 
 KEYWORDS = {
-    # power tiers
-    "CHIP":        {"slots": -1, "apply": {"power": -2, "accuracy": +15}, "sign": "-", "desc": "power → 1, accuracy +15", "cat": "descriptor", "stat": "power"},
-    "LIGHT":       {"slots":  0, "apply": {"power":  0}, "sign": "=", "desc": "power → 3",  "cat": "descriptor", "stat": "power"},
-    "MEDIUM":      {"slots":  1, "apply": {"power": +2}, "sign": "+", "desc": "power → 5",  "cat": "descriptor", "stat": "power"},
-    "HEAVY":       {"slots":  2, "apply": {"power": +4}, "sign": "+", "desc": "power → 7",  "cat": "descriptor", "stat": "power"},
-    "CRUSHER":     {"slots":  3, "apply": {"power": +6}, "sign": "+", "desc": "power → 9",  "cat": "descriptor", "stat": "power"},
-    # accuracy
-    "PRECISE":     {"slots":  2, "apply": {"accuracy": +15}, "sign": "+", "desc": "accuracy +15", "cat": "descriptor", "stat": "accuracy"},
-    "SHARPEYE":    {"slots":  1, "apply": {"accuracy": +10}, "sign": "+", "desc": "accuracy +10", "cat": "descriptor", "stat": "accuracy"},
-    "INACCURATE":  {"slots": -1, "apply": {"accuracy": -20}, "sign": "-", "desc": "accuracy -20", "cat": "descriptor", "stat": "accuracy"},
-    # speed
-    "BURST":       {"slots":  2, "apply": {"speed": +2}, "sign": "+", "desc": "speed +2", "cat": "descriptor", "stat": "speed"},
-    "QUICK":       {"slots":  1, "apply": {"speed": +1}, "sign": "+", "desc": "speed +1", "cat": "descriptor", "stat": "speed"},
-    "SLOW":        {"slots": -1, "apply": {"speed": -1}, "sign": "-", "desc": "speed -1", "cat": "descriptor", "stat": "speed"},
-    "SLUGGISH":    {"slots": -1, "apply": {"speed": -2, "power": -2}, "sign": "-", "desc": "speed -2, power -2", "cat": "descriptor", "stat": "speed"},
-    # tracking
-    "HOMING":      {"slots":  2, "apply": {"tracking": +3}, "sign": "+", "desc": "tracking +3", "cat": "descriptor", "stat": "tracking"},
-    "FOCUSED":     {"slots":  1, "apply": {"tracking": +2}, "sign": "+", "desc": "tracking +2", "cat": "descriptor", "stat": "tracking"},
-    "TELEGRAPHED": {"slots": -1, "apply": {"tracking": -3}, "sign": "-", "desc": "tracking -3", "cat": "descriptor", "stat": "tracking"},
-    # hits
-    "MULTI":       {"slots":  1, "apply": {"hits": +1},  "sign": "+", "desc": "+1 hit roll", "cat": "descriptor", "stat": "hits"},
-    "FLURRY":      {"slots":  2, "apply": {"hits": +5},  "sign": "+", "desc": "+5 hit rolls (power spread, independent rolls)", "cat": "descriptor", "stat": "hits"},
-    "BARRAGE":     {"slots":  3, "apply": {"hits": +29}, "sign": "+", "desc": "+29 hit rolls (30 total, 2× scale on full connect)", "cat": "descriptor", "stat": "hits"},
-    # conditions
-    "DRAINING":    {"slots": -1, "apply": {"hp_cost": 15},    "sign": "-", "desc": "15 HP on use",       "cat": "condition", "stat": "hp_cost"},
-    "EXHAUSTING":  {"slots": -1, "apply": {"hp_cost": 25},    "sign": "-", "desc": "25 HP on use",       "cat": "condition", "stat": "hp_cost"},
-    "RISKY":       {"slots": -1, "apply": {"recoil": 0.20},   "sign": "-", "desc": "20% recoil",         "cat": "condition", "stat": "recoil"},
-    "BURN":        {"slots":  1, "apply": {},                  "sign": "+", "desc": "30% burn on hit (8 dmg/turn, 2 turns)", "cat": "condition", "stat": "burn"},
-    "HOT":         {"slots":  1, "apply": {"power": +1},      "sign": "+", "desc": "ignores armor, +2 dmg vs blocks",       "cat": "condition", "stat": "hot"},
+    "RISKY":  {"desc": "You take 20% of the damage you deal as recoil.",   "recoil": 0.20},
+    "SLASH":  {"desc": "Makes this a slash attack (needs a bladed weapon).",   "attack_type": "slash"},
+    "PIERCE": {"desc": "Makes this a pierce attack (needs a piercing weapon).", "attack_type": "pierce"},
 }
 
-MAX_MOVES = 4
 
-
-def _build_move(name, attack_type, keywords):
+def build_pool_move(name, power, accuracy, speed, keywords):
     """
-    Build a move from a keyword list.
-    Returns a result dict with keys: stats, used, remaining, log, errors, warnings.
+    Build a move from three pool scores + keyword list.
+    Returns a result dict: name, stats, keywords, errors, warnings.
     """
-    stats      = dict(BASE)
-    used       = 0
-    log        = []
-    errors     = []
-    warnings   = []
-    tiers_seen = []
+    errors   = []
+    warnings = []
 
-    # hard check — multiple power tiers can't coexist
-    tiers_in_input = [k.strip().upper() for k in keywords if k.strip().upper() in POWER_TIERS]
-    if len(tiers_in_input) > 1:
-        errors.append(f"Only one power tier allowed — you used: {', '.join(tiers_in_input)}")
-        return {
-            "name": name, "type": attack_type,
-            "stats": stats, "used": 0, "remaining": SLOTS,
-            "log": [], "errors": errors, "warnings": [],
-        }
+    for label, v in (("Power", power), ("Accuracy", accuracy), ("Speed", speed)):
+        if not isinstance(v, int) or not (STAT_MIN <= v <= STAT_MAX):
+            errors.append(f"{label} must be a whole number from {STAT_MIN} to {STAT_MAX}.")
 
-    # hard check — flurry and barrage can't coexist
-    hit_tiers_in_input = [k.strip().upper() for k in keywords if k.strip().upper() in HIT_TIERS]
-    if len(hit_tiers_in_input) > 1:
-        errors.append(f"FLURRY and BARRAGE can't be combined — pick one")
-        return {
-            "name": name, "type": attack_type,
-            "stats": stats, "used": 0, "remaining": SLOTS,
-            "log": [], "errors": errors, "warnings": [],
-        }
+    nums  = [v for v in (power, accuracy, speed) if isinstance(v, int)]
+    total = sum(nums)
+    if not errors and total != POOL_TOTAL:
+        errors.append(
+            f"Power + Accuracy + Speed must total {POOL_TOTAL} — yours total {total}."
+        )
 
-    for kw in keywords:
-        key = kw.strip().upper()
-        if key not in KEYWORDS:
-            errors.append(key)
+    kws         = []
+    attack_type = "blunt"
+    recoil      = 0.0
+    for raw in keywords:
+        k = raw.strip().upper()
+        if not k:
             continue
-        if key in POWER_TIERS:
-            tiers_seen.append(key)
-        entry = KEYWORDS[key]
-        used += entry["slots"]
-        log.append((key, entry))
-        if key == "BURN":
-            stats["burn"] = True
-        if key == "HOT":
-            stats["hot"] = True
-        for stat, delta in entry["apply"].items():
-            if stat == "recoil":
-                stats["recoil"] = round(stats["recoil"] + delta, 2)
-            elif stat == "hp_cost":
-                stats["hp_cost"] += delta
-            elif stat not in ("burn", "hot"):
-                stats[stat] += delta
+        if k not in KEYWORDS:
+            errors.append(f"Unknown keyword `{k}`.")
+            continue
+        if k in kws:
+            continue
+        kws.append(k)
+        e = KEYWORDS[k]
+        if "attack_type" in e:
+            attack_type = e["attack_type"]
+        if "recoil" in e:
+            recoil = e["recoil"]
 
-    stats["power"]    = max(1,  min(10,  stats["power"]))
-    stats["accuracy"] = max(5,  min(100, stats["accuracy"]))
-    stats["tracking"] = max(1,  min(10,  stats["tracking"]))
-    stats["speed"]    = max(-2, min(2,   stats["speed"]))
-    stats["hits"]     = max(1,  min(30,  stats["hits"]))
+    if len([k for k in kws if k in ("SLASH", "PIERCE")]) > 1:
+        errors.append("Pick only one of `SLASH` or `PIERCE`.")
 
-    return {
-        "name":      name,
-        "type":      attack_type,
-        "stats":     stats,
-        "used":      used,
-        "remaining": SLOTS - used,
-        "log":       log,
-        "errors":    errors,
-        "warnings":  warnings,
+    stats = {
+        "power": power, "accuracy": accuracy, "speed": speed,
+        "attack_type": attack_type, "recoil": recoil,
     }
+    return {"name": name, "stats": stats, "keywords": kws,
+            "errors": errors, "warnings": warnings}
 
 
-def _to_battle_dict(name, attack_type, built):
-    """
-    Convert build result to a dict battle.py can use.
-    Stores _display and _keywords for kit show rendering.
-    """
-    s = built["stats"]
+def to_battle_dict(result):
+    """Convert a build result into the move dict battle.py consumes."""
+    s = result["stats"]
     return {
-        # battle.py fields
-        "name":        name,
-        "power":       s["power"],
-        "accuracy":    s["accuracy"],
-        "attack_type": attack_type,
-        "hp_cost":     s["hp_cost"],
+        "name":        result["name"],
+        "attack_type": s["attack_type"],
+        "power":       s["power"],       # 1..6 pool score
+        "accuracy":    s["accuracy"],    # 1..6 pool score
+        "speed":       s["speed"],       # 1..6 pool score
         "recoil":      s["recoil"],
-        "hits":        s["hits"],
-        "speed":       s["speed"],
-        "tracking":    s["tracking"],
-        "burn":        s.get("burn", False),
-        "hot":         s.get("hot", False),
-        # display metadata (underscore = ignored by battle.py)
-        "_keywords":   [kw for kw, _ in built["log"]],
-        "_display":    s,
+        # dormant fields kept so the engine's optional paths never KeyError
+        "hits":        1,
+        "hp_cost":     0,
+        "burn":        False,
+        "hot":         False,
+        "_keywords":   result["keywords"],
+        "_pool":       {"power": s["power"], "accuracy": s["accuracy"], "speed": s["speed"]},
     }
+
+
+# ── Legacy conversion ─────────────────────────────────────────────────────────
+# Best-effort remap of pre-pool moves (old keyword/slot builds, or NPC CSV tags)
+# into the pool model. Used by /admin recalcmoves and the NPC move builder.
+
+_OLD_POWER_ADJ = {"CRUSHER": 3, "HEAVY": 2, "MEDIUM": 1, "LIGHT": 0, "CHIP": -1, "SLUGGISH": -1}
+_OLD_ACC_ADJ   = {"PRECISE": 2, "SHARPEYE": 1, "INACCURATE": -2}
+_OLD_SPD_ADJ   = {"BURST": 2, "QUICK": 1, "SLOW": -1, "SLUGGISH": -2}
+
+
+def _distribute_pool(rp, ra, rs):
+    """Turn three raw affinities into integer scores in [STAT_MIN, STAT_MAX] summing to POOL_TOTAL."""
+    raws  = [max(0.01, rp), max(0.01, ra), max(0.01, rs)]
+    tot   = sum(raws)
+    rem   = POOL_TOTAL - 3 * STAT_MIN
+    alloc = [r / tot * rem for r in raws]
+    base  = [int(a) for a in alloc]
+    scores = [STAT_MIN + b for b in base]
+    left  = rem - sum(base)
+    order = sorted(range(3), key=lambda i: alloc[i] - base[i], reverse=True)
+    for i in range(left):
+        scores[order[i]] += 1
+    # clamp to STAT_MAX, spilling overflow to stats with room (keeps the total)
+    for i in range(3):
+        if scores[i] > STAT_MAX:
+            over = scores[i] - STAT_MAX
+            scores[i] = STAT_MAX
+            for j in range(3):
+                if over <= 0:
+                    break
+                room = STAT_MAX - scores[j]
+                if room > 0:
+                    take = min(over, room)
+                    scores[j] += take
+                    over -= take
+    return scores[0], scores[1], scores[2]
+
+
+def legacy_to_pool(old_move):
+    """Return (power, accuracy, speed, keywords, attack_type) for a pre-pool move."""
+    attack_type = old_move.get("attack_type", "blunt")
+
+    # already a pool move — keep its scores, just normalise keywords
+    pool = old_move.get("_pool")
+    if pool:
+        power    = pool.get("power", 3)
+        accuracy = pool.get("accuracy", 3)
+        speed    = pool.get("speed", 4)
+    else:
+        disp = old_move.get("_display") or {}
+        kws  = [k.upper() for k in old_move.get("_keywords", [])]
+        if disp:
+            rp = disp.get("power", 3)                       # 1..10
+            ra = (disp.get("accuracy", 75) - 40) / 12.0     # ~45..100 → ~0.4..5
+            rs = disp.get("speed", 0) + 3                   # tier -2..2 → 1..5
+        else:
+            rp = 3 + sum(_OLD_POWER_ADJ.get(k, 0) for k in kws)
+            ra = 3 + sum(_OLD_ACC_ADJ.get(k, 0)   for k in kws)
+            rs = 3 + sum(_OLD_SPD_ADJ.get(k, 0)   for k in kws)
+        power, accuracy, speed = _distribute_pool(rp, ra, rs)
+
+    new_kws = []
+    if attack_type == "slash":
+        new_kws.append("SLASH")
+    elif attack_type == "pierce":
+        new_kws.append("PIERCE")
+    old_kws = [k.upper() for k in old_move.get("_keywords", [])]
+    if old_move.get("recoil", 0) or "RISKY" in old_kws:
+        new_kws.append("RISKY")
+    return power, accuracy, speed, new_kws, attack_type
 
 
 # ── Discord display helpers ───────────────────────────────────────────────────
@@ -161,75 +185,42 @@ def _bar(val, max_val, width=8):
     return "█" * filled + "░" * (width - filled)
 
 
-def _format_built(built):
-    """Format a freshly-built move (has stats dict) for an embed field."""
-    s   = built["stats"]
-    kws = " ".join(kw for kw, _ in built["log"]) or "none"
-    over = built["remaining"] < 0
-    slot_str = f"{built['used']}/{SLOTS}" + (" ⚠ OVER BUDGET" if over else "")
+def _format_pool(power, accuracy, speed, attack_type, keywords, recoil=0.0):
+    """Shared renderer for a pool move's stat block."""
+    total = power + accuracy + speed
+    over  = (total != POOL_TOTAL)
     lines = [
-        f"`{_bar(s['power'],    10)}` **{s['power']}/10** pwr  "
-        f"`{_bar(s['accuracy'], 100)}` **{s['accuracy']}%** acc  "
-        f"`{_bar(s['tracking'], 10)}` **{s['tracking']}/10** trk",
-        f"Speed **{s['speed']:+d}**  ·  Slots **{slot_str}**",
+        f"`{_bar(power,    STAT_MAX)}` **{power}** pwr → ×{dmg_mult(power)} dmg",
+        f"`{_bar(accuracy, STAT_MAX)}` **{accuracy}** acc → {hit_pct(accuracy)}% to hit",
+        f"`{_bar(speed,    STAT_MAX)}` **{speed}** spd → {evasion_pct(speed)}% evade · "
+        f"{pierce_pct(speed)}% pierce",
+        f"Pool **{total}/{POOL_TOTAL}**" + ("  ⚠ must total 10" if over else "")
+        + f"  ·  Type `{attack_type}`",
     ]
-    mods = []
-    if s["hits"] > 1:    mods.append(f"×{s['hits']} hits")
-    if s["hp_cost"] > 0: mods.append(f"{s['hp_cost']} HP on use")
-    if s["recoil"] > 0:  mods.append(f"{int(s['recoil']*100)}% recoil")
-    if mods:
-        lines.append("Modifiers: " + " · ".join(mods))
+    kws = " ".join(keywords) if keywords else "none"
     lines.append(f"Keywords: `{kws}`")
     return "\n".join(lines)
+
+
+def _format_built(result):
+    """Format a freshly-built pool move for an embed field."""
+    s = result["stats"]
+    return _format_pool(s["power"], s["accuracy"], s["speed"],
+                        s["attack_type"], result["keywords"], s["recoil"])
 
 
 def _format_stored(move):
-    """Format a stored move dict (has _display) for an embed field."""
-    s   = move.get("_display", {})
-    kws = " ".join(move.get("_keywords", [])) or "legacy move"
-    lines = [
-        f"`{_bar(s.get('power',    3),  10)}` **{s.get('power', 3)}/10** pwr  "
-        f"`{_bar(s.get('accuracy', 75), 100)}` **{s.get('accuracy', 75)}%** acc  "
-        f"`{_bar(s.get('tracking', 5),  10)}` **{s.get('tracking', 5)}/10** trk",
-        f"Speed **{s.get('speed', 0):+d}**",
-    ]
-    mods = []
-    if move.get("hits", 1) > 1:   mods.append(f"×{move['hits']} hits")
-    if move.get("hp_cost", 0) > 0: mods.append(f"{move['hp_cost']} HP on use")
-    if move.get("recoil",  0) > 0: mods.append(f"{int(move['recoil']*100)}% recoil")
-    if mods:
-        lines.append("Modifiers: " + " · ".join(mods))
-    lines.append(f"Keywords: `{kws}`")
-    return "\n".join(lines)
+    """Format a stored move dict for an embed field."""
+    pool = move.get("_pool") or {}
+    power    = pool.get("power",    move.get("power", 3))
+    accuracy = pool.get("accuracy", move.get("accuracy", 3))
+    speed    = pool.get("speed",    move.get("speed", 4))
+    return _format_pool(power, accuracy, speed,
+                        move.get("attack_type", "blunt"),
+                        move.get("_keywords", []), move.get("recoil", 0.0))
 
 
 # ── Autocomplete handlers ─────────────────────────────────────────────────────
-
-async def _kw_autocomplete(interaction: discord.Interaction, current: str):
-    try:
-        ns = interaction.namespace
-        already = {
-            (getattr(ns, "kw1", "") or "").upper(),
-            (getattr(ns, "kw2", "") or "").upper(),
-            (getattr(ns, "kw3", "") or "").upper(),
-            (getattr(ns, "kw4", "") or "").upper(),
-        } - {""}
-
-        partial = current.upper()
-        choices = []
-        for kw, entry in KEYWORDS.items():
-            if kw in already:
-                continue
-            if partial and not kw.startswith(partial):
-                continue
-            choices.append(discord.app_commands.Choice(
-                name=kw,
-                value=kw,
-            ))
-        return choices[:25]
-    except (discord.NotFound, Exception):
-        return []
-
 
 async def _move_name_autocomplete(interaction: discord.Interaction, current: str):
     try:
@@ -263,21 +254,32 @@ async def kit_help(interaction: discord.Interaction):
     embed = discord.Embed(
         title="How to build your kit",
         description=(
-            "Your kit is your moveset - build four unique moves that represent your character! "
-            "Each move can be built from any mix of the keywords below so long as you follow these constraints:\n\n"
-            "• Each move has a **4 slot budget**.\n"
-            "• You cannot pick two keywords in the same category (except for extra conditions).\n"
-            "• You cannot use more than 4 keywords, even if the slot usage is acceptable.\n"
-            "• You can unlock slash and pierce moves if you own appropriate weapons."
+            "Your kit is your moveset — build up to four moves that represent your character!\n\n"
+            f"Every move spends **{POOL_TOTAL} points** across three stats. Each stat must be "
+            f"between **{STAT_MIN}** and **{STAT_MAX}**, and the three must add up to exactly "
+            f"**{POOL_TOTAL}**."
         ),
         color=0x3a7ebf,
     )
-    embed.add_field(name="Power",            value="`CHIP` (+1, +acc) · `LIGHT` (0) · `MEDIUM` (−1) · `HEAVY` (−2) · `CRUSHER` (−3)", inline=False)
-    embed.add_field(name="Accuracy",         value="`INACCURATE` (+1) · `SHARPEYE` (−1) · `PRECISE` (−2)", inline=False)
-    embed.add_field(name="Speed",            value="`SLUGGISH` (+2, −pwr) · `SLOW` (+1) · `QUICK` (−1) · `BURST` (−2)", inline=False)
-    embed.add_field(name="Tracking",         value="`TELEGRAPHED` (+1) · `FOCUSED` (−1) · `HOMING` (−2)", inline=False)
-    embed.add_field(name="Hits",             value="`MULTI` (−1) · `FLURRY` (−2) · `BARRAGE` (−3)", inline=False)
-    embed.add_field(name="Extra conditions", value="`DRAINING` (+1) · `EXHAUSTING` (+1) · `RISKY` (+1) · `BURN` (−1) · `HOT` (−1)", inline=False)
+    embed.add_field(
+        name="Power",
+        value="Bigger hits. Score → damage: 1 = ×0.70 … 6 = ×1.20.",
+        inline=False,
+    )
+    embed.add_field(
+        name="Accuracy",
+        value="Chance to land. Score → hit %: 1 = 55% … 6 = 95%.",
+        inline=False,
+    )
+    embed.add_field(
+        name="Speed",
+        value=("Weave and strike first. Score → evasion (dodge incoming hits) + pierce "
+               "(cut a target's evasion) + initiative. 1 = 0% / 0% … 6 = 35% / 15%."),
+        inline=False,
+    )
+    kw_lines = "\n".join(f"`{k}` — {v['desc']}" for k, v in KEYWORDS.items())
+    embed.add_field(name="Keywords (optional)", value=kw_lines, inline=False)
+    embed.set_footer(text="Example: Power 5 · Accuracy 4 · Speed 1  +  keyword RISKY")
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
@@ -308,100 +310,85 @@ async def kit_show(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-_VALID_TYPES = {"blunt", "slash", "pierce"}
+def _parse_int(raw):
+    try:
+        return int(str(raw).strip())
+    except (ValueError, TypeError):
+        return None
 
 
-def _render_move_result(uid: str, name_raw: str, type_raw: str, kw_raw: str):
+def _render_move_result(uid, name_raw, power_raw, acc_raw, speed_raw, kw_raw):
     """
-    Validate and build a move from raw modal input.
-    Returns (embed, view) — view always has an Edit button; an Add button too
-    when the move is valid and within budget.
+    Validate and build a pool move from raw modal input.
+    Returns (embed, view) — Edit button always; Add button when the move is valid.
     """
-    name        = (name_raw or "").strip()[:50] or "Unnamed"
-    attack_type = (type_raw or "").strip().lower()
-    keywords    = [k.upper() for k in (kw_raw or "").split()]
-    moves       = db.get_player_moves(uid)
+    name     = (name_raw or "").strip()[:50] or "Unnamed"
+    keywords = [k.upper() for k in (kw_raw or "").split()]
+    moves    = db.get_player_moves(uid)
 
-    # invalid attack type → reject
-    if attack_type not in _VALID_TYPES:
+    power    = _parse_int(power_raw)
+    accuracy = _parse_int(acc_raw)
+    speed    = _parse_int(speed_raw)
+
+    result = build_pool_move(name, power, accuracy, speed, keywords)
+    raws   = (name_raw, power_raw, acc_raw, speed_raw, kw_raw)
+
+    if result["errors"]:
         embed = discord.Embed(
-            title="⚠  Invalid attack type",
-            description=(
-                f"`{type_raw}` isn't a valid attack type.\n"
-                "Use one of: `blunt` · `slash` · `pierce`."
-            ),
+            title="⚠  Can't build that move",
+            description="• " + "\n• ".join(result["errors"])
+                        + "\n\nPress **Edit** to fix it. See `/kit help` for the rules.",
             color=0xe05555,
         )
-        view = MoveResultView(uid, name_raw, type_raw, kw_raw, addable=False)
-        return embed, view
+        return embed, MoveResultView(uid, *raws, addable=False)
 
-    built = _build_move(name, attack_type, keywords)
-
-    # unknown keywords → reject
-    if built["errors"]:
-        embed = discord.Embed(
-            title="⚠  Unknown keyword(s)",
-            description=(
-                f"These aren't valid keywords: `{'`, `'.join(built['errors'])}`\n"
-                "Use `/kit help` for the full list, then press **Edit** to fix them."
-            ),
-            color=0xe05555,
-        )
-        view = MoveResultView(uid, name_raw, type_raw, kw_raw, addable=False)
-        return embed, view
-
-    over  = built["remaining"] < 0
+    s = result["stats"]
     embed = discord.Embed(
-        title=f"{'⚠  Over budget: ' if over else 'Preview: '}{name}  ·  `{attack_type}`",
-        description=_format_built(built),
-        color=0xe05555 if over else 0x1a3f6b,
+        title=f"Preview: {name}  ·  `{s['attack_type']}`",
+        description=_format_built(result),
+        color=0x1a3f6b,
     )
-    if built["warnings"]:
-        embed.add_field(name="⚠ Warning", value="\n".join(built["warnings"]), inline=False)
-
-    if over:
-        embed.set_footer(text=f"Over budget by {-built['remaining']} slot(s) — press Edit to adjust.")
-        view = MoveResultView(uid, name_raw, type_raw, kw_raw, addable=False)
-        return embed, view
-
-    embed.set_footer(text=f"Slot budget: {built['used']}/{SLOTS}  ·  Kit: {len(moves)}/{MAX_MOVES}")
-    move_dict = _to_battle_dict(name, attack_type, built)
+    embed.set_footer(text=f"Kit: {len(moves)}/{MAX_MOVES} moves")
+    move_dict = to_battle_dict(result)
     view = MoveResultView(
-        uid, name_raw, type_raw, kw_raw,
-        addable=True, move_dict=move_dict, built=built, move_count=len(moves),
+        uid, *raws,
+        addable=True, move_dict=move_dict, built=result, move_count=len(moves),
     )
     return embed, view
 
 
 class KitAddModal(discord.ui.Modal):
-    def __init__(self, uid: str, name: str = "", attack_type: str = "",
-                 keywords: str = "", edit_existing: bool = False):
+    def __init__(self, uid: str, name: str = "", power: str = "",
+                 accuracy: str = "", speed: str = "", keywords: str = "",
+                 edit_existing: bool = False):
         super().__init__(title="Build a Move")
         self.uid           = uid
         self.edit_existing = edit_existing
 
         self.name_input = discord.ui.TextInput(
-            label="Move name",
-            default=name,
-            max_length=50,
-            required=True,
+            label="Move name", default=name, max_length=50, required=True,
         )
-        self.type_input = discord.ui.TextInput(
-            label="Attack type (blunt / slash / pierce)",
-            default=attack_type or "blunt",
-            max_length=10,
-            required=True,
+        self.power_input = discord.ui.TextInput(
+            label="Power (1-6)", default=power, max_length=1, required=True,
+            placeholder="e.g. 5",
+        )
+        self.acc_input = discord.ui.TextInput(
+            label="Accuracy (1-6)", default=accuracy, max_length=1, required=True,
+            placeholder="e.g. 4",
+        )
+        self.speed_input = discord.ui.TextInput(
+            label="Speed (1-6)  ·  must total 10", default=speed, max_length=1,
+            required=True, placeholder="e.g. 1",
         )
         self.kw_input = discord.ui.TextInput(
-            label="Keywords (space-separated)",
-            placeholder="e.g. CRUSHER BURST HOMING",
-            default=keywords,
-            style=discord.TextStyle.paragraph,
-            max_length=200,
-            required=False,
+            label="Keywords (optional)",
+            placeholder="RISKY  ·  SLASH  ·  PIERCE",
+            default=keywords, max_length=100, required=False,
         )
         self.add_item(self.name_input)
-        self.add_item(self.type_input)
+        self.add_item(self.power_input)
+        self.add_item(self.acc_input)
+        self.add_item(self.speed_input)
         self.add_item(self.kw_input)
 
     async def on_submit(self, interaction: discord.Interaction):
@@ -411,7 +398,7 @@ class KitAddModal(discord.ui.Modal):
             )
             return
 
-        if len(db.get_player_moves(self.uid)) >= MAX_MOVES:
+        if not self.edit_existing and len(db.get_player_moves(self.uid)) >= MAX_MOVES:
             await interaction.response.send_message(
                 f"Kit is full ({MAX_MOVES}/{MAX_MOVES}). Remove a move first with `/kit remove`.",
                 ephemeral=True,
@@ -419,8 +406,9 @@ class KitAddModal(discord.ui.Modal):
             return
 
         embed, view = _render_move_result(
-            self.uid, str(self.name_input.value),
-            str(self.type_input.value), str(self.kw_input.value),
+            self.uid, str(self.name_input.value), str(self.power_input.value),
+            str(self.acc_input.value), str(self.speed_input.value),
+            str(self.kw_input.value),
         )
         if self.edit_existing:
             await interaction.response.edit_message(content=None, embed=embed, view=view)
@@ -429,13 +417,16 @@ class KitAddModal(discord.ui.Modal):
 
 
 class MoveResultView(discord.ui.View):
-    def __init__(self, uid: str, raw_name: str, raw_type: str, raw_keywords: str,
+    def __init__(self, uid: str, raw_name: str, raw_power: str, raw_acc: str,
+                 raw_speed: str, raw_keywords: str,
                  addable: bool = False, move_dict: dict = None,
                  built: dict = None, move_count: int = 0):
         super().__init__(timeout=300)
         self.uid          = uid
         self.raw_name     = raw_name
-        self.raw_type     = raw_type
+        self.raw_power    = raw_power
+        self.raw_acc      = raw_acc
+        self.raw_speed    = raw_speed
         self.raw_keywords = raw_keywords
         self.move_dict    = move_dict
         self.built        = built
@@ -491,7 +482,9 @@ class MoveResultView(discord.ui.View):
         modal = KitAddModal(
             self.uid,
             name=self.raw_name,
-            attack_type=self.raw_type,
+            power=self.raw_power,
+            accuracy=self.raw_acc,
+            speed=self.raw_speed,
             keywords=self.raw_keywords,
             edit_existing=True,
         )

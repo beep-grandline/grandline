@@ -19,6 +19,17 @@ COUNTER_ATK_FRACTION = 0.15
 DAMAGE_SCALE     = 0.85
 ATK_DEF_EXPONENT = 0.5
 
+# ── Pool-stat move model ──────────────────────────────────────────────────────
+# Moves carry three 1-6 pool scores (power / accuracy / speed). These map to
+# battle effects here; keep in sync with kit_commands.
+#   MOVE_DMG_BASE — damage of a power-1 move at equal atk/def. Fight-length knob.
+MOVE_DMG_BASE = 16
+
+def _move_dmg_mult(power):   return 0.7 + 0.1 * (max(1, min(6, power)) - 1)   # 0.70 .. 1.20
+def _move_hit_pct(accuracy): return 55 + 8 * (max(1, min(6, accuracy)) - 1)   # 55 .. 95
+def _move_evasion(speed):    return max(0, 7 * (max(1, min(6, speed)) - 1))    # 0 .. 35
+def _move_pierce(speed):     return max(0, 3 * (max(1, min(6, speed)) - 1))    # 0 .. 15
+
 # ── Type Chart 1: Elemental (Pokemon gen 6) ───────────────────────────────────
 
 ELEMENTAL_CHART = {
@@ -187,7 +198,7 @@ def _roll_escape(escaper, pursuer):
 def _calculate_damage(attacker, defender, move, is_blocking=False):
     attack_type = move.get("attack_type", "blunt")
 
-    base_acc      = move["accuracy"]
+    base_acc      = _move_hit_pct(move.get("accuracy", 3))
     acc_mod       = _accuracy_mod(attack_type, _eff_type2(defender))
     effective_acc = base_acc * acc_mod
     hit           = random.uniform(0, 100) <= effective_acc
@@ -195,7 +206,7 @@ def _calculate_damage(attacker, defender, move, is_blocking=False):
         return 0, False, False, 1.0, 1.0
 
     ratio = _eff_atk(attacker) / max(_eff_def(defender), 1)
-    base  = move["power"] * (ratio ** ATK_DEF_EXPONENT) * DAMAGE_SCALE
+    base  = MOVE_DMG_BASE * _move_dmg_mult(move.get("power", 3)) * (ratio ** ATK_DEF_EXPONENT) * DAMAGE_SCALE
     base *= random.uniform(0.85, 1.15)
 
     crit = random.random() < 0.0625
@@ -368,6 +379,16 @@ def _resolve_action(actor, target, action, move_name, opp_action):
         lines.append(f"{actor['name']} used **{move['name']}**! [{attack_type} | {hits} hit{'s' if hits > 1 else ''}]")
 
         if hits == 1:
+            # passive evasion — a fast defender weaves out of the way of an
+            # incoming attack. Only when they aren't already blocking/dodging
+            # (those actions have their own dedicated rolls). Speed on the
+            # attacking move pierces through some of that evasion.
+            if opp_action not in ("block", "dodge"):
+                ev = _move_evasion(target.get("_turn_speed", 1)) - _move_pierce(move.get("speed", 1))
+                if ev > 0 and random.uniform(0, 100) < ev:
+                    lines.append(f"→ {target['name']} weaves out of the way! ({round(ev)}% chance)")
+                    return lines
+
             # ── single hit — roll block here, only for this path ──────────────
             is_blocking = (opp_action == "block")
             if is_blocking:
@@ -614,6 +635,17 @@ def resolve_turn(state, action_a, action_b):
     state["turn"] += 1
     log = [f"**── Turn {state['turn']} ──**"]
 
+    # This turn's move speed drives evasion + initiative. Only an attacking
+    # fighter projects their move's speed; blockers/dodgers/etc. weave at 1.
+    def _this_turn_speed(fighter, act, move_name):
+        if act == "attack" and move_name:
+            m = _find_move(fighter, move_name)
+            if m:
+                return m.get("speed", 1)
+        return 1
+    fa["_turn_speed"] = _this_turn_speed(fa, act_a, move_a)
+    fb["_turn_speed"] = _this_turn_speed(fb, act_b, move_b)
+
     # ── Phase 2 paw check ─────────────────────────────────────────────────────
     # If a fighter has paw_incoming, the teleport fires this turn.
     # Only a successful escape can prevent it.
@@ -651,11 +683,11 @@ def resolve_turn(state, action_a, action_b):
         log.append(f"⚡ {fb['name']} moves first from last turn's dodge!")
         a_goes_first = False
     else:
+        # move speed (1-6 pool score) is a strong initiative tier on top of raw spd
         pri_move_a = (_find_move(fa, move_a) or {}).get("speed", 0) if act_a == "attack" else 0
         pri_move_b = (_find_move(fb, move_b) or {}).get("speed", 0) if act_b == "attack" else 0
-        # priority is a discrete tier; weight heavily so it overrides speed
-        total_a = _eff_spd(fa) + pri_move_a * 10
-        total_b = _eff_spd(fb) + pri_move_b * 10
+        total_a = _eff_spd(fa) + pri_move_a * 4
+        total_b = _eff_spd(fb) + pri_move_b * 4
         a_goes_first = total_a >= total_b
 
     if a_goes_first:

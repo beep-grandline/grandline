@@ -289,22 +289,18 @@ async def help_command(
 INFO_PAGES = {
     "Kit": {
         "title": "How to build your kit",
-        "blurb": "Build your four-move kit from keywords.",
+        "blurb": "Spend 10 points across Power / Accuracy / Speed per move.",
         "description": (
-            "Your kit is your moveset - build four unique moves that represent your character! "
-            "Each move can be built from any mix of the keywords below so long as you follow these constraints:\n\n"
-            "• Each move has a **4 slot budget**.\n"
-            "• You cannot pick two keywords in the same category (except for extra conditions).\n"
-            "• You cannot use more than 4 keywords, even if the slot usage is acceptable.\n"
-            "• You can unlock slash and pierce moves if you own appropriate weapons."
+            "Your kit is your moveset — build up to four moves that represent your character!\n\n"
+            "Every move spends **10 points** across three stats. Each stat is **1–6**, and the "
+            "three must total exactly **10**. Keywords are optional riders on top."
         ),
         "fields": [
-            ("Power",               "`CHIP` (+1, +acc) · `LIGHT` (0) · `MEDIUM` (−1) · `HEAVY` (−2) · `CRUSHER` (−3)"),
-            ("Accuracy",            "`INACCURATE` (+1) · `SHARPEYE` (−1) · `PRECISE` (−2)"),
-            ("Speed",               "`SLUGGISH` (+2, −pwr) · `SLOW` (+1) · `QUICK` (−1) · `BURST` (−2)"),
-            ("Tracking",            "`TELEGRAPHED` (+1) · `FOCUSED` (−1) · `HOMING` (−2)"),
-            ("Hits",                "`MULTI` (−1) · `FLURRY` (−2) · `BARRAGE` (−3)"),
-            ("Extra conditions",    "`DRAINING` (+1) · `EXHAUSTING` (+1) · `RISKY` (+1) · `BURN` (−1) · `HOT` (−1)"),
+            ("Power",    "Bigger hits. 1 = ×0.70 damage … 6 = ×1.20."),
+            ("Accuracy", "Chance to land. 1 = 55% to hit … 6 = 95%."),
+            ("Speed",    "Weave out of hits, cut a target's evasion, and strike first. "
+                         "1 = 0% evade … 6 = 35% evade."),
+            ("Keywords", "`RISKY` (20% recoil) · `SLASH` / `PIERCE` (attack type, needs a weapon)"),
         ],
     },
     "Defenses": {
@@ -1534,7 +1530,7 @@ async def admin_recalcmoves(interaction: discord.Interaction):
         return
     await interaction.response.defer(ephemeral=True)
 
-    from kit_commands import _build_move, _to_battle_dict
+    from kit_commands import legacy_to_pool, build_pool_move, to_battle_dict
 
     players = db.db.execute("SELECT id FROM players").fetchall()
     total_moves = 0
@@ -1549,21 +1545,15 @@ async def admin_recalcmoves(interaction: discord.Interaction):
         updated = []
         player_changed = False
         for m in moves:
-            kws = m.get("_keywords")
-            attack_type = m.get("attack_type", "blunt")
             name = m.get("name", "Move")
-            if not kws:
-                # legacy move with no keyword metadata — can't rebuild
+            # best-effort remap of any old move (keyword build or stats) to the pool model
+            p, a, s, kws, _ = legacy_to_pool(m)
+            result = build_pool_move(name, p, a, s, kws)
+            if result["errors"]:
                 updated.append(m)
                 skipped += 1
                 continue
-            built = _build_move(name, attack_type, kws)
-            if built["errors"]:
-                updated.append(m)
-                skipped += 1
-                continue
-            new_move = _to_battle_dict(name, attack_type, built)
-            updated.append(new_move)
+            updated.append(to_battle_dict(result))
             total_moves += 1
             player_changed = True
         if player_changed:
@@ -1572,7 +1562,7 @@ async def admin_recalcmoves(interaction: discord.Interaction):
 
     await interaction.followup.send(
         f"Recalculated **{total_moves}** moves across **{total_players}** players."
-        + (f" Skipped {skipped} legacy/invalid moves." if skipped else ""),
+        + (f" Skipped {skipped} unconvertible moves." if skipped else ""),
         ephemeral=True,
     )
 

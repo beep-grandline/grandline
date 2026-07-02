@@ -22,8 +22,6 @@ ROKUSHIKI_DODGES = ["Paper Art", "Moonwalk", "Shave"]
 NPC_CSV_PATH = "data/npcs.csv"
 NPCS: list = []
 
-POWER_SCALE = 9   # must match kit_commands.POWER_SCALE
-
 ATTACK_TYPE_MAP = {"1": "slash", "2": "pierce", "": "blunt"}
 
 # Aggro level → AI action weights
@@ -87,29 +85,19 @@ def get_npcs_at(q: int, r: int) -> list:
 # Reproduces the keyword build logic without importing kit_commands
 # to avoid circular dependencies.
 
-from kit_commands import _build_move   # safe — kit_commands doesn't import npcs
+# safe — kit_commands doesn't import npcs
+from kit_commands import legacy_to_pool, build_pool_move, to_battle_dict
 
 
 def _build_npc_move(name: str, type_code: str, tags_str: str) -> dict:
-    """Parse one NPC move row into a battle-ready move dict."""
+    """Parse one NPC move row (type code + old-style tags) into a pool move."""
     attack_type = ATTACK_TYPE_MAP.get(str(type_code).strip(), "blunt")
-    keywords    = [k.strip().upper() for k in tags_str.split() if k.strip()]
+    tags        = [k.strip().upper() for k in tags_str.split() if k.strip()]
 
-    result = _build_move(name, attack_type, keywords)
-    s      = result["stats"]
-
-    return {
-        "name":        name,
-        "power":       s["power"] * POWER_SCALE,
-        "accuracy":    s["accuracy"],
-        "speed":       s["speed"],
-        "tracking":    s["tracking"],
-        "hits":        s["hits"],
-        "hp_cost":     s["hp_cost"],
-        "recoil":      s["recoil"],
-        "attack_type": attack_type,
-        "_keywords":   keywords,
-    }
+    # Reuse the legacy converter to map the CSV's old keyword tags into pool scores.
+    p, a, s, kws, _ = legacy_to_pool({"attack_type": attack_type, "_keywords": tags})
+    result = build_pool_move(name, p, a, s, kws)
+    return to_battle_dict(result)
 
 
 # ── Fighter builder ───────────────────────────────────────────────────────────
