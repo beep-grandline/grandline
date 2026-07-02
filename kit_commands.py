@@ -50,9 +50,10 @@ def build_pool_move(name, power, accuracy, speed, keywords):
 
     nums  = [v for v in (power, accuracy, speed) if isinstance(v, int)]
     total = sum(nums)
-    if not errors and total != POOL_TOTAL:
+    if not errors and total > POOL_TOTAL:
         errors.append(
-            f"Power + Accuracy + Speed must total {POOL_TOTAL} — yours total {total}."
+            f"You can spend at most {POOL_TOTAL} points across the three stats — "
+            f"yours total {total}."
         )
 
     kws         = []
@@ -188,13 +189,13 @@ def _bar(val, max_val, width=8):
 def _format_pool(power, accuracy, speed, attack_type, keywords, recoil=0.0):
     """Shared renderer for a pool move's stat block."""
     total = power + accuracy + speed
-    over  = (total != POOL_TOTAL)
+    over  = (total > POOL_TOTAL)
     lines = [
         f"`{_bar(power,    STAT_MAX)}` **{power}** pwr → ×{dmg_mult(power)} dmg",
         f"`{_bar(accuracy, STAT_MAX)}` **{accuracy}** acc → {hit_pct(accuracy)}% to hit",
         f"`{_bar(speed,    STAT_MAX)}` **{speed}** spd → {evasion_pct(speed)}% evade · "
         f"{pierce_pct(speed)}% pierce",
-        f"Pool **{total}/{POOL_TOTAL}**" + ("  ⚠ must total 10" if over else "")
+        f"Pool **{total}/{POOL_TOTAL}**" + ("  ⚠ over cap" if over else "")
         + f"  ·  Type `{attack_type}`",
     ]
     kws = " ".join(keywords) if keywords else "none"
@@ -255,9 +256,9 @@ async def kit_help(interaction: discord.Interaction):
         title="How to build your kit",
         description=(
             "Your kit is your moveset — build up to four moves that represent your character!\n\n"
-            f"Every move spends **{POOL_TOTAL} points** across three stats. Each stat must be "
-            f"between **{STAT_MIN}** and **{STAT_MAX}**, and the three must add up to exactly "
-            f"**{POOL_TOTAL}**."
+            f"Every stat starts at a base of **{STAT_MIN}**. You can raise each up to **{STAT_MAX}**, "
+            f"spending **up to {POOL_TOTAL} points** across the three (that's the cap — you don't "
+            f"have to spend it all)."
         ),
         color=0x3a7ebf,
     )
@@ -377,7 +378,7 @@ class KitAddModal(discord.ui.Modal):
             placeholder="e.g. 4",
         )
         self.speed_input = discord.ui.TextInput(
-            label="Speed (1-6)  ·  must total 10", default=speed, max_length=1,
+            label="Speed (1-6)  ·  10 pts total max", default=speed, max_length=1,
             required=True, placeholder="e.g. 1",
         )
         self.kw_input = discord.ui.TextInput(

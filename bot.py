@@ -292,8 +292,9 @@ INFO_PAGES = {
         "blurb": "Spend 10 points across Power / Accuracy / Speed per move.",
         "description": (
             "Your kit is your moveset — build up to four moves that represent your character!\n\n"
-            "Every move spends **10 points** across three stats. Each stat is **1–6**, and the "
-            "three must total exactly **10**. Keywords are optional riders on top."
+            "Every stat starts at a base of **1** and can go up to **6**. You spend **up to 10 "
+            "points** across the three (that's the cap — spend fewer if you like). "
+            "Keywords are optional riders on top."
         ),
         "fields": [
             ("Power",    "Bigger hits. 1 = ×0.70 damage … 6 = ×1.20."),
