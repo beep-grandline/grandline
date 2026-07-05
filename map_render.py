@@ -46,6 +46,13 @@ SEA_COLOR        = TERRAIN_COLORS["sea"]
 # regardless of what the JSON says. The JSON calm_belt terrain type is ignored.
 CALM_BELT_R = 36
 
+# The old ±36 latitude band predates the island-editor coordinate system,
+# where islands are placed at arbitrary (q, r). With it enabled, render_map
+# would skip every island tile beyond that band as "calm belt", hiding them
+# entirely (while the ocean texture still shaded around them). Disabled until
+# the calm belt is redefined in the new coordinate space.
+CALM_BELT_ENABLED = False
+
 # Impel Down — reserved special hex rendered gray
 IMPEL_DOWN = (180, 0)
 IMPEL_DOWN_COLOR = "#5a5a6a"
@@ -625,7 +632,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
                 continue
 
             # Calm belt — driven purely by r axis, ignore JSON calm_belt entirely
-            if abs(r) > CALM_BELT_R:
+            if CALM_BELT_ENABLED and abs(r) > CALM_BELT_R:
                 cx, cy  = _hex_to_pixel(q, r)
                 corners = _hex_corners(q, r)
                 calm_patches.append(
