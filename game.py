@@ -29,9 +29,25 @@ ROLL_MAX           = 12
 ROLL_REGEN_MINUTES = 60   # one roll added per interval
 ROLL_REGEN_AMOUNT  = 1
 
-CALM_BELT_R = 36          # abs(r) > this is impassable calm belt
+CALM_BELT_R      = 36     # abs(r) > this is impassable calm belt — fallback until set_calm_belt_bounds() runs
+CALM_BELT_PADDING = 25
 
 DEFAULT_LOG_POSE = "alabasta"
+
+
+def set_calm_belt_bounds():
+    """
+    Recompute CALM_BELT_R from the centroid r of each island currently placed
+    on the map. Call on startup (after the map is loadable), so the calm belt
+    tracks however far out islands actually sit instead of a stale hardcoded value.
+    """
+    global CALM_BELT_R
+    from map_render import get_island_centers  # lazy import avoids circular load
+    centers = get_island_centers()
+    if not centers:
+        return
+    rs = [r for (_q, r) in centers.values()]
+    CALM_BELT_R = round(max(abs(min(rs)), abs(max(rs)))) + CALM_BELT_PADDING
 
 # ── Position resolver ─────────────────────────────────────────────────────────
 
