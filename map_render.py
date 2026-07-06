@@ -672,7 +672,9 @@ def _get_island_topography(isl: dict):
 
 def _draw_topography(ax, islands):
     """Draw the elevation contour for each island, above the ocean texture
-    (zorder 0) and below the white hex-grid pattern (zorder >= 1)."""
+    (zorder 0) and below the white hex-grid pattern (zorder >= 1). No
+    coastline/outline is drawn here — the hex grid itself (added in
+    render_map's main loop) is the only boundary shown in this view."""
     for isl in islands:
         X, Y, elev_final, soft_mask = _get_island_topography(isl)
 
@@ -690,15 +692,6 @@ def _draw_topography(ax, islands):
             levels=line_levels,
             colors="black", linewidths=0.8, alpha=0.20,
             zorder=0.5,
-        )
-
-        # Coastline — same soft_mask used to cut elev_final, so isolines
-        # above can never render past it.
-        ax.contour(
-            X, Y, soft_mask,
-            levels=[0.5],
-            colors=BORDER_COLOR, linewidths=1.8,
-            zorder=0.6,
         )
 
 
@@ -859,11 +852,22 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
                 if name:
                     island_accum.setdefault(name, []).append((cx, cy))
 
-            for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
-                nq, nr = q + dq, r + dr
-                if (nq, nr) not in nearby_tiles:
-                    p1, p2 = corners[i1], corners[i2]
-                    border_segs.append([p1, p2])
+            if view == "topography":
+                # No island outline in this view — instead, this tile
+                # contributes to the same uniform hex grid as sea tiles do,
+                # so the grid pattern reads as one layer over the whole map.
+                for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
+                    nq, nr = q + dq, r + dr
+                    if _hex_distance(nq, nr, pq, pr) <= radius:
+                        if dq > 0 or (dq == 0 and dr > 0):
+                            p1, p2 = corners[i1], corners[i2]
+                            sea_segs.append([p1, p2])
+            else:
+                for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
+                    nq, nr = q + dq, r + dr
+                    if (nq, nr) not in nearby_tiles:
+                        p1, p2 = corners[i1], corners[i2]
+                        border_segs.append([p1, p2])
 
     # ── Wind-boosted hexes for roll view ─────────────────────────────────────
     if view == "roll":
@@ -974,7 +978,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
         )
         ax.add_collection(pc)
 
-    if border_segs:
+    if border_segs and view != "topography":
         lc = LineCollection(
             border_segs,
             colors=BORDER_COLOR,
