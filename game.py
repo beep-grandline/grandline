@@ -43,7 +43,23 @@ HP_REGEN_PER_HOUR    = 5      # natural recovery
 HP_REGEN_BOOSTED     = 15     # with an active recovery meal
 RECOVERY_MEAL_HOURS  = 4      # how long a recovery meal lasts
 
-CALM_BELT_R = 36          # abs(r) > this is impassable calm belt
+CALM_BELT_R       = 36    # abs(r) > this is impassable calm belt — fallback until set_calm_belt_bounds() runs
+CALM_BELT_PADDING = 25
+
+
+def set_calm_belt_bounds():
+    """
+    Recompute CALM_BELT_R from the centroid r of each island currently placed
+    on the map. Call on startup (after the map is loadable), so the calm belt
+    tracks however far out islands actually sit instead of a stale hardcoded value.
+    """
+    global CALM_BELT_R
+    from map_render import get_island_centers  # lazy import avoids circular load
+    centers = get_island_centers()
+    if not centers:
+        return
+    rs = [r for (_q, r) in centers.values()]
+    CALM_BELT_R = round(max(abs(min(rs)), abs(max(rs)))) + CALM_BELT_PADDING
 
 # Hard-blocked tiles — never passable regardless of terrain
 # (-1, 0) plugs the Reverse Mountain waterfall.

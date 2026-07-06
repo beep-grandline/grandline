@@ -46,9 +46,10 @@ PLAYER_COLOR     = "#F0D060"
 LABEL_COLOR      = "#171717"
 SEA_COLOR        = TERRAIN_COLORS["sea"]
 
-# Calm belt — any hex where abs(r) > 36 is treated as impassable calm belt
-# regardless of what the JSON says. The JSON calm_belt terrain type is ignored.
-CALM_BELT_R = 36
+# Calm belt — any hex where abs(r) > game.CALM_BELT_R is treated as impassable
+# calm belt regardless of what the JSON says. The JSON calm_belt terrain type
+# is ignored. Read game.CALM_BELT_R live (not copied) since it's recomputed
+# by game.set_calm_belt_bounds() on startup, after this module is imported.
 
 # The old ±36 latitude band predates the island-editor coordinate system,
 # where islands are placed at arbitrary (q, r). With it enabled, render_map
@@ -268,6 +269,16 @@ def islands_near(pq, pr, reach):
     ]
 
 
+def get_island_centers() -> dict:
+    """
+    Returns {island_name: (oq, orr)} — the authored origin/centre hex of
+    each island on the current map. Used by game.set_calm_belt_bounds() to
+    size the calm belt around wherever islands actually sit.
+    """
+    _load_map()
+    return dict(_cache["origins"])
+
+
 # ── Geometry helpers ──────────────────────────────────────────────────────────
 
 def _hex_to_pixel(q, r):
@@ -310,7 +321,7 @@ def _reachable_sea(pq, pr, move_range, hex_lookup):
                     continue
                 if n in game.BLOCKED_TILES:
                     continue
-                if abs(n[1]) > CALM_BELT_R:
+                if abs(n[1]) > game.CALM_BELT_R:
                     continue
                 terrain = hex_lookup.get(n, "sea")
                 if terrain == "calm_belt":
@@ -759,7 +770,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
                 continue
 
             # Calm belt — driven purely by r axis, ignore JSON calm_belt entirely
-            if CALM_BELT_ENABLED and abs(r) > CALM_BELT_R:
+            if CALM_BELT_ENABLED and abs(r) > game.CALM_BELT_R:
                 cx, cy  = _hex_to_pixel(q, r)
                 corners = _hex_corners(q, r)
                 calm_patches.append(
@@ -882,7 +893,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
                     continue
                 # Wind dots never land in calm belt
                 if (hex_lookup.get((wq, wr), "sea") == "sea"
-                        and abs(wr) <= CALM_BELT_R
+                        and abs(wr) <= game.CALM_BELT_R
                         and (wq, wr) not in game.BLOCKED_TILES):
                     seen.add((wq, wr))
                     wind_centers.append(_hex_to_pixel(wq, wr))

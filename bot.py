@@ -106,6 +106,7 @@ async def on_ready():
     setup_travel_task(bot)
     load_npcs()
     load_islands()
+    game.set_calm_belt_bounds()
     game.ensure_whirlpools(force=True)   # fresh whirlpool field each bootup
     asyncio.create_task(prerender_all_flags())
     bot.add_view(RolePicker())
