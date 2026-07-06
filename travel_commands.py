@@ -495,12 +495,21 @@ async def travel_pose(interaction: discord.Interaction, destination: str):
 @travel_group.command(name="map", description="View your current area")
 @discord.app_commands.describe(view="Map view")
 @discord.app_commands.choices(view=[
-    discord.app_commands.Choice(name="default", value="default"),
-    discord.app_commands.Choice(name="roll",    value="roll"),
+    discord.app_commands.Choice(name="default",     value="default"),
+    discord.app_commands.Choice(name="roll",        value="roll"),
+    discord.app_commands.Choice(name="topography",  value="topography"),
 ])
 async def travel_map(interaction: discord.Interaction, view: str = "default"):
+    uid    = str(interaction.user.id)
+    player = db.get_player(uid)
+
+    if view == "topography" and (not player or (player["role"] or "").strip().lower() != "navigator"):
+        await interaction.response.send_message(
+            "Only a Navigator can read the topography.", ephemeral=True
+        )
+        return
+
     await interaction.response.defer(ephemeral=True)
-    uid  = str(interaction.user.id)
     loop = asyncio.get_event_loop()
     buf  = await loop.run_in_executor(None, map_render.render_map, uid, 10, view)
     if not buf:
@@ -508,7 +517,9 @@ async def travel_map(interaction: discord.Interaction, view: str = "default"):
             "You are not registered yet. Use `/register` first.", ephemeral=True
         )
         return
-    title = "Your Position" if view == "default" else "Your Position — Roll"
+    titles = {"default": "Your Position", "roll": "Your Position — Roll",
+              "topography": "Your Position — Topography"}
+    title = titles.get(view, "Your Position")
     file  = discord.File(buf, filename="map.png")
     embed = discord.Embed(title=title, color=0x1a3f6b)
     embed.set_image(url="attachment://map.png")

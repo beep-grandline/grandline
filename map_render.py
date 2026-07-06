@@ -9,8 +9,12 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 from matplotlib.collections import PatchCollection, LineCollection
+from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.image import imread
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from scipy.interpolate import griddata
+from scipy.ndimage import gaussian_filter
+from scipy.spatial import cKDTree
 import gc
 
 
@@ -143,15 +147,18 @@ def _load_map():
         origins[name] = (oq, orr)
 
         hexes = isl.get("hexes", []) or []
+        elevs = isl.get("elev", []) or []
         meta  = isl.get("meta", {}) or {}
         tiles = set()
+        elev  = {}
         max_d = 0
 
-        for (dq, dr) in hexes:
+        for i, (dq, dr) in enumerate(hexes):
             q, r = oq + dq, orr + dr
             hex_lookup[(q, r)]   = "island"
             island_names[(q, r)] = name
             tiles.add((q, r))
+            elev[(q, r)] = elevs[i] if i < len(elevs) else 0
             d = max(abs(dq), abs(dr), abs(dq + dr))
             if d > max_d:
                 max_d = d
@@ -173,6 +180,7 @@ def _load_map():
             "orr":    orr,
             "radius": radius,
             "tiles":  tiles,
+            "elev":   elev,
         })
 
     _cache["mtime"]        = mtime
@@ -183,8 +191,9 @@ def _load_map():
     _cache["tile_meta"]    = tile_meta
     _cache["islands"]      = islands
 
-    # Invalidate texture cache whenever the map file changes
+    # Invalidate texture/topography caches whenever the map file changes
     _texture_cache.clear()
+    _topography_cache.clear()
 
 
 # ── Per-tile metadata accessors ────────────────────────────────────────────────
@@ -476,14 +485,138 @@ def _get_ocean_texture(pq, pr, radius, hex_lookup):
     return X, Y, Z
 
 
+# ── Topography (navigator view) ──────────────────────────────────────────────
+# Per-island elevation contour, ported from the Colab prototype. Land mask is
+# geometric (tile-distance based via a KDTree), independent of elevation, so
+# elevation-0 land tiles stay land, and coastline isolines can't render past
+# it (NaN-excluded cells stop the marching-squares algorithm).
+#
+# Cached per island name (not per-viewport, unlike the ocean texture) since
+# an island's own shape never depends on who's looking at it or from where.
+# Entries are cleared whenever the map file reloads (see _load_map).
+
+_topography_cache: dict = {}
+
+_TOPO_GRID_PER_HEX = 6     # grid cells per hex of island radius
+_TOPO_GRID_MIN     = 40    # small islands still get a usable grid
+_TOPO_GRID_MAX     = 220   # cap so a huge island (e.g. Redline) stays cheap
+_TOPO_BLUR_SIGMA   = 1.8
+_TOPO_MASK_RADIUS  = 1.06  # x SIZE — tile-center distance counted as "land"
+
+_TOPO_N_FILL_LEVELS  = 18
+_TOPO_N_LINE_LEVELS  = 16
+_TOPO_LINE_LEVEL_MIN = 2.0  # skip isolines near sea level — keeps the coast clean
+_TOPO_ELEV_MIN, _TOPO_ELEV_MAX = 0, 20
+
+_TOPO_CMAP = LinearSegmentedColormap.from_list(
+    "topo", [(0 / 20, "#54bf64"), (10 / 20, "#f0d646"), (20 / 20, "#c72a2a")]
+)
+
+
+def _get_island_topography(isl: dict):
+    """
+    Returns (X, Y, elev_final, soft_mask) for one island's elevation field,
+    in the same pixel space as the hex grid. Computed once per island name
+    and cached — repeat views (by any player, at any position) are free.
+    """
+    name = isl["name"]
+    if name in _topography_cache:
+        return _topography_cache[name]
+
+    tiles   = list(isl["tiles"])
+    elev    = isl["elev"]
+    centers = np.array([_hex_to_pixel(q, r) for (q, r) in tiles])
+    values  = np.array([elev.get(t, 0) for t in tiles], dtype=float)
+
+    # Ocean ring — every sea hex directly touching the island, elevation 0.
+    tile_set   = isl["tiles"]
+    ocean_ring = set()
+    for (q, r) in tiles:
+        for dq, dr in HEX_DIRS:
+            n = (q + dq, r + dr)
+            if n not in tile_set:
+                ocean_ring.add(n)
+
+    if ocean_ring:
+        ocean_centers = np.array([_hex_to_pixel(q, r) for q, r in ocean_ring])
+        ocean_values  = np.zeros(len(ocean_ring))
+        aug_centers   = np.vstack([centers, ocean_centers])
+        aug_values    = np.concatenate([values, ocean_values])
+    else:
+        aug_centers, aug_values = centers, values
+
+    margin = SIZE * 3
+    minx, maxx = centers[:, 0].min() - margin, centers[:, 0].max() + margin
+    miny, maxy = centers[:, 1].min() - margin, centers[:, 1].max() + margin
+
+    # Grid resolution scales with island size (via the same radius used by
+    # the broad-phase island tree) instead of a fixed 200×200 for every
+    # island, so small islands stay cheap and huge ones stay capped.
+    grid_res = int(np.clip(isl["radius"] * _TOPO_GRID_PER_HEX,
+                            _TOPO_GRID_MIN, _TOPO_GRID_MAX))
+    gx = np.linspace(minx, maxx, grid_res)
+    gy = np.linspace(miny, maxy, grid_res)
+    X, Y = np.meshgrid(gx, gy)
+
+    # Land mask — geometric, distance-to-tile-center based via KDTree.
+    tree = cKDTree(centers)
+    dist, _ = tree.query(np.column_stack([X.ravel(), Y.ravel()]))
+    raw_mask  = (dist <= SIZE * _TOPO_MASK_RADIUS).astype(float).reshape(X.shape)
+    soft_mask = gaussian_filter(raw_mask, sigma=_TOPO_BLUR_SIGMA)
+
+    # Elevation field — one cubic interpolation (land + ocean=0 points),
+    # 0.0 fallback outside its hull, then blurred.
+    smooth       = griddata(aug_centers, aug_values, (X, Y), method="cubic")
+    combined     = np.where(np.isnan(smooth), 0.0, smooth)
+    elev_blurred = gaussian_filter(combined, sigma=_TOPO_BLUR_SIGMA)
+    elev_final   = np.where(soft_mask > 0.5, elev_blurred, np.nan)
+
+    result = (X, Y, elev_final, soft_mask)
+    _topography_cache[name] = result
+    return result
+
+
+def _draw_topography(ax, islands):
+    """Draw the elevation contour for each island, above the ocean texture
+    (zorder 0) and below the white hex-grid pattern (zorder >= 1)."""
+    for isl in islands:
+        X, Y, elev_final, soft_mask = _get_island_topography(isl)
+
+        ax.contourf(
+            X, Y, elev_final,
+            levels=_TOPO_N_FILL_LEVELS,
+            cmap=_TOPO_CMAP,
+            vmin=_TOPO_ELEV_MIN, vmax=_TOPO_ELEV_MAX,
+            zorder=0.4,
+        )
+
+        line_levels = np.linspace(_TOPO_LINE_LEVEL_MIN, _TOPO_ELEV_MAX, _TOPO_N_LINE_LEVELS)
+        ax.contour(
+            X, Y, elev_final,
+            levels=line_levels,
+            colors="black", linewidths=0.8, alpha=0.20,
+            zorder=0.5,
+        )
+
+        # Coastline — same soft_mask used to cut elev_final, so isolines
+        # above can never render past it.
+        ax.contour(
+            X, Y, soft_mask,
+            levels=[0.5],
+            colors=BORDER_COLOR, linewidths=1.8,
+            zorder=0.6,
+        )
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def render_map(uid: str, radius: int = 10, view: str = "default"):
     """
     Render a viewport map centred on the player's position.
 
-    view: "default" — normal map
-          "roll"    — highlights reachable ocean hexes within move_range
+    view: "default"     — normal map
+          "roll"        — highlights reachable ocean hexes within move_range
+          "topography"  — elevation contour over islands (navigator-only; gate in the caller)
     Returns a BytesIO PNG buffer, or None if the player isn't registered.
     """
     import db
@@ -504,9 +637,10 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
 
     # ── Broad-phase: only islands whose centre is near enough to reach the ──────
     # viewport contribute land tiles. Build a local land set + name map from them.
+    nearby_islands = islands_near(pq, pr, radius)
     nearby_tiles = set()        # (q, r) of every land tile on a nearby island
     nearby_name  = {}           # (q, r) -> island_name
-    for isl in islands_near(pq, pr, radius):
+    for isl in nearby_islands:
         for t in isl["tiles"]:
             nearby_tiles.add(t)
             nearby_name[t] = isl["name"]
@@ -566,15 +700,17 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
                     reachable_centers.append((cx, cy))
                 continue
 
-            color = TERRAIN_COLORS.get(terrain, TERRAIN_COLORS["island"])
-
-            land_patches.append(
-                mpatches.RegularPolygon(
-                    (cx, cy), numVertices=6,
-                    radius=SIZE, orientation=0,
+            # Topography view renders islands via the elevation contour
+            # instead — skip the flat fill so it isn't painted over it.
+            if view != "topography":
+                color = TERRAIN_COLORS.get(terrain, TERRAIN_COLORS["island"])
+                land_patches.append(
+                    mpatches.RegularPolygon(
+                        (cx, cy), numVertices=6,
+                        radius=SIZE, orientation=0,
+                    )
                 )
-            )
-            land_colors.append(color)
+                land_colors.append(color)
 
             if terrain not in ("redline",):
                 # Per-hex label (e.g. "Royal Palace")
@@ -615,9 +751,9 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
 
     # Determine log pose arrow target from crew db
     log_pose_targets = []
-    crew = db.get_crew(player["crew_id"]) if player.get("crew_id") else None
+    crew = db.get_crew(player["crew_id"]) if player["crew_id"] else None
     if crew:
-        target_name = crew.get("log_pose") or game.DEFAULT_LOG_POSE
+        target_name = crew["log_pose"] or game.DEFAULT_LOG_POSE
         island_data = islands_mod.get_island(target_name)
         tq = (island_data or {}).get("q")
         tr = (island_data or {}).get("r")
@@ -648,6 +784,11 @@ def render_map(uid: str, radius: int = 10, view: str = "default"):
         colors=["#75e1ff", "#6dd4f5", "#65c9eb", "#5cbde0", "#54b2d6"],
         zorder=0,
     )
+
+    # Topography (navigator view) — renders on top of the blue sea, but
+    # still underneath the white hex-grid pattern drawn just below.
+    if view == "topography":
+        _draw_topography(ax, nearby_islands)
 
     if sea_segs:
         ax.add_collection(LineCollection(
