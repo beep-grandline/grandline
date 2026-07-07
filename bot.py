@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import datetime
+import time
 import game
 import os
 import db
@@ -145,7 +146,7 @@ HIE_HIE_FRUIT_ID = "hie"
 HIE_HIE_DURATION = 60   # seconds of Discord timeout ("mute")
 
 
-async def _resolve_ice_age_target(message: discord.Message):
+async def _resolve_tagged_or_replied_target(message: discord.Message):
     """First user tagged in the message, else whoever they replied to."""
     for m in message.mentions:
         if m.id != message.author.id:
@@ -172,6 +173,46 @@ async def _apply_ice_age_timeout(member: discord.Member):
         pass
 
 
+FIRE_FIST_PHRASE       = "fire fist"
+FIRE_FIST_FRUIT_ID     = "mera"
+FIRE_FIST_DURATION     = 60   # seconds the burn effect stays armed on the target
+FIRE_FIST_DELETE_DELAY = 1    # seconds before deleting the burned message + Merry's flame reply
+
+# (channel_id, target_id) -> expiry timestamp (time.monotonic()). While an
+# entry is live, any message the target posts in that channel gets burned.
+_fire_fist_targets: dict = {}
+
+
+def _fire_fist_is_armed(channel_id: int, author_id: int) -> bool:
+    expiry = _fire_fist_targets.get((channel_id, author_id))
+    return expiry is not None and time.monotonic() < expiry
+
+
+async def _arm_fire_fist(channel_id: int, target_id: int):
+    """Arm the burn effect on a target for FIRE_FIST_DURATION, then disarm —
+    unless a later trigger has since re-armed the same key with a new expiry."""
+    key    = (channel_id, target_id)
+    expiry = time.monotonic() + FIRE_FIST_DURATION
+    _fire_fist_targets[key] = expiry
+    await asyncio.sleep(FIRE_FIST_DURATION)
+    if _fire_fist_targets.get(key) == expiry:
+        _fire_fist_targets.pop(key, None)
+
+
+async def _burn_message(message: discord.Message):
+    """Merry drops a flame emoji, then both messages burn away 1s later."""
+    try:
+        flame_msg = await message.channel.send("🔥")
+    except discord.Forbidden:
+        return
+    await asyncio.sleep(FIRE_FIST_DELETE_DELAY)
+    for m in (message, flame_msg):
+        try:
+            await m.delete()
+        except (discord.Forbidden, discord.NotFound):
+            pass
+
+
 @bot.event
 async def on_message(message: discord.Message):
     if message.author.bot:
@@ -188,9 +229,20 @@ async def on_message(message: discord.Message):
     if message.guild and HIE_HIE_PHRASE in message.content.lower():
         fruit_id = db.get_player_fruit(str(message.author.id))
         if (fruit_id or "").strip().lower() == HIE_HIE_FRUIT_ID:
-            target = await _resolve_ice_age_target(message)
+            target = await _resolve_tagged_or_replied_target(message)
             if target is not None:
                 asyncio.create_task(_apply_ice_age_timeout(target))
+
+    if message.guild:
+        if _fire_fist_is_armed(message.channel.id, message.author.id):
+            asyncio.create_task(_burn_message(message))
+
+        if FIRE_FIST_PHRASE in message.content.lower():
+            fruit_id = db.get_player_fruit(str(message.author.id))
+            if (fruit_id or "").strip().lower() == FIRE_FIST_FRUIT_ID:
+                target = await _resolve_tagged_or_replied_target(message)
+                if target is not None:
+                    asyncio.create_task(_arm_fire_fist(message.channel.id, target.id))
 
     await bot.process_commands(message)
 
