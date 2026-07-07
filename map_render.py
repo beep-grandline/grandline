@@ -602,10 +602,10 @@ def _get_ocean_texture(pq, pr, radius, hex_lookup):
 
 _topography_cache: dict = {}
 
-_TOPO_GRID_PER_HEX = 6     # grid cells per hex of island radius
-_TOPO_GRID_MIN     = 40    # small islands still get a usable grid
-_TOPO_GRID_MAX     = 220   # cap so a huge island (e.g. Redline) stays cheap
-_TOPO_BLUR_SIGMA   = 1.8
+_TOPO_GRID_PER_HEX = 14    # grid cells per hex of island radius
+_TOPO_GRID_MIN     = 90    # small islands still get a smooth-looking grid
+_TOPO_GRID_MAX     = 260   # cap so a huge island (e.g. Redline) stays cheap
+_TOPO_BLUR_SIGMA   = 2.0
 _TOPO_MASK_RADIUS  = 1.06  # x SIZE — tile-center distance counted as "land"
 
 _TOPO_N_FILL_LEVELS  = 18
@@ -614,7 +614,7 @@ _TOPO_LINE_LEVEL_MIN = 2.0  # skip isolines near sea level — keeps the coast c
 _TOPO_ELEV_MIN, _TOPO_ELEV_MAX = 0, 20
 
 _TOPO_CMAP = LinearSegmentedColormap.from_list(
-    "topo", [(0 / 20, "#54bf64"), (10 / 20, "#f0d646"), (20 / 20, "#c72a2a")]
+    "topo", [(0 / 3, "#4d8a4d"), (1 / 3, "#d9c466"), (2 / 3, "#e85733"), (3 / 3, "#9f4dd1")]
 )
 
 
@@ -927,20 +927,23 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
     ax.set_aspect("equal")
     ax.axis("off")
 
-    # Ocean texture — fetch from cache or compute once
-    _X, _Y, _Z = _get_ocean_texture(pq, pr, radius, hex_lookup)
-
-    ax.contourf(
-        _X, _Y, _Z,
-        levels=4,
-        colors=["#75e1ff", "#6dd4f5", "#65c9eb", "#5cbde0", "#54b2d6"],
-        zorder=0,
-    )
-
-    # Topography (navigator view) — renders on top of the blue sea, but
-    # still underneath the white hex-grid pattern drawn just below.
     if view == "topography":
+        # Skip the ocean texture entirely in this view — the wavy sea
+        # contourf isn't visible under the elevation contour anyway, so
+        # computing and drawing it would just waste time. A flat sea color
+        # stands in for it.
+        ax.set_facecolor(SEA_COLOR)
         _draw_topography(ax, nearby_islands)
+    else:
+        # Ocean texture — fetch from cache or compute once
+        _X, _Y, _Z = _get_ocean_texture(pq, pr, radius, hex_lookup)
+
+        ax.contourf(
+            _X, _Y, _Z,
+            levels=4,
+            colors=["#75e1ff", "#6dd4f5", "#65c9eb", "#5cbde0", "#54b2d6"],
+            zorder=0,
+        )
 
     if sea_segs:
         ax.add_collection(LineCollection(
