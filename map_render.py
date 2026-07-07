@@ -605,7 +605,13 @@ _topography_cache: dict = {}
 _TOPO_GRID_PER_HEX = 14    # grid cells per hex of island radius
 _TOPO_GRID_MIN     = 90    # small islands still get a smooth-looking grid
 _TOPO_GRID_MAX     = 260   # cap so a huge island (e.g. Redline) stays cheap
-_TOPO_BLUR_SIGMA   = 2.0
+
+# Blur radius in hex-widths (SIZE units), not grid pixels — converted to a
+# pixel sigma per-island based on that island's actual grid spacing. A fixed
+# pixel sigma would smooth by a shrinking real-world distance as grid_res
+# goes up, which is exactly what turned the coastline into a visible pixel
+# staircase after the resolution bump above.
+_TOPO_BLUR_HEXES   = 1.0
 _TOPO_MASK_RADIUS  = 1.06  # x SIZE — tile-center distance counted as "land"
 
 _TOPO_N_FILL_LEVELS  = 18
@@ -614,7 +620,7 @@ _TOPO_LINE_LEVEL_MIN = 2.0  # skip isolines near sea level — keeps the coast c
 _TOPO_ELEV_MIN, _TOPO_ELEV_MAX = 0, 20
 
 _TOPO_CMAP = LinearSegmentedColormap.from_list(
-    "topo", [(0 / 3, "#4d8a4d"), (1 / 3, "#d9c466"), (2 / 3, "#e85733"), (3 / 3, "#9f4dd1")]
+    "topo", [(0 / 3, "#a8e386"), (1 / 3, "#d9c466"), (2 / 3, "#e85733"), (3 / 3, "#9f4dd1")]
 )
 
 
@@ -663,17 +669,24 @@ def _get_island_topography(isl: dict):
     gy = np.linspace(miny, maxy, grid_res)
     X, Y = np.meshgrid(gx, gy)
 
+    # Convert the hex-width blur radius to a pixel sigma using this island's
+    # own grid spacing, so the smoothing covers the same real distance
+    # regardless of grid_res — otherwise a finer grid shrinks the effective
+    # blur and the coastline shows the grid's own cells as a staircase.
+    grid_spacing = (maxx - minx) / grid_res
+    blur_sigma   = (_TOPO_BLUR_HEXES * SIZE) / grid_spacing
+
     # Land mask — geometric, distance-to-tile-center based via KDTree.
     tree = cKDTree(centers)
     dist, _ = tree.query(np.column_stack([X.ravel(), Y.ravel()]))
     raw_mask  = (dist <= SIZE * _TOPO_MASK_RADIUS).astype(float).reshape(X.shape)
-    soft_mask = gaussian_filter(raw_mask, sigma=_TOPO_BLUR_SIGMA)
+    soft_mask = gaussian_filter(raw_mask, sigma=blur_sigma)
 
     # Elevation field — one cubic interpolation (land + ocean=0 points),
     # 0.0 fallback outside its hull, then blurred.
     smooth       = griddata(aug_centers, aug_values, (X, Y), method="cubic")
     combined     = np.where(np.isnan(smooth), 0.0, smooth)
-    elev_blurred = gaussian_filter(combined, sigma=_TOPO_BLUR_SIGMA)
+    elev_blurred = gaussian_filter(combined, sigma=blur_sigma)
     elev_final   = np.where(soft_mask > 0.5, elev_blurred, np.nan)
 
     result = (X, Y, elev_final, soft_mask)
