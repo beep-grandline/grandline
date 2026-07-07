@@ -2,6 +2,7 @@
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+import datetime
 import game
 import os
 import db
@@ -139,10 +140,9 @@ async def _noro_noro_slowmode(channel: discord.abc.GuildChannel):
         pass
 
 
-HIE_HIE_PHRASE    = "ice age"
-HIE_HIE_FRUIT_ID  = "hie"
-HIE_HIE_ROLE_NAME = "Frozen"
-HIE_HIE_DURATION  = 60   # seconds before the Frozen role is removed
+HIE_HIE_PHRASE   = "ice age"
+HIE_HIE_FRUIT_ID = "hie"
+HIE_HIE_DURATION = 60   # seconds of Discord timeout ("mute")
 
 
 async def _resolve_ice_age_target(message: discord.Message):
@@ -164,15 +164,10 @@ async def _resolve_ice_age_target(message: discord.Message):
     return None
 
 
-async def _apply_frozen(member: discord.Member, guild: discord.Guild):
-    """Add the Frozen role, then remove it after HIE_HIE_DURATION. Silent — no message, no log."""
-    role = discord.utils.get(guild.roles, name=HIE_HIE_ROLE_NAME)
-    if not role:
-        return
+async def _apply_ice_age_timeout(member: discord.Member):
+    """Discord-timeout (mute) the target for HIE_HIE_DURATION. Silent — no message, no log."""
     try:
-        await member.add_roles(role)
-        await asyncio.sleep(HIE_HIE_DURATION)
-        await member.remove_roles(role)
+        await member.timeout(datetime.timedelta(seconds=HIE_HIE_DURATION), reason="Ice Age")
     except discord.Forbidden:
         pass
 
@@ -195,7 +190,7 @@ async def on_message(message: discord.Message):
         if (fruit_id or "").strip().lower() == HIE_HIE_FRUIT_ID:
             target = await _resolve_ice_age_target(message)
             if target is not None:
-                asyncio.create_task(_apply_frozen(target, message.guild))
+                asyncio.create_task(_apply_ice_age_timeout(target))
 
     await bot.process_commands(message)
 
