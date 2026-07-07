@@ -122,6 +122,23 @@ async def on_ready():
 
 _MUSIC_WORDS = {"crescendo", "diminuendo", "presto", "allegro", "yohohoho"}
 
+NORO_NORO_PHRASE   = "noro noro beam"
+NORO_NORO_FRUIT_ID = "noro"
+NORO_NORO_SLOWMODE = 3    # seconds of slowmode while it's active
+NORO_NORO_DURATION = 10   # seconds before slowmode reverts
+
+
+async def _noro_noro_slowmode(channel: discord.abc.GuildChannel):
+    """Set a brief slowmode, then revert to whatever it was before. Silent — no message, no log."""
+    original_delay = channel.slowmode_delay
+    try:
+        await channel.edit(slowmode_delay=NORO_NORO_SLOWMODE)
+        await asyncio.sleep(NORO_NORO_DURATION)
+        await channel.edit(slowmode_delay=original_delay)
+    except discord.Forbidden:
+        pass
+
+
 @bot.event
 async def on_message(message: discord.Message):
     if message.author.bot:
@@ -129,6 +146,12 @@ async def on_message(message: discord.Message):
     words = set(message.content.lower().split())
     if words & _MUSIC_WORDS:
         await message.channel.send("🎵")
+
+    if NORO_NORO_PHRASE in message.content.lower():
+        fruit_id = db.get_player_fruit(str(message.author.id))
+        if (fruit_id or "").strip().lower() == NORO_NORO_FRUIT_ID:
+            asyncio.create_task(_noro_noro_slowmode(message.channel))
+
     await bot.process_commands(message)
 
 

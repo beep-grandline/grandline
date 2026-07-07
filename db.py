@@ -80,6 +80,8 @@ def init_db():
         "ALTER TABLE players ADD COLUMN captured_by  TEXT DEFAULT NULL",
         "ALTER TABLE crews   ADD COLUMN ship_type    TEXT DEFAULT NULL",
         "ALTER TABLE players ADD COLUMN last_fruit_roll REAL DEFAULT 0",
+        "ALTER TABLE players ADD COLUMN fruit_id     TEXT DEFAULT NULL",
+        "ALTER TABLE players ADD COLUMN held_fruit_id TEXT DEFAULT NULL",
     ]:
         try:
             db.execute(sql)
