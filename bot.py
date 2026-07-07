@@ -139,6 +139,44 @@ async def _noro_noro_slowmode(channel: discord.abc.GuildChannel):
         pass
 
 
+HIE_HIE_PHRASE    = "ice age"
+HIE_HIE_FRUIT_ID  = "hie"
+HIE_HIE_ROLE_NAME = "Frozen"
+HIE_HIE_DURATION  = 60   # seconds before the Frozen role is removed
+
+
+async def _resolve_ice_age_target(message: discord.Message):
+    """First user tagged in the message, else whoever they replied to."""
+    for m in message.mentions:
+        if m.id != message.author.id:
+            return m
+
+    if message.reference:
+        ref = message.reference.resolved
+        if ref is None:
+            try:
+                ref = await message.channel.fetch_message(message.reference.message_id)
+            except (discord.NotFound, discord.HTTPException):
+                return None
+        if isinstance(ref, discord.Message) and ref.author.id != message.author.id:
+            return message.guild.get_member(ref.author.id)
+
+    return None
+
+
+async def _apply_frozen(member: discord.Member, guild: discord.Guild):
+    """Add the Frozen role, then remove it after HIE_HIE_DURATION. Silent — no message, no log."""
+    role = discord.utils.get(guild.roles, name=HIE_HIE_ROLE_NAME)
+    if not role:
+        return
+    try:
+        await member.add_roles(role)
+        await asyncio.sleep(HIE_HIE_DURATION)
+        await member.remove_roles(role)
+    except discord.Forbidden:
+        pass
+
+
 @bot.event
 async def on_message(message: discord.Message):
     if message.author.bot:
@@ -151,6 +189,13 @@ async def on_message(message: discord.Message):
         fruit_id = db.get_player_fruit(str(message.author.id))
         if (fruit_id or "").strip().lower() == NORO_NORO_FRUIT_ID:
             asyncio.create_task(_noro_noro_slowmode(message.channel))
+
+    if message.guild and HIE_HIE_PHRASE in message.content.lower():
+        fruit_id = db.get_player_fruit(str(message.author.id))
+        if (fruit_id or "").strip().lower() == HIE_HIE_FRUIT_ID:
+            target = await _resolve_ice_age_target(message)
+            if target is not None:
+                asyncio.create_task(_apply_frozen(target, message.guild))
 
     await bot.process_commands(message)
 
