@@ -12,7 +12,6 @@ from matplotlib.collections import PatchCollection, LineCollection
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.image import imread
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-from matplotlib.path import Path
 from PIL import Image as PILImage
 from scipy.interpolate import griddata
 from scipy.ndimage import gaussian_filter
@@ -116,38 +115,75 @@ GRAY_HEXES = {tile for tiles in GRAY_FACILITIES.values() for tile in tiles}
 CALM_BELT_COLOR = (1.0, 1.0, 1.0, 0.38)
 
 # Player ship icon — loaded once, falls back to dot if file missing.
-# SHIP_ROTATION: number of 90° counter-clockwise turns (1=90°, 2=180°, 3=270°)
+# SHIP_ROTATION: number of 90° counter-clockwise turns applied to the raw
+# artwork so it points "forward" (the "f" hex direction / east) by default —
+# this is the baseline every heading-specific rotation below is relative to.
 SHIP_ROTATION  = 3  # 3 × 90° CCW = 270° CCW = 90° clockwise
 # SHIP_ICON_SIZE = 28   # display size in pixels — tweak to taste
 # SHIP_ICON_SIZE = 28 / 3   # downsized 3x for the compact map component
 SHIP_ICON_SIZE = 28 / 3 * 1.5   # ...then back up 1.5x = 14
 
-_SHIP_ICON = None
-_SHIP_ICON_RAW = None
+# Angle (degrees, standard math convention: 0° = east/+x, CCW positive) each
+# hex direction points on screen — derived from _hex_to_pixel's pixel delta
+# for that direction's axial offset in game.HEX_DIRECTIONS. "f" is the
+# baseline (0°) that SHIP_ROTATION above already orients the artwork to.
+SHIP_HEADING_ANGLES = {
+    "f":  0,
+    "fl": 60,
+    "bl": 120,
+    "b":  180,
+    "br": 240,
+    "fr": 300,
+}
 
-def _get_ship_icon():
-    global _SHIP_ICON
-    if _SHIP_ICON is None:
+_SHIP_ICON_RAW   = None   # baseline-rotated (SHIP_ROTATION), un-headed
+_SHIP_ICON_CACHE = {}     # heading -> further-rotated np array
+
+
+def _load_ship_icon_raw():
+    global _SHIP_ICON_RAW
+    if _SHIP_ICON_RAW is None:
         try:
             img = imread("img/boat.png")
             if SHIP_ROTATION:
                 img = np.rot90(img, k=SHIP_ROTATION)
-            _SHIP_ICON = img
+            _SHIP_ICON_RAW = img
         except FileNotFoundError:
             pass
-    return _SHIP_ICON
+    return _SHIP_ICON_RAW
+
+
+def _get_ship_icon(heading: str = "f"):
+    """Player's own ship icon, rotated to point the direction last moved.
+    heading is one of game.HEX_DIRECTIONS' keys ("f", "fl", "bl", "b", "br",
+    "fr"); defaults to "f" (the baseline orientation) if unset/unrecognized.
+    """
+    raw = _load_ship_icon_raw()
+    if raw is None:
+        return None
+
+    angle = SHIP_HEADING_ANGLES.get(heading, 0)
+    if angle == 0:
+        return raw
+
+    if heading not in _SHIP_ICON_CACHE:
+        # imread gives float32 in [0, 1] for PNGs — PIL needs uint8 to
+        # rotate, then convert back so OffsetImage gets the same dtype/range
+        # as the unrotated array.
+        arr8   = (np.clip(raw, 0, 1) * 255).astype(np.uint8)
+        pil    = PILImage.fromarray(arr8).rotate(angle, expand=True, resample=PILImage.BICUBIC)
+        _SHIP_ICON_CACHE[heading] = np.asarray(pil).astype(np.float32) / 255.0
+    return _SHIP_ICON_CACHE[heading]
 
 
 def _get_other_ship_icon():
-    """Ship icon for other crews — random 90° rotation each render."""
+    """Ship icon for other crews — random 90° rotation each render (their
+    actual heading isn't tracked, this is just visual variety)."""
     import random
-    global _SHIP_ICON_RAW
-    if _SHIP_ICON_RAW is None:
-        try:
-            _SHIP_ICON_RAW = imread("img/boat.png")
-        except FileNotFoundError:
-            return None
-    return np.rot90(_SHIP_ICON_RAW, k=random.randint(0, 3))
+    raw = _load_ship_icon_raw()
+    if raw is None:
+        return None
+    return np.rot90(raw, k=random.randint(0, 3))
 
 # Edge index pairs for each axial neighbour direction (flat-top orientation)
 HEX_DIRS = [(1,0),(-1,0),(0,1),(0,-1),(1,-1),(-1,1)]
@@ -743,52 +779,36 @@ def _draw_topography(ax, islands):
     2) in non-topography mode.
 
     The fill's edge and the coastline used to look mismatched — choppy fill
-    vs. a rounder coastline — because they were two different boundaries:
-    elev_final's edge comes from masking to NaN wherever soft_mask <= 0.5,
-    which contourf can only respect at the grid's own resolution (a hard
-    per-cell cutoff, i.e. blocky), while the coastline is a true
-    marching-squares interpolation through the continuous soft_mask field
-    (smooth by construction). Fixed by clipping the fill to the exact same
-    smooth coastline path instead of relying on the NaN mask for its edge —
-    now both boundaries are literally the same curve.
+    vs. a rounder coastline — because they were two different boundaries
+    computed two different ways: elev_final's edge came from masking to NaN
+    wherever soft_mask <= 0.5, which contourf can only respect at the grid's
+    own resolution (a hard per-cell cutoff, i.e. blocky), while the
+    coastline is a true marching-squares interpolation through the
+    continuous soft_mask field (smooth by construction).
+
+    A clip-path fix (deriving a Path from the coastline contour and clipping
+    the fill to it) was tried and reverted — compound paths from multiple
+    contour loops can pick up spurious tiny loops from grid-discretization
+    noise in soft_mask, which showed up as notches cut into the fill via
+    the default nonzero winding rule. Fixed properly instead by having the
+    fill come from contourf(soft_mask, ...) — the exact same field and
+    threshold the coastline line is drawn from — so both boundaries are
+    generated by matplotlib's own contouring algorithm from identical
+    input, instead of two independently-computed approximations of it.
     """
     for isl in islands:
         X, Y, elev_final, soft_mask = _get_island_topography(isl)
 
-        # Coastline contour computed first so its path can double as the
-        # fill's clip boundary. zorder still controls draw order below, not
-        # the order these are created in.
-        coast_cs = ax.contour(
+        # Flat ground fill, thresholded straight off soft_mask (not
+        # elev_final) at the same 0.5 level the coastline below uses, so
+        # contourf and contour are contouring the identical field —
+        # guaranteed the same boundary, not just a close approximation.
+        ax.contourf(
             X, Y, soft_mask,
-            levels=[0.5],
-            colors=_TOPO_COASTLINE_COLOR, linewidths=_TOPO_COASTLINE_WIDTH,
-            zorder=2.6,
-        )
-
-        # Flat ground fill (cmap is a single-color ramp — no elevation
-        # color scale) — same contourf shape/levels as the original scaled
-        # version, just with a flat-colored cmap swapped in.
-        fill_cs = ax.contourf(
-            X, Y, elev_final,
-            levels=_TOPO_N_FILL_LEVELS,
-            cmap=_TOPO_CMAP,
-            vmin=_TOPO_ELEV_MIN, vmax=_TOPO_ELEV_MAX,
+            levels=[0.5, soft_mask.max() + 0.01],
+            colors=[TERRAIN_COLORS["island"]],
             zorder=2.4,
         )
-
-        try:
-            coast_paths = coast_cs.get_paths()
-        except AttributeError:
-            coast_paths = [Path(seg) for seg in coast_cs.allsegs[0]]
-
-        if coast_paths:
-            clip_path = mpatches.PathPatch(
-                Path.make_compound_path(*coast_paths), transform=ax.transData,
-            )
-            if hasattr(fill_cs, "set_clip_path"):
-                fill_cs.set_clip_path(clip_path)
-            for coll in getattr(fill_cs, "collections", ()):
-                coll.set_clip_path(clip_path)
 
         line_levels = np.linspace(_TOPO_LINE_LEVEL_MIN, _TOPO_ELEV_MAX, _TOPO_N_LINE_LEVELS)
         ax.contour(
@@ -798,12 +818,21 @@ def _draw_topography(ax, islands):
             zorder=2.5,
         )
 
+        # Coastline — same soft_mask + level the fill above uses.
+        ax.contour(
+            X, Y, soft_mask,
+            levels=[0.5],
+            colors=_TOPO_COASTLINE_COLOR, linewidths=_TOPO_COASTLINE_WIDTH,
+            zorder=2.6,
+        )
+
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def render_map(uid: str, radius: int = 10, view_radius: int = None,
                show_topography: bool = False,
-               show_roll: bool = False, show_whirlpools: bool = False):
+               show_roll: bool = False, show_whirlpools: bool = False,
+               heading: str = "f"):
     """
     Render a viewport map centred on the player's position.
 
@@ -819,6 +848,9 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
                  defaults to `radius` if not given. Kept separate from
                  `radius` so the collection buffer can be widened without
                  changing the viewing window.
+    heading:     one of game.HEX_DIRECTIONS' keys — rotates the player's own
+                 ship icon to point the direction last moved (ignored when
+                 the player is on land). Defaults to "f".
     show_topography: elevation contour over islands, instead of a flat fill
                       (gate to Navigator in the caller).
     show_roll:        highlights reachable ocean hexes within move_range,
@@ -1169,7 +1201,7 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
                 markeredgecolor="#000", markeredgewidth=0.8,
                 zorder=5)
     else:
-        icon = _get_ship_icon()
+        icon = _get_ship_icon(heading)
         if icon is not None:
             oi = OffsetImage(icon, zoom=SHIP_ICON_SIZE / max(icon.shape[:2]))
             oi.image.axes = ax

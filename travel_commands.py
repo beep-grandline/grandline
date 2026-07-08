@@ -476,6 +476,7 @@ class MapView(discord.ui.LayoutView):
         self.uid             = uid
         self.show_topography = show_topography
         self.show_roll       = show_roll
+        self.heading         = "f"   # updated on each successful move
 
         self.gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(media="attachment://map.png"))
         self.status  = discord.ui.TextDisplay("​")   # placeholder, set via set_status()
@@ -525,6 +526,7 @@ class MapView(discord.ui.LayoutView):
             None, lambda: map_render.render_map(
                 self.uid, MAP_COLLECT_RADIUS, MAP_VIEW_RADIUS,
                 self.show_topography, self.show_roll, self.show_topography,
+                heading=self.heading,
             )
         )
         file = discord.File(buf, filename="map.png")
@@ -556,6 +558,7 @@ class MapView(discord.ui.LayoutView):
             new_q, new_r, swept = game.check_ship_whirlpool(player["crew_id"], new_q, new_r)
             crew  = db.get_crew(player["crew_id"])
             rolls = crew["roll"] or 0
+            self.heading = direction
             self.set_status(f"⛵ `{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls")
             moved_q, moved_r = new_q, new_r
 
