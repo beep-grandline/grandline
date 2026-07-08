@@ -32,19 +32,23 @@ SQRT3 = math.sqrt(3)
 SIZE  = 3.0             # hex radius in data units
 
 TERRAIN_COLORS = {
-    "island":    "#c4f5d7",
+    # "island":    "#c4f5d7",
+    "island":    "#f2e6d6",
     "redline":   "#c7706b",
     "calm_belt": "#76b8d4",
     # fallback for anything else
     "sea":       "#75e1ff",
 }
 
-BORDER_COLOR     = "#f0f8ff"
+# BORDER_COLOR     = "#f0f8ff"
+BORDER_COLOR     = "#63584a"
 BORDER_WIDTH     = 1.5   # land-sea edge thickness
 SEA_GRID_WIDTH   = 1.5   # sea-sea grid line thickness
 PLAYER_COLOR     = "#F0D060"
 LABEL_COLOR      = "#171717"
 SEA_COLOR        = TERRAIN_COLORS["sea"]
+# Plain white page background — replaces the ocean texture fill.
+BACKGROUND_COLOR = "#ffffff"
 
 # Calm belt — any hex where abs(r) > game.CALM_BELT_R is treated as impassable
 # calm belt regardless of what the JSON says. The JSON calm_belt terrain type
@@ -702,11 +706,20 @@ def _draw_topography(ax, islands):
     for isl in islands:
         X, Y, elev_final, soft_mask = _get_island_topography(isl)
 
+        # ax.contourf(
+        #     X, Y, elev_final,
+        #     levels=_TOPO_N_FILL_LEVELS,
+        #     cmap=_TOPO_CMAP,
+        #     vmin=_TOPO_ELEV_MIN, vmax=_TOPO_ELEV_MAX,
+        #     zorder=0.4,
+        # )
+
+        # Flat ground fill — no elevation color scale, just the plain ground
+        # color under the contour lines below.
         ax.contourf(
             X, Y, elev_final,
-            levels=_TOPO_N_FILL_LEVELS,
-            cmap=_TOPO_CMAP,
-            vmin=_TOPO_ELEV_MIN, vmax=_TOPO_ELEV_MAX,
+            levels=[_TOPO_ELEV_MIN, _TOPO_ELEV_MAX],
+            colors=[TERRAIN_COLORS["island"]],
             zorder=0.4,
         )
 
@@ -714,7 +727,8 @@ def _draw_topography(ax, islands):
         ax.contour(
             X, Y, elev_final,
             levels=line_levels,
-            colors="black", linewidths=0.8, alpha=0.20,
+            # colors="black", linewidths=0.8, alpha=0.20,
+            colors=BORDER_COLOR, linewidths=0.8, alpha=0.35,
             zorder=0.5,
         )
 
@@ -876,22 +890,30 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
                 if name:
                     island_accum.setdefault(name, []).append((cx, cy))
 
-            if view == "topography":
-                # No island outline in this view — instead, this tile
-                # contributes to the same uniform hex grid as sea tiles do,
-                # so the grid pattern reads as one layer over the whole map.
-                for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
-                    nq, nr = q + dq, r + dr
-                    if _hex_distance(nq, nr, pq, pr) <= radius:
-                        if dq > 0 or (dq == 0 and dr > 0):
-                            p1, p2 = corners[i1], corners[i2]
-                            sea_segs.append([p1, p2])
-            else:
-                for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
-                    nq, nr = q + dq, r + dr
-                    if (nq, nr) not in nearby_tiles:
-                        p1, p2 = corners[i1], corners[i2]
-                        border_segs.append([p1, p2])
+            # if view == "topography":
+            #     # No island outline in this view — instead, this tile
+            #     # contributes to the same uniform hex grid as sea tiles do,
+            #     # so the grid pattern reads as one layer over the whole map.
+            #     for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
+            #         nq, nr = q + dq, r + dr
+            #         if _hex_distance(nq, nr, pq, pr) <= radius:
+            #             if dq > 0 or (dq == 0 and dr > 0):
+            #                 p1, p2 = corners[i1], corners[i2]
+            #                 sea_segs.append([p1, p2])
+            # else:
+            #     for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
+            #         nq, nr = q + dq, r + dr
+            #         if (nq, nr) not in nearby_tiles:
+            #             p1, p2 = corners[i1], corners[i2]
+            #             border_segs.append([p1, p2])
+
+            # Border restored for every view, including topography — the
+            # island coastline is drawn in BORDER_COLOR for all views now.
+            for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
+                nq, nr = q + dq, r + dr
+                if (nq, nr) not in nearby_tiles:
+                    p1, p2 = corners[i1], corners[i2]
+                    border_segs.append([p1, p2])
 
     # ── Wind-boosted hexes for roll view ─────────────────────────────────────
     if view == "roll":
@@ -936,7 +958,8 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
     px, py  = _hex_to_pixel(pq, pr)
     margin  = SIZE * radius * 1.1
 
-    fig, ax = plt.subplots(figsize=(10, 10), facecolor=SEA_COLOR)
+    # fig, ax = plt.subplots(figsize=(10, 10), facecolor=SEA_COLOR)
+    fig, ax = plt.subplots(figsize=(10, 10), facecolor=BACKGROUND_COLOR)
     ax.set_aspect("equal")
     ax.axis("off")
 
@@ -951,12 +974,13 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
         # Ocean texture — fetch from cache or compute once
         _X, _Y, _Z = _get_ocean_texture(pq, pr, radius, hex_lookup)
 
-        ax.contourf(
-            _X, _Y, _Z,
-            levels=4,
-            colors=["#75e1ff", "#6dd4f5", "#65c9eb", "#5cbde0", "#54b2d6"],
-            zorder=0,
-        )
+        # ax.contourf(
+        #     _X, _Y, _Z,
+        #     levels=4,
+        #     colors=["#75e1ff", "#6dd4f5", "#65c9eb", "#5cbde0", "#54b2d6"],
+        #     zorder=0,
+        # )
+        ax.set_facecolor(BACKGROUND_COLOR)
 
     if sea_segs:
         ax.add_collection(LineCollection(
@@ -1005,7 +1029,8 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
         )
         ax.add_collection(pc)
 
-    if border_segs and view != "topography":
+    # if border_segs and view != "topography":
+    if border_segs:
         lc = LineCollection(
             border_segs,
             colors=BORDER_COLOR,
@@ -1105,7 +1130,8 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
     fig.savefig(
         buf, format="png", dpi=100,   # 100 vs 150 saves ~2× on PNG encode
         bbox_inches="tight",
-        facecolor=SEA_COLOR,
+        # facecolor=SEA_COLOR,
+        facecolor=BACKGROUND_COLOR,
         pad_inches=0,
     )
     plt.close(fig)
