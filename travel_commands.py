@@ -445,13 +445,13 @@ def _map_roles(interaction: discord.Interaction, crew):
 
 
 def _map_status_text(player, crew) -> str:
+    # No coordinates here — players are meant to be blind to their exact
+    # position, just their icon + rolls/stamina remaining.
     if player["following_id"] == "ship" and crew:
         rolls = crew["roll"] or 0
-        q, r  = crew["q"] or 0, crew["r"] or 0
-        return f"⛵ `q={q}, r={r}`\n`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls"
-    q, r  = game.get_position(player["id"])
+        return f"⛵ `{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls"
     rolls = player["walk_roll"] if player["walk_roll"] is not None else game.WALK_ROLL_MAX
-    return f"🚶 `q={q}, r={r}` — {rolls} stamina left"
+    return f"🚶 `{_roll_bar(rolls, max_rolls=game.WALK_ROLL_MAX)}` {rolls}/{game.WALK_ROLL_MAX} walk moves"
 
 
 class MapView(discord.ui.LayoutView):
@@ -551,7 +551,7 @@ class MapView(discord.ui.LayoutView):
             new_q, new_r, swept = game.check_ship_whirlpool(player["crew_id"], new_q, new_r)
             crew  = db.get_crew(player["crew_id"])
             rolls = crew["roll"] or 0
-            self.set_status(f"⛵ `q={new_q}, r={new_r}`\n`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls")
+            self.set_status(f"⛵ `{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls")
             moved_q, moved_r = new_q, new_r
 
         elif player["following_id"] and player["following_id"] != uid:
@@ -567,7 +567,7 @@ class MapView(discord.ui.LayoutView):
                 return
             p     = db.get_player(uid)
             rolls = p["walk_roll"] if p and p["walk_roll"] is not None else 0
-            self.set_status(f"🚶 `q={new_q}, r={new_r}` — {rolls} stamina left")
+            self.set_status(f"🚶 `{_roll_bar(rolls, max_rolls=game.WALK_ROLL_MAX)}` {rolls}/{game.WALK_ROLL_MAX} walk moves")
             moved_q, moved_r = new_q, new_r
 
         await self._rerender(interaction)

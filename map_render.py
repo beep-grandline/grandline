@@ -794,10 +794,14 @@ def render_map(uid: str, radius: int = 10, show_topography: bool = False,
     MOVE_RANGE = max(1, crew_rolls)
 
     _load_map()
-    hex_lookup    = _cache["hex_lookup"]
-    reachable_set = _reachable_sea(pq, pr, MOVE_RANGE, hex_lookup) if show_roll else set()
-    labels        = _cache["labels"]
-    origins       = _cache["origins"]
+    hex_lookup     = _cache["hex_lookup"]
+    # Roll is a sailing range preview — never show it if the player is
+    # standing on land (there's no ship to sail there from).
+    player_on_land = hex_lookup.get((pq, pr)) == "island"
+    show_roll      = show_roll and not player_on_land
+    reachable_set  = _reachable_sea(pq, pr, MOVE_RANGE, hex_lookup) if show_roll else set()
+    labels         = _cache["labels"]
+    origins        = _cache["origins"]
 
     # ── Broad-phase: only islands whose centre is near enough to reach the ──────
     # viewport contribute land tiles. Build a local land set + name map.
@@ -979,15 +983,18 @@ def render_map(uid: str, radius: int = 10, show_topography: bool = False,
 
     # ── Build figure ──────────────────────────────────────────────────────────
     px, py  = _hex_to_pixel(pq, pr)
-    margin  = SIZE * radius * 1.1
-    # Output is landscape (320x200), not square. Keep the full `radius` hex
-    # count visible horizontally (margin_x = margin, unchanged) and crop
-    # vertically to fit the aspect ratio instead of widening sideways —
-    # ax.set_aspect("equal") keeps hexes circular either way, so shrinking
-    # margin_y just shows fewer rows top/bottom rather than stretching the
-    # visible width past `radius` hexes.
-    margin_x = margin
-    margin_y = margin * (MAP_IMG_H / MAP_IMG_W)
+    # margin  = SIZE * radius * 1.1
+    # The old margin (SIZE * radius) undercounted how many hexes are actually
+    # visible — _hex_to_pixel's horizontal step per hex is SIZE*SQRT3 (≈5.2),
+    # not SIZE (3), so that formula only ever showed radius/SQRT3 (~4 hexes
+    # for radius=7) before clipping. margin_x now uses the real pixel pitch
+    # so `radius` hexes are actually visible edge-to-edge horizontally.
+    margin_x = SIZE * SQRT3 * radius * 1.05
+    # Output is landscape (320x200), not square. Crop vertically to fit that
+    # aspect ratio instead of widening sideways — ax.set_aspect("equal")
+    # keeps hexes circular either way, so shrinking margin_y just shows
+    # fewer rows top/bottom rather than stretching the visible width.
+    margin_y = margin_x * (MAP_IMG_H / MAP_IMG_W)
 
     # fig, ax = plt.subplots(figsize=(10, 10), facecolor=SEA_COLOR)
     fig, ax = plt.subplots(figsize=MAP_FIGSIZE, dpi=MAP_DPI, facecolor=BACKGROUND_COLOR)
@@ -1026,10 +1033,9 @@ def render_map(uid: str, radius: int = 10, show_topography: bool = False,
         xs, ys, dists = zip(*reachable_centers)
         # alpha rolloff: ~0.62 nearest → ~0.28 (half) at 9 tiles out
         ROLL_ALPHA_NEAR, ROLL_ALPHA_FAR, ROLL_ALPHA_DIST = 0.62, 0.18, 9.0
-        # Roll highlight color — was white (1,1,1), which read fine against
-        # the old blue ocean texture but disappears against the current
-        # white background, so it's a mid gray now.
-        ROLL_COLOR_RGB = (0.45, 0.45, 0.45)
+        # Roll highlight color — was white (1,1,1), then a mid gray; now a
+        # light brown to sit closer to the ground/border palette.
+        ROLL_COLOR_RGB = (0.78, 0.65, 0.50)
         colors = [
             (*ROLL_COLOR_RGB,
              max(ROLL_ALPHA_FAR,
@@ -1111,8 +1117,6 @@ def render_map(uid: str, radius: int = 10, show_topography: bool = False,
     #             ha="center", va="center",
     #             fontsize=6, color=LABEL_COLOR,
     #             fontweight="bold", clip_on=True, zorder=6)
-
-    player_on_land = hex_lookup.get((pq, pr)) == "island"
 
     if player_on_land:
         ax.plot(px, py, "o",
