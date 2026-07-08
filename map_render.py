@@ -32,23 +32,23 @@ MAP_PATH = "map.json"   # path to the exported editor JSON
 SQRT3 = math.sqrt(3)
 SIZE  = 3.0             # hex radius in data units
 
-# Output image size — kept small since this now re-renders on every button
-# press from the inline /travel map component. figsize is in inches; with
-# no bbox_inches="tight" the output is exactly MAP_IMG_W x MAP_IMG_H px
-# once downscaled (see MAP_SUPERSAMPLE below).
-MAP_IMG_W   = 320
-MAP_IMG_H   = 200
+# Output image size. Square again (like the pre-component render), sized up
+# a bit from the first cut of this compact component (320x200) — bumped to
+# 400x400. figsize is in inches; PIL forces the final buffer to exactly
+# MAP_IMG_W x MAP_IMG_H regardless of matplotlib's own crop (see the
+# supersample+resize step at the end of render_map).
+MAP_IMG_W   = 400
+MAP_IMG_H   = 400
 MAP_DPI     = 100
 MAP_FIGSIZE = (MAP_IMG_W / MAP_DPI, MAP_IMG_H / MAP_DPI)
 
-# matplotlib renders at MAP_DPI * MAP_SUPERSAMPLE (~ the old 1000x1000-ish
-# resolution this used before it was shrunk to 320x200), then PIL downscales
-# to the final MAP_IMG_W x MAP_IMG_H with LANCZOS. The per-render cost here
-# is dominated by the hex-collection Python loop, topography interpolation,
-# and matplotlib's own artist/layout overhead — not final pixel count — so
+# matplotlib renders at MAP_DPI * MAP_SUPERSAMPLE, then PIL downscales to
+# the final MAP_IMG_W x MAP_IMG_H with LANCZOS. The per-render cost here is
+# dominated by the hex-collection Python loop, topography interpolation, and
+# matplotlib's own artist/layout overhead — not final pixel count — so
 # rendering bigger and downscaling costs little extra but looks noticeably
 # less jagged (anti-aliased edges, smoother contour lines) than rendering
-# straight at 320x200.
+# straight at MAP_IMG_W x MAP_IMG_H.
 MAP_SUPERSAMPLE = 3
 RENDER_DPI      = MAP_DPI * MAP_SUPERSAMPLE
 
@@ -1011,24 +1011,14 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
     # margin  = SIZE * radius * 1.1
     # The old margin (SIZE * radius) undercounted how many hexes are actually
     # visible — _hex_to_pixel's horizontal step per hex is SIZE*SQRT3 (≈5.2),
-    # not SIZE (3), so that formula only ever showed radius/SQRT3 (~4 hexes
-    # for radius=7) before clipping. margin_x now uses the real pixel pitch
-    # so `view_radius` hexes are actually visible edge-to-edge horizontally —
-    # using view_radius (not the wider collection `radius`) keeps the zoom
-    # level fixed even though more hexes get collected as a corner buffer.
-    margin_x = SIZE * SQRT3 * view_radius * 1.05
-    # Output is landscape (320x200), not square. Crop vertically to fit that
-    # aspect ratio instead of widening sideways — ax.set_aspect("equal")
-    # keeps hexes circular either way, so shrinking margin_y just shows
-    # fewer rows top/bottom rather than stretching the visible width.
-    margin_y = margin_x * (MAP_IMG_H / MAP_IMG_W)
+    # not SIZE (3). Single symmetric margin again now that output is square
+    # (like the pre-component render) — view_radius (not the wider collection
+    # `radius`) keeps the zoom level fixed even though more hexes get
+    # collected as a corner buffer.
+    margin = SIZE * SQRT3 * view_radius * 1.05
 
     # fig, ax = plt.subplots(figsize=(10, 10), facecolor=SEA_COLOR)
     fig, ax = plt.subplots(figsize=MAP_FIGSIZE, dpi=RENDER_DPI, facecolor=BACKGROUND_COLOR)
-    # Axes fill the entire figure — without bbox_inches="tight" the default
-    # subplot margins would otherwise leave a white border and the output
-    # would no longer be exactly MAP_IMG_W x MAP_IMG_H of actual map.
-    ax.set_position([0, 0, 1, 1])
     ax.set_aspect("equal")
     ax.axis("off")
 
@@ -1188,19 +1178,22 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
                     markeredgecolor="#000", markeredgewidth=0.8,
                     zorder=4)
 
-    ax.set_xlim(px - margin_x, px + margin_x)
-    ax.set_ylim(py - margin_y, py + margin_y)
+    ax.set_xlim(px - margin, px + margin)
+    ax.set_ylim(py - margin, py + margin)
 
-    _draw_log_pose_arrows(ax, px, py, margin_y, log_pose_targets)
+    _draw_log_pose_arrows(ax, px, py, margin, log_pose_targets)
 
     # ── Render to buffer, downscale, clean up ─────────────────────────────────
     raw = io.BytesIO()
     fig.savefig(
         raw, format="png", dpi=RENDER_DPI,
-        # bbox_inches="tight" removed — with a fixed figsize/dpi and no tight
-        # crop, the output is guaranteed exactly
-        # MAP_IMG_W*MAP_SUPERSAMPLE x MAP_IMG_H*MAP_SUPERSAMPLE px, instead of
-        # a variable size depending on content bounding box.
+        # bbox_inches="tight" restored (matches the pre-component render) —
+        # trims matplotlib's own figure padding for a cleaner crop. Safe to
+        # combine with a variable pre-resize size because the PIL resize
+        # below always forces the final buffer to exactly
+        # MAP_IMG_W x MAP_IMG_H regardless of this step's output size.
+        bbox_inches="tight",
+        pad_inches=0,
         # facecolor=SEA_COLOR,
         facecolor=BACKGROUND_COLOR,
     )
@@ -1210,8 +1203,8 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
 
     # Downscale from the supersampled render to the final output size —
     # cheap relative to the hex-collection/topography work above, and gives
-    # antialiased edges/contour lines instead of rendering straight at
-    # 320x200 (which looked jagged at this hex scale).
+    # antialiased edges/contour lines instead of rendering straight at the
+    # final small size (which looked jagged at this hex scale).
     img = PILImage.open(raw)
     img = img.resize((MAP_IMG_W, MAP_IMG_H), PILImage.LANCZOS)
     buf = io.BytesIO()
