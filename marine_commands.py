@@ -49,7 +49,7 @@ async def marine_sail(interaction: discord.Interaction):
         r = existing["r"] or 0
         await interaction.response.send_message(
             f"You already command **{existing['name']}** — currently at `q={q}, r={r}`.\n"
-            f"Use `/travel helm` to steer it.",
+            f"Use `/travel map` to steer it.",
             ephemeral=True,
         )
         return

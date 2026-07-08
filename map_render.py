@@ -31,6 +31,14 @@ MAP_PATH = "map.json"   # path to the exported editor JSON
 SQRT3 = math.sqrt(3)
 SIZE  = 3.0             # hex radius in data units
 
+# Output image size — kept small since this now re-renders on every button
+# press from the inline /travel map component. figsize is in inches; with
+# no bbox_inches="tight" the output is exactly MAP_IMG_W x MAP_IMG_H px.
+MAP_IMG_W   = 320
+MAP_IMG_H   = 200
+MAP_DPI     = 100
+MAP_FIGSIZE = (MAP_IMG_W / MAP_DPI, MAP_IMG_H / MAP_DPI)
+
 TERRAIN_COLORS = {
     # "island":    "#c4f5d7",
     "island":    "#f2e6d6",
@@ -619,7 +627,12 @@ _topography_cache: dict = {}
 # per-island sizing above was the source of the mismatch between the filled
 # contour's NaN cutoff (blocky at low res) and the smooth soft_mask coastline
 # contour drawn over it — at low grid_res the two visibly diverge.
-_TOPO_GRID_RES     = 200
+# _TOPO_GRID_RES     = 200
+# Output image is now 320x200 (down from a ~1000x1000 tight-cropped figure),
+# so a 200x200 numerical grid is far more resolution than the final PNG can
+# even show — halved to cut the griddata/gaussian_filter cost per render
+# without a visible quality loss at this output size.
+_TOPO_GRID_RES     = 100
 _TOPO_BLUR_SIGMA   = 1.8
 _TOPO_MASK_RADIUS  = 1.06  # x SIZE — tile-center distance counted as "land"
 
@@ -746,15 +759,20 @@ def _draw_topography(ax, islands):
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def render_map(uid: str, radius: int = 10, view: str = "default",
-               show_whirlpools: bool = False):
+def render_map(uid: str, radius: int = 10, show_topography: bool = False,
+               show_roll: bool = False, show_whirlpools: bool = False):
     """
     Render a viewport map centred on the player's position.
 
-    view: "default"     — normal map
-          "roll"        — highlights reachable ocean hexes within move_range
-          "topography"  — elevation contour over islands (navigator-only; gate in the caller)
-    show_whirlpools: draw whirlpool tiles (navigators only).
+    These used to be three mutually-exclusive "view" strings; now every
+    layer is its own flag so they can be combined per viewer's roles in one
+    image (e.g. a Navigator who is also Helmsman sees topography AND roll).
+
+    show_topography: elevation contour over islands, instead of a flat fill
+                      (gate to Navigator in the caller).
+    show_roll:        highlights reachable ocean hexes within move_range,
+                       plus wind-boosted tiles (gate to captain/helmsman).
+    show_whirlpools:   draw whirlpool tiles (gate to Navigator).
     Returns a BytesIO PNG buffer, or None if the player isn't registered.
     """
     import db
@@ -776,7 +794,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
 
     _load_map()
     hex_lookup    = _cache["hex_lookup"]
-    reachable_set = _reachable_sea(pq, pr, MOVE_RANGE, hex_lookup) if view == "roll" else set()
+    reachable_set = _reachable_sea(pq, pr, MOVE_RANGE, hex_lookup) if show_roll else set()
     labels        = _cache["labels"]
     origins       = _cache["origins"]
 
@@ -876,13 +894,13 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
                             sea_segs.append([p1, p2])
 
                 # Roll dots: only tiles actually reachable by sailing (BFS)
-                if view == "roll" and (q, r) in reachable_set:
+                if show_roll and (q, r) in reachable_set:
                     reachable_centers.append((cx, cy, _hex_distance(q, r, pq, pr)))
                 continue
 
-            # Topography view renders islands via the elevation contour
-            # instead — skip the flat fill so it isn't painted over it.
-            if view != "topography":
+            # Topography renders islands via the elevation contour instead —
+            # skip the flat fill so it isn't painted over it.
+            if not show_topography:
                 color = TERRAIN_COLORS.get(terrain, TERRAIN_COLORS["island"])
                 land_patches.append(
                     mpatches.RegularPolygon(
@@ -901,25 +919,8 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
                 if name:
                     island_accum.setdefault(name, []).append((cx, cy))
 
-            # if view == "topography":
-            #     # No island outline in this view — instead, this tile
-            #     # contributes to the same uniform hex grid as sea tiles do,
-            #     # so the grid pattern reads as one layer over the whole map.
-            #     for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
-            #         nq, nr = q + dq, r + dr
-            #         if _hex_distance(nq, nr, pq, pr) <= radius:
-            #             if dq > 0 or (dq == 0 and dr > 0):
-            #                 p1, p2 = corners[i1], corners[i2]
-            #                 sea_segs.append([p1, p2])
-            # else:
-            #     for (dq, dr), (i1, i2) in NEIGHBOR_TO_EDGE.items():
-            #         nq, nr = q + dq, r + dr
-            #         if (nq, nr) not in nearby_tiles:
-            #             p1, p2 = corners[i1], corners[i2]
-            #             border_segs.append([p1, p2])
-
-            if view == "topography":
-                # No hex-edge outline in this view — the coastline is drawn
+            if show_topography:
+                # No hex-edge outline in this mode — the coastline is drawn
                 # from the island's soft_mask in _draw_topography instead.
                 # This tile still contributes to the uniform hex grid, same
                 # as sea tiles, so the grid reads as one layer over the map.
@@ -936,8 +937,8 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
                         p1, p2 = corners[i1], corners[i2]
                         border_segs.append([p1, p2])
 
-    # ── Wind-boosted hexes for roll view ─────────────────────────────────────
-    if view == "roll":
+    # ── Wind-boosted hexes for roll overlay ───────────────────────────────────
+    if show_roll:
         wdq, wdr = get_wind(pq, pr)
         # base reachable set — actual sailable tiles from BFS
         base_set = reachable_set | {(pq, pr)}
@@ -978,30 +979,37 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
     # ── Build figure ──────────────────────────────────────────────────────────
     px, py  = _hex_to_pixel(pq, pr)
     margin  = SIZE * radius * 1.1
+    # Output is landscape (320x200) now, not square — widen the x-margin to
+    # match that aspect so ax.set_aspect("equal") doesn't letterbox the view
+    # (equal aspect keeps hexes circular; the axes span has to match the
+    # figure's aspect ratio itself or matplotlib pads it with blank space).
+    margin_x = margin * (MAP_IMG_W / MAP_IMG_H)
+    margin_y = margin
 
     # fig, ax = plt.subplots(figsize=(10, 10), facecolor=SEA_COLOR)
-    fig, ax = plt.subplots(figsize=(10, 10), facecolor=BACKGROUND_COLOR)
+    fig, ax = plt.subplots(figsize=MAP_FIGSIZE, dpi=MAP_DPI, facecolor=BACKGROUND_COLOR)
+    # Axes fill the entire figure — without bbox_inches="tight" the default
+    # subplot margins would otherwise leave a white border and the output
+    # would no longer be exactly MAP_IMG_W x MAP_IMG_H of actual map.
+    ax.set_position([0, 0, 1, 1])
     ax.set_aspect("equal")
     ax.axis("off")
 
-    if view == "topography":
-        # Skip the ocean texture entirely in this view — the wavy sea
-        # contourf isn't visible under the elevation contour anyway, so
-        # computing and drawing it would just waste time. A flat sea color
-        # stands in for it.
-        ax.set_facecolor(SEA_COLOR)
-        _draw_topography(ax, nearby_islands)
-    else:
-        # Ocean texture — fetch from cache or compute once
-        _X, _Y, _Z = _get_ocean_texture(pq, pr, radius, hex_lookup)
+    # Background is always plain white now — the ocean texture contourf is
+    # fully retired (dead code below is commented out, not deleted, so the
+    # old wavy sea look can be restored later if wanted).
+    ax.set_facecolor(BACKGROUND_COLOR)
 
-        # ax.contourf(
-        #     _X, _Y, _Z,
-        #     levels=4,
-        #     colors=["#75e1ff", "#6dd4f5", "#65c9eb", "#5cbde0", "#54b2d6"],
-        #     zorder=0,
-        # )
-        ax.set_facecolor(BACKGROUND_COLOR)
+    # _X, _Y, _Z = _get_ocean_texture(pq, pr, radius, hex_lookup)
+    # ax.contourf(
+    #     _X, _Y, _Z,
+    #     levels=4,
+    #     colors=["#75e1ff", "#6dd4f5", "#65c9eb", "#5cbde0", "#54b2d6"],
+    #     zorder=0,
+    # )
+
+    if show_topography:
+        _draw_topography(ax, nearby_islands)
 
     if sea_segs:
         ax.add_collection(LineCollection(
@@ -1011,19 +1019,23 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
             zorder=1,
         ))
 
-    if view == "roll" and reachable_centers:
+    if show_roll and reachable_centers:
         xs, ys, dists = zip(*reachable_centers)
         # alpha rolloff: ~0.62 nearest → ~0.28 (half) at 9 tiles out
         ROLL_ALPHA_NEAR, ROLL_ALPHA_FAR, ROLL_ALPHA_DIST = 0.62, 0.18, 9.0
+        # Roll highlight color — was white (1,1,1), which read fine against
+        # the old blue ocean texture but disappears against the current
+        # white background, so it's a mid gray now.
+        ROLL_COLOR_RGB = (0.45, 0.45, 0.45)
         colors = [
-            (1.0, 1.0, 1.0,
+            (*ROLL_COLOR_RGB,
              max(ROLL_ALPHA_FAR,
                  ROLL_ALPHA_NEAR - (ROLL_ALPHA_NEAR - ROLL_ALPHA_FAR) * (max(0, d - 1) / ROLL_ALPHA_DIST)))
             for d in dists
         ]
         ax.scatter(xs, ys, s=18, color=colors, linewidths=0, zorder=2)
 
-    if view == "roll" and wind_centers:
+    if show_roll and wind_centers:
         wxs, wys = zip(*wind_centers)
         ax.scatter(wxs, wys, s=18, color=(0.85, 0.25, 0.20, 0.50),
                    linewidths=0, zorder=2)
@@ -1050,7 +1062,7 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
         )
         ax.add_collection(pc)
 
-    if border_segs and view != "topography":
+    if border_segs and not show_topography:
         lc = LineCollection(
             border_segs,
             colors=BORDER_COLOR,
@@ -1140,19 +1152,20 @@ def render_map(uid: str, radius: int = 10, view: str = "default",
                     markeredgecolor="#000", markeredgewidth=0.8,
                     zorder=4)
 
-    ax.set_xlim(px - margin, px + margin)
-    ax.set_ylim(py - margin, py + margin)
+    ax.set_xlim(px - margin_x, px + margin_x)
+    ax.set_ylim(py - margin_y, py + margin_y)
 
-    _draw_log_pose_arrows(ax, px, py, margin, log_pose_targets)
+    _draw_log_pose_arrows(ax, px, py, margin_y, log_pose_targets)
 
     # ── Render to buffer and clean up ─────────────────────────────────────────
     buf = io.BytesIO()
     fig.savefig(
-        buf, format="png", dpi=100,   # 100 vs 150 saves ~2× on PNG encode
-        bbox_inches="tight",
+        buf, format="png", dpi=MAP_DPI,
+        # bbox_inches="tight" removed — with a fixed figsize/dpi and no tight
+        # crop, the output is guaranteed exactly MAP_IMG_W x MAP_IMG_H px,
+        # instead of a variable size depending on content bounding box.
         # facecolor=SEA_COLOR,
         facecolor=BACKGROUND_COLOR,
-        pad_inches=0,
     )
     plt.close(fig)
     gc.collect()

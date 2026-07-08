@@ -164,81 +164,8 @@ _DIR_CHOICES = [
 
 
 
-class HelmView(discord.ui.View):
-    def __init__(self, crew_id: str, captain_id: str):
-        super().__init__(timeout=300)
-        self.crew_id    = crew_id
-        self.captain_id = captain_id
-
-    async def _move(self, interaction: discord.Interaction, direction: str):
-        if str(interaction.user.id) != self.captain_id:
-            await interaction.response.send_message(
-                "Only the captain can steer.", ephemeral=True
-            )
-            return
-        new_q, new_r, ok, reason = game.move_ship(self.crew_id, direction)
-        if not ok:
-            await interaction.response.edit_message(
-                content=MOVE_FAILURE.get(reason, reason)
-            )
-            return
-        new_q, new_r, swept = game.check_ship_whirlpool(self.crew_id, new_q, new_r)
-        crew  = db.get_crew(self.crew_id)
-        rolls = crew["roll"] or 0
-        alert = _tile_alert(new_q, new_r, str(interaction.user.id))
-        msg   = (
-            f"⛵ `q={new_q}, r={new_r}`\n"
-            f"`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls"
-        )
-        if swept:
-            msg = f"🌀 A whirlpool swallows the ship and spits it out at `q={new_q}, r={new_r}`!\n" + msg.split("\n", 1)[1]
-        if alert:
-            msg += f"\n{alert}"
-        await interaction.response.edit_message(content=msg)
-
-    @discord.ui.button(emoji="↖️", style=discord.ButtonStyle.secondary, row=0)
-    async def btn_bl(self, i, b): await self._move(i, "bl")
-
-    @discord.ui.button(emoji="↗️", style=discord.ButtonStyle.secondary, row=0)
-    async def btn_fl(self, i, b): await self._move(i, "fl")
-
-    @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary, row=1)
-    async def btn_b(self, i, b):  await self._move(i, "b")
-
-    @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.secondary, row=1)
-    async def btn_f(self, i, b):  await self._move(i, "f")
-
-    @discord.ui.button(emoji="↙️", style=discord.ButtonStyle.secondary, row=2)
-    async def btn_br(self, i, b): await self._move(i, "br")
-
-    @discord.ui.button(emoji="↘️", style=discord.ButtonStyle.secondary, row=2)
-    async def btn_fr(self, i, b): await self._move(i, "fr")
-
-
-@travel_group.command(name="helm", description="Take the helm and steer the ship (captain or helmsman)")
-async def travel_helm(interaction: discord.Interaction):
-    uid    = str(interaction.user.id)
-    player = db.get_player(uid)
-    if not player or not player["crew_id"]:
-        await interaction.response.send_message("You need to be in a crew.", ephemeral=True)
-        return
-
-    crew = db.get_crew(player["crew_id"])
-    is_helmsman = any(r.name == "Helmsman" for r in interaction.user.roles)
-    if not _is_captain(interaction, crew) and not is_helmsman:
-        await interaction.response.send_message("Only the captain or helmsman can take the helm.", ephemeral=True)
-        return
-
-    rolls = crew["roll"] or 0
-    q     = crew["q"] or 0
-    r     = crew["r"] or 0
-    view  = HelmView(crew_id=player["crew_id"], captain_id=uid)
-    await interaction.response.send_message(
-        f"⛵ `q={q}, r={r}`\n"
-        f"`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls",
-        view=view,
-        ephemeral=True,
-    )
+# HelmView/travel_helm and WalkView/travel_walk (previously here) have been
+# merged into the single /travel map Components V2 view below — see MapView.
 
 
 @travel_group.command(name="auto", description="Move one step toward your log pose (captain only)")
@@ -408,84 +335,6 @@ async def travel_solo(interaction: discord.Interaction):
     )
 
 
-class WalkView(discord.ui.View):
-    def __init__(self, uid: str):
-        super().__init__(timeout=300)
-        self.uid = uid
-
-    async def _walk(self, interaction: discord.Interaction, direction: str):
-        if str(interaction.user.id) != self.uid:
-            await interaction.response.send_message("This isn't your movement panel.", ephemeral=True)
-            return
-        new_q, new_r, ok, reason = game.move_player(self.uid, direction)
-        if not ok:
-            await interaction.response.edit_message(
-                content=MOVE_FAILURE.get(reason, reason)
-            )
-            return
-        alert  = _tile_alert(new_q, new_r, self.uid)
-        p      = db.get_player(self.uid)
-        rolls  = p["walk_roll"] if p and p["walk_roll"] is not None else 0
-        msg    = f"🚶 `q={new_q}, r={new_r}` — {rolls} stamina left"
-        if alert:
-            msg += f"\n{alert}"
-        await interaction.response.edit_message(content=msg)
-
-        # Walking onto a tile with dialogue pops a click-through embed.
-        boxes = map_render.get_dialogue(new_q, new_r)
-        if boxes:
-            dview = DialogueView(self.uid, boxes)
-            await interaction.followup.send(embed=dview.embed(), view=dview, ephemeral=True)
-
-    @discord.ui.button(emoji="↖️", style=discord.ButtonStyle.secondary, row=0)
-    async def btn_bl(self, i, b): await self._walk(i, "bl")
-
-    @discord.ui.button(emoji="↗️", style=discord.ButtonStyle.secondary, row=0)
-    async def btn_fl(self, i, b): await self._walk(i, "fl")
-
-    @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary, row=1)
-    async def btn_b(self, i, b):  await self._walk(i, "b")
-
-    @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.secondary, row=1)
-    async def btn_f(self, i, b):  await self._walk(i, "f")
-
-    @discord.ui.button(emoji="↙️", style=discord.ButtonStyle.secondary, row=2)
-    async def btn_br(self, i, b): await self._walk(i, "br")
-
-    @discord.ui.button(emoji="↘️", style=discord.ButtonStyle.secondary, row=2)
-    async def btn_fr(self, i, b): await self._walk(i, "fr")
-
-
-@travel_group.command(name="walk", description="Move on foot — island tiles only")
-async def travel_walk(interaction: discord.Interaction):
-    uid    = str(interaction.user.id)
-    player = db.get_player(uid)
-    if not player:
-        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
-        return
-
-    if player["following_id"] == "ship":
-        await interaction.response.send_message(
-            "You're on the ship. Use `/travel disembark` first.", ephemeral=True
-        )
-        return
-
-    if player["following_id"] and player["following_id"] != uid:
-        await interaction.response.send_message(
-            "You're following the captain. Use `/travel solo` to move independently.", ephemeral=True
-        )
-        return
-
-    q, r  = game.get_position(uid)
-    rolls = player["walk_roll"] if player["walk_roll"] is not None else game.WALK_ROLL_MAX
-    view  = WalkView(uid=uid)
-    await interaction.response.send_message(
-        f"🚶 `q={q}, r={r}` — {rolls} stamina left",
-        view=view,
-        ephemeral=True,
-    )
-
-
 MARINE_ALLEGIANCE    = "Marine"
 MARINE_OFFICER_ROLES = {"Fleet Admiral", "Admiral", "Vice Admiral"}
 
@@ -578,51 +427,190 @@ async def travel_pose(interaction: discord.Interaction, destination: str):
         )
 
 
-@travel_group.command(name="map", description="View your current area")
-@discord.app_commands.describe(view="Map view")
-@discord.app_commands.choices(view=[
-    discord.app_commands.Choice(name="default",    value="default"),
-    discord.app_commands.Choice(name="roll",       value="roll"),
-    discord.app_commands.Choice(name="topography", value="topography"),
-])
-async def travel_map(interaction: discord.Interaction, view: str = "default"):
-    uid    = str(interaction.user.id)
-    member = interaction.user
+def _map_roles(interaction: discord.Interaction, crew):
+    """Which overlay layers this viewer's roles unlock. Perks are additive,
+    not a single exclusive "view" anymore — a Navigator who's also Helmsman
+    sees topography AND roll in the same image."""
+    member       = interaction.user
+    uid          = str(member.id)
     is_navigator = any(r.name == "Navigator" for r in getattr(member, "roles", []))
+    is_helmsman  = any(r.name == "Helmsman"  for r in getattr(member, "roles", []))
+    is_captain   = bool(crew) and str(crew["captain_id"]) == uid
+    return is_navigator, is_helmsman, is_captain
 
-    # The roll view (reachable-tile preview) is captain/helmsman only.
-    if view == "roll":
-        player      = db.get_player(uid)
-        crew        = db.get_crew(player["crew_id"]) if player and player["crew_id"] else None
-        is_helmsman = any(r.name == "Helmsman" for r in getattr(member, "roles", []))
-        is_captain  = crew and str(crew["captain_id"]) == uid
-        if not (is_captain or is_helmsman):
+
+def _map_status_text(player, crew) -> str:
+    if player["following_id"] == "ship" and crew:
+        rolls = crew["roll"] or 0
+        q, r  = crew["q"] or 0, crew["r"] or 0
+        return f"⛵ `q={q}, r={r}`\n`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls"
+    q, r  = game.get_position(player["id"])
+    rolls = player["walk_roll"] if player["walk_roll"] is not None else game.WALK_ROLL_MAX
+    return f"🚶 `q={q}, r={r}` — {rolls} stamina left"
+
+
+class MapView(discord.ui.LayoutView):
+    """
+    Unified /travel map component — replaces the old separate /travel walk
+    and /travel helm button panels. Movement mode (steer the ship vs. walk
+    on foot) is resolved fresh from the player's current following_id on
+    every button press rather than fixed at open time, since it can change
+    out from under a long-lived ephemeral message (disembark, reboard,
+    solo, etc. are all separate commands the player can run in between).
+
+    Overlay layers (topography / roll) are fixed per-viewer at open time —
+    they're role perks, not movement state, so they don't need re-checking
+    every press.
+    """
+
+    def __init__(self, uid: str, show_topography: bool, show_roll: bool):
+        super().__init__(timeout=300)
+        self.uid             = uid
+        self.show_topography = show_topography
+        self.show_roll       = show_roll
+
+        self.gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(media="attachment://map.png"))
+        self.status  = discord.ui.TextDisplay("​")   # placeholder, set via set_status()
+
+        container = discord.ui.Container(accent_colour=0x1a3f6b)
+        container.add_item(self.gallery)
+        container.add_item(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+        container.add_item(self.status)
+        container.add_item(discord.ui.Separator(spacing=discord.SeparatorSpacing.small))
+
+        # 4-over-2 D-pad: top row ⬅️ ↖️ ↗️ ➡️, bottom row ↙️ ↘️ centered
+        # under the middle two (↖️/↗️) columns via blank disabled spacers —
+        # ActionRow has no real column alignment, so this fakes it.
+        row1 = discord.ui.ActionRow()
+        row1.add_item(self._nav_button("⬅️", "b"))
+        row1.add_item(self._nav_button("↖️", "bl"))
+        row1.add_item(self._nav_button("↗️", "fl"))
+        row1.add_item(self._nav_button("➡️", "f"))
+        row2 = discord.ui.ActionRow()
+        row2.add_item(discord.ui.Button(label="​", style=discord.ButtonStyle.secondary, disabled=True))
+        row2.add_item(self._nav_button("↙️", "br"))
+        row2.add_item(self._nav_button("↘️", "fr"))
+        row2.add_item(discord.ui.Button(label="​", style=discord.ButtonStyle.secondary, disabled=True))
+
+        container.add_item(row1)
+        container.add_item(row2)
+        self.add_item(container)
+
+    def _nav_button(self, emoji: str, direction: str) -> discord.ui.Button:
+        button = discord.ui.Button(emoji=emoji, style=discord.ButtonStyle.secondary)
+
+        async def _callback(interaction: discord.Interaction, direction=direction):
+            await self._move(interaction, direction)
+
+        button.callback = _callback
+        return button
+
+    def set_status(self, text: str):
+        self.status.content = text
+
+    async def _rerender(self, interaction: discord.Interaction):
+        """Re-render the map image at the player's new position and edit
+        it into the same component in place — this is the only thing that
+        ever edits onto the component; every alert below goes ephemeral."""
+        loop = asyncio.get_event_loop()
+        buf  = await loop.run_in_executor(
+            None, map_render.render_map, self.uid, 10,
+            self.show_topography, self.show_roll, self.show_topography,
+        )
+        file = discord.File(buf, filename="map.png")
+        await interaction.response.edit_message(attachments=[file], view=self)
+
+    async def _move(self, interaction: discord.Interaction, direction: str):
+        uid    = self.uid
+        player = db.get_player(uid)
+        if not player:
+            await interaction.response.send_message("Register first.", ephemeral=True)
+            return
+
+        swept       = False
+        moved_q     = moved_r = None
+        was_on_ship = player["following_id"] == "ship"
+
+        if was_on_ship:
+            crew = db.get_crew(player["crew_id"]) if player["crew_id"] else None
+            if not crew:
+                await interaction.response.send_message("Crew not found.", ephemeral=True)
+                return
+            if str(crew["captain_id"]) != uid:
+                await interaction.response.send_message("Only the captain can steer.", ephemeral=True)
+                return
+            new_q, new_r, ok, reason = game.move_ship(player["crew_id"], direction)
+            if not ok:
+                await interaction.response.send_message(MOVE_FAILURE.get(reason, reason), ephemeral=True)
+                return
+            new_q, new_r, swept = game.check_ship_whirlpool(player["crew_id"], new_q, new_r)
+            crew  = db.get_crew(player["crew_id"])
+            rolls = crew["roll"] or 0
+            self.set_status(f"⛵ `q={new_q}, r={new_r}`\n`{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls")
+            moved_q, moved_r = new_q, new_r
+
+        elif player["following_id"] and player["following_id"] != uid:
             await interaction.response.send_message(
-                "Only the captain or helmsman can use the roll view.", ephemeral=True
+                "You're following the captain. Use `/travel solo` to move independently.", ephemeral=True
             )
             return
 
-    # Topography (elevation contour) is navigator-only.
-    if view == "topography" and not is_navigator:
+        else:
+            new_q, new_r, ok, reason = game.move_player(uid, direction)
+            if not ok:
+                await interaction.response.send_message(MOVE_FAILURE.get(reason, reason), ephemeral=True)
+                return
+            p     = db.get_player(uid)
+            rolls = p["walk_roll"] if p and p["walk_roll"] is not None else 0
+            self.set_status(f"🚶 `q={new_q}, r={new_r}` — {rolls} stamina left")
+            moved_q, moved_r = new_q, new_r
+
+        await self._rerender(interaction)
+
+        # Extra alerts — ephemeral only, never edited onto the component.
+        if swept:
+            await interaction.followup.send(
+                f"🌀 A whirlpool swallows you and spits you out at `q={moved_q}, r={moved_r}`!",
+                ephemeral=True,
+            )
+        alert = _tile_alert(moved_q, moved_r, uid)
+        if alert:
+            await interaction.followup.send(alert, ephemeral=True)
+
+        if not was_on_ship:
+            boxes = map_render.get_dialogue(moved_q, moved_r)
+            if boxes:
+                dview = DialogueView(uid, boxes)
+                await interaction.followup.send(embed=dview.embed(), view=dview, ephemeral=True)
+
+
+@travel_group.command(name="map", description="View your current area and move")
+async def travel_map(interaction: discord.Interaction):
+    uid    = str(interaction.user.id)
+    player = db.get_player(uid)
+    if not player:
         await interaction.response.send_message(
-            "Only a Navigator can read the topography.", ephemeral=True
+            "Register first — pick your allegiance from the role picker.", ephemeral=True
         )
         return
+
+    crew = db.get_crew(player["crew_id"]) if player["crew_id"] else None
+    is_navigator, is_helmsman, is_captain = _map_roles(interaction, crew)
+    show_topography = is_navigator
+    show_roll       = is_captain or is_helmsman
 
     await interaction.response.defer(ephemeral=True)
     loop = asyncio.get_event_loop()
     buf  = await loop.run_in_executor(
-        None, map_render.render_map, uid, 10, view, is_navigator
+        None, map_render.render_map, uid, 10, show_topography, show_roll, show_topography
     )
     if not buf:
         await interaction.followup.send(
             "You are not registered yet. Use `/register` first.", ephemeral=True
         )
         return
-    titles = {"default": "Your Position", "roll": "Your Position — Roll",
-              "topography": "Your Position — Topography"}
-    title = titles.get(view, "Your Position")
-    file  = discord.File(buf, filename="map.png")
-    embed = discord.Embed(title=title, color=0x1a3f6b)
-    embed.set_image(url="attachment://map.png")
-    await interaction.followup.send(file=file, embed=embed, ephemeral=True)
+
+    view = MapView(uid=uid, show_topography=show_topography, show_roll=show_roll)
+    view.set_status(_map_status_text(player, crew))
+    file = discord.File(buf, filename="map.png")
+    await interaction.followup.send(file=file, view=view, ephemeral=True)

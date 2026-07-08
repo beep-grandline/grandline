@@ -273,11 +273,11 @@ HELP_PAGES = {
         "title": "🗺️ Travel",
         "description": "Navigating the Grand Line.",
         "fields": [
-            ("/travel map",       "View your current area on the world map."),
+            ("/travel map",       "View your current area and move — steers the ship if you're aboard (captain only), walks on foot otherwise."),
             ("/travel disembark", "Step off the ship onto an adjacent island tile."),
             ("/travel reboard",   "Board the ship from an adjacent tile."),
-            ("On Sea",            "/travel helm — Steer the ship (captain or helmsman).\n/travel auto — Auto-move one step toward your pose (captain only).\n/travel pose — Set your log or eternal pose destination (captain only).\n/spyglass — Scout nearby islands and ships."),
-            ("On Land",           "/travel walk — Move on foot across island tiles.\n/travel solo — Break away from your crew and move independently.\n/travel rejoin — Teleport back to your captain's position."),
+            ("On Sea",            "/travel auto — Auto-move one step toward your pose (captain only).\n/travel pose — Set your log or eternal pose destination (captain only).\n/spyglass — Scout nearby islands and ships."),
+            ("On Land",           "/travel solo — Break away from your crew and move independently.\n/travel rejoin — Teleport back to your captain's position."),
         ]
     },
 
