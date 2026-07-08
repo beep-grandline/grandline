@@ -1776,7 +1776,7 @@ async def admin_component(interaction: discord.Interaction):
 
 def _build_maptest_component():
     """
-    Vertical-spacing test: a static map image with a compact 3-row helm
+    Vertical-spacing test: a static map image with a compact 4-over-2 helm
     D-pad directly underneath, one divider between image and buttons.
     Buttons are dummy — they just defer, no movement logic. Mirrors the
     real HelmView's 6 hex directions (no N/S — hex grids don't have them).
@@ -1793,34 +1793,25 @@ def _build_maptest_component():
     container.add_item(ui.MediaGallery(discord.MediaGalleryItem(media="attachment://maptest.png")))
     container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
-    # ── Side-by-side test ──
-    # Components V2's ui.Section is the only container that puts something
-    # beside text: up to 3 TextDisplay children + one "accessory" (either a
-    # single Thumbnail or a single Button — never a whole ActionRow/grid).
-    # So a full button grid can't sit directly next to an image; this shows
-    # the closest thing — a small thumbnail of maptest.png beside a text
-    # blurb, sitting right above the real D-pad grid.
-    section = ui.Section(
-        ui.TextDisplay("**Helm** — steer with the D-pad below."),
-        ui.TextDisplay("The thumbnail on the right is the same `maptest.png`, just rendered small."),
-        accessory=ui.Thumbnail(media="attachment://maptest.png"),
-    )
-    container.add_item(section)
-    container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
-
+    # ── 4-over-2 grid ──
+    # Top row: 4 buttons. Bottom row: 2 buttons, sitting in the same columns
+    # as the middle two of the top row. Discord's ActionRow has no real
+    # column alignment, so this is faked with blank disabled spacer buttons
+    # in columns 1 and 4 of the bottom row.
     row1 = ui.ActionRow()
     row1.add_item(_DummyButton(emoji="↖️", style=discord.ButtonStyle.secondary))
+    row1.add_item(_DummyButton(emoji="⬅️", style=discord.ButtonStyle.secondary))
+    row1.add_item(_DummyButton(emoji="➡️", style=discord.ButtonStyle.secondary))
     row1.add_item(_DummyButton(emoji="↗️", style=discord.ButtonStyle.secondary))
+
     row2 = ui.ActionRow()
-    row2.add_item(_DummyButton(emoji="⬅️", style=discord.ButtonStyle.secondary))
-    row2.add_item(_DummyButton(emoji="➡️", style=discord.ButtonStyle.secondary))
-    row3 = ui.ActionRow()
-    row3.add_item(_DummyButton(emoji="↙️", style=discord.ButtonStyle.secondary))
-    row3.add_item(_DummyButton(emoji="↘️", style=discord.ButtonStyle.secondary))
+    row2.add_item(ui.Button(label="​", style=discord.ButtonStyle.secondary, disabled=True))
+    row2.add_item(_DummyButton(emoji="↙️", style=discord.ButtonStyle.secondary))
+    row2.add_item(_DummyButton(emoji="↘️", style=discord.ButtonStyle.secondary))
+    row2.add_item(ui.Button(label="​", style=discord.ButtonStyle.secondary, disabled=True))
 
     container.add_item(row1)
     container.add_item(row2)
-    container.add_item(row3)
 
     view.add_item(container)
     return view
