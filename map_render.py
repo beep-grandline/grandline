@@ -12,6 +12,7 @@ from matplotlib.collections import PatchCollection, LineCollection
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.image import imread
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from PIL import Image as PILImage
 from scipy.interpolate import griddata
 from scipy.ndimage import gaussian_filter
 from scipy.spatial import cKDTree
@@ -33,11 +34,23 @@ SIZE  = 3.0             # hex radius in data units
 
 # Output image size — kept small since this now re-renders on every button
 # press from the inline /travel map component. figsize is in inches; with
-# no bbox_inches="tight" the output is exactly MAP_IMG_W x MAP_IMG_H px.
+# no bbox_inches="tight" the output is exactly MAP_IMG_W x MAP_IMG_H px
+# once downscaled (see MAP_SUPERSAMPLE below).
 MAP_IMG_W   = 320
 MAP_IMG_H   = 200
 MAP_DPI     = 100
 MAP_FIGSIZE = (MAP_IMG_W / MAP_DPI, MAP_IMG_H / MAP_DPI)
+
+# matplotlib renders at MAP_DPI * MAP_SUPERSAMPLE (~ the old 1000x1000-ish
+# resolution this used before it was shrunk to 320x200), then PIL downscales
+# to the final MAP_IMG_W x MAP_IMG_H with LANCZOS. The per-render cost here
+# is dominated by the hex-collection Python loop, topography interpolation,
+# and matplotlib's own artist/layout overhead — not final pixel count — so
+# rendering bigger and downscaling costs little extra but looks noticeably
+# less jagged (anti-aliased edges, smoother contour lines) than rendering
+# straight at 320x200.
+MAP_SUPERSAMPLE = 3
+RENDER_DPI      = MAP_DPI * MAP_SUPERSAMPLE
 
 TERRAIN_COLORS = {
     # "island":    "#c4f5d7",
@@ -997,7 +1010,7 @@ def render_map(uid: str, radius: int = 10, show_topography: bool = False,
     margin_y = margin_x * (MAP_IMG_H / MAP_IMG_W)
 
     # fig, ax = plt.subplots(figsize=(10, 10), facecolor=SEA_COLOR)
-    fig, ax = plt.subplots(figsize=MAP_FIGSIZE, dpi=MAP_DPI, facecolor=BACKGROUND_COLOR)
+    fig, ax = plt.subplots(figsize=MAP_FIGSIZE, dpi=RENDER_DPI, facecolor=BACKGROUND_COLOR)
     # Axes fill the entire figure — without bbox_inches="tight" the default
     # subplot margins would otherwise leave a white border and the output
     # would no longer be exactly MAP_IMG_W x MAP_IMG_H of actual map.
@@ -1166,17 +1179,29 @@ def render_map(uid: str, radius: int = 10, show_topography: bool = False,
 
     _draw_log_pose_arrows(ax, px, py, margin_y, log_pose_targets)
 
-    # ── Render to buffer and clean up ─────────────────────────────────────────
-    buf = io.BytesIO()
+    # ── Render to buffer, downscale, clean up ─────────────────────────────────
+    raw = io.BytesIO()
     fig.savefig(
-        buf, format="png", dpi=MAP_DPI,
+        raw, format="png", dpi=RENDER_DPI,
         # bbox_inches="tight" removed — with a fixed figsize/dpi and no tight
-        # crop, the output is guaranteed exactly MAP_IMG_W x MAP_IMG_H px,
-        # instead of a variable size depending on content bounding box.
+        # crop, the output is guaranteed exactly
+        # MAP_IMG_W*MAP_SUPERSAMPLE x MAP_IMG_H*MAP_SUPERSAMPLE px, instead of
+        # a variable size depending on content bounding box.
         # facecolor=SEA_COLOR,
         facecolor=BACKGROUND_COLOR,
     )
     plt.close(fig)
     gc.collect()
+    raw.seek(0)
+
+    # Downscale from the supersampled render to the final output size —
+    # cheap relative to the hex-collection/topography work above, and gives
+    # antialiased edges/contour lines instead of rendering straight at
+    # 320x200 (which looked jagged at this hex scale).
+    img = PILImage.open(raw)
+    img = img.resize((MAP_IMG_W, MAP_IMG_H), PILImage.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="png")
+    raw.close()
     buf.seek(0)
     return buf
