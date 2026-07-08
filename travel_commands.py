@@ -101,9 +101,12 @@ class DialogueView(discord.ui.View):
         await interaction.response.edit_message(embed=self.embed(), view=self)
 
 
-# Max hex render distance for /travel map — the compact component crops
-# vertically, not sideways, so this is the same hex count shown before.
-MAP_RADIUS = 7
+# /travel map render distances. MAP_VIEW_RADIUS is the zoom level (same hex
+# count shown before, cropped vertically not sideways); MAP_COLLECT_RADIUS
+# is wider so hexes just past the visible edge still get their near corners
+# collected, instead of the corners of the viewport clipping mid-hex.
+MAP_VIEW_RADIUS    = 7
+MAP_COLLECT_RADIUS = 10
 
 
 def _roll_bar(current, max_rolls=game.ROLL_MAX, width=12):
@@ -519,8 +522,10 @@ class MapView(discord.ui.LayoutView):
         ever edits onto the component; every alert below goes ephemeral."""
         loop = asyncio.get_event_loop()
         buf  = await loop.run_in_executor(
-            None, map_render.render_map, self.uid, MAP_RADIUS,
-            self.show_topography, self.show_roll, self.show_topography,
+            None, lambda: map_render.render_map(
+                self.uid, MAP_COLLECT_RADIUS, MAP_VIEW_RADIUS,
+                self.show_topography, self.show_roll, self.show_topography,
+            )
         )
         file = discord.File(buf, filename="map.png")
         await interaction.response.edit_message(attachments=[file], view=self)
@@ -607,7 +612,9 @@ async def travel_map(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     loop = asyncio.get_event_loop()
     buf  = await loop.run_in_executor(
-        None, map_render.render_map, uid, MAP_RADIUS, show_topography, show_roll, show_topography
+        None, lambda: map_render.render_map(
+            uid, MAP_COLLECT_RADIUS, MAP_VIEW_RADIUS, show_topography, show_roll, show_topography
+        )
     )
     if not buf:
         await interaction.followup.send(

@@ -117,7 +117,8 @@ CALM_BELT_COLOR = (1.0, 1.0, 1.0, 0.38)
 # Player ship icon — loaded once, falls back to dot if file missing.
 # SHIP_ROTATION: number of 90° counter-clockwise turns (1=90°, 2=180°, 3=270°)
 SHIP_ROTATION  = 3  # 3 × 90° CCW = 270° CCW = 90° clockwise
-SHIP_ICON_SIZE = 28   # display size in pixels — tweak to taste
+# SHIP_ICON_SIZE = 28   # display size in pixels — tweak to taste
+SHIP_ICON_SIZE = 28 / 3   # downsized 3x for the compact map component
 
 _SHIP_ICON = None
 _SHIP_ICON_RAW = None
@@ -773,7 +774,8 @@ def _draw_topography(ax, islands):
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def render_map(uid: str, radius: int = 10, show_topography: bool = False,
+def render_map(uid: str, radius: int = 10, view_radius: int = None,
+               show_topography: bool = False,
                show_roll: bool = False, show_whirlpools: bool = False):
     """
     Render a viewport map centred on the player's position.
@@ -782,6 +784,14 @@ def render_map(uid: str, radius: int = 10, show_topography: bool = False,
     layer is its own flag so they can be combined per viewer's roles in one
     image (e.g. a Navigator who is also Helmsman sees topography AND roll).
 
+    radius:      how far out (in hex steps) tiles are actually collected —
+                 kept wider than view_radius as a buffer so hexes whose
+                 center sits just past the visible edge still get their
+                 near corners drawn, instead of clipping mid-hex.
+    view_radius: how far out the camera actually shows (the zoom level) —
+                 defaults to `radius` if not given. Kept separate from
+                 `radius` so the collection buffer can be widened without
+                 changing the viewing window.
     show_topography: elevation contour over islands, instead of a flat fill
                       (gate to Navigator in the caller).
     show_roll:        highlights reachable ocean hexes within move_range,
@@ -789,6 +799,8 @@ def render_map(uid: str, radius: int = 10, show_topography: bool = False,
     show_whirlpools:   draw whirlpool tiles (gate to Navigator).
     Returns a BytesIO PNG buffer, or None if the player isn't registered.
     """
+    if view_radius is None:
+        view_radius = radius
     import db
 
     player = db.get_player(uid)
@@ -1001,8 +1013,10 @@ def render_map(uid: str, radius: int = 10, show_topography: bool = False,
     # visible — _hex_to_pixel's horizontal step per hex is SIZE*SQRT3 (≈5.2),
     # not SIZE (3), so that formula only ever showed radius/SQRT3 (~4 hexes
     # for radius=7) before clipping. margin_x now uses the real pixel pitch
-    # so `radius` hexes are actually visible edge-to-edge horizontally.
-    margin_x = SIZE * SQRT3 * radius * 1.05
+    # so `view_radius` hexes are actually visible edge-to-edge horizontally —
+    # using view_radius (not the wider collection `radius`) keeps the zoom
+    # level fixed even though more hexes get collected as a corner buffer.
+    margin_x = SIZE * SQRT3 * view_radius * 1.05
     # Output is landscape (320x200), not square. Crop vertically to fit that
     # aspect ratio instead of widening sideways — ax.set_aspect("equal")
     # keeps hexes circular either way, so shrinking margin_y just shows
@@ -1055,11 +1069,11 @@ def render_map(uid: str, radius: int = 10, show_topography: bool = False,
                  ROLL_ALPHA_NEAR - (ROLL_ALPHA_NEAR - ROLL_ALPHA_FAR) * (max(0, d - 1) / ROLL_ALPHA_DIST)))
             for d in dists
         ]
-        ax.scatter(xs, ys, s=18, color=colors, linewidths=0, zorder=2)
+        ax.scatter(xs, ys, s=9, color=colors, linewidths=0, zorder=2)   # s=18 -> 9 (downsized 2x)
 
     if show_roll and wind_centers:
         wxs, wys = zip(*wind_centers)
-        ax.scatter(wxs, wys, s=18, color=(0.85, 0.25, 0.20, 0.50),
+        ax.scatter(wxs, wys, s=9, color=(0.85, 0.25, 0.20, 0.50),   # s=18 -> 9 (downsized 2x)
                    linewidths=0, zorder=2)
 
     if calm_patches:
