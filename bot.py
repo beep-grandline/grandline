@@ -143,7 +143,7 @@ async def _noro_noro_slowmode(channel: discord.abc.GuildChannel):
 
 HIE_HIE_PHRASE   = "ice age"
 HIE_HIE_FRUIT_ID = "hie"
-HIE_HIE_DURATION = 60   # seconds of Discord timeout ("mute")
+HIE_HIE_DURATION = 10   # seconds of Discord timeout ("mute")
 
 
 async def _resolve_tagged_or_replied_target(message: discord.Message):
@@ -175,7 +175,7 @@ async def _apply_ice_age_timeout(member: discord.Member):
 
 FIRE_FIST_PHRASE       = "fire fist"
 FIRE_FIST_FRUIT_ID     = "mera"
-FIRE_FIST_DURATION     = 60   # seconds the burn effect stays armed on the target
+FIRE_FIST_DURATION     = 10   # seconds the burn effect stays armed on the target
 FIRE_FIST_DELETE_DELAY = 1    # seconds before deleting the burned message + Merry's flame reply
 
 # (channel_id, target_id) -> expiry timestamp (time.monotonic()). While an
