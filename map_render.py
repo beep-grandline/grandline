@@ -63,7 +63,7 @@ TERRAIN_COLORS = {
 
 # BORDER_COLOR     = "#f0f8ff"
 BORDER_COLOR     = "#63584a"
-BORDER_WIDTH     = 1.5   # land-sea edge thickness
+BORDER_WIDTH     = 1.0   # land-sea edge thickness (was 1.5)
 SEA_GRID_WIDTH   = 1.5   # sea-sea grid line thickness
 PLAYER_COLOR     = "#F0D060"
 LABEL_COLOR      = "#171717"
@@ -118,7 +118,8 @@ CALM_BELT_COLOR = (1.0, 1.0, 1.0, 0.38)
 # SHIP_ROTATION: number of 90° counter-clockwise turns (1=90°, 2=180°, 3=270°)
 SHIP_ROTATION  = 3  # 3 × 90° CCW = 270° CCW = 90° clockwise
 # SHIP_ICON_SIZE = 28   # display size in pixels — tweak to taste
-SHIP_ICON_SIZE = 28 / 3   # downsized 3x for the compact map component
+# SHIP_ICON_SIZE = 28 / 3   # downsized 3x for the compact map component
+SHIP_ICON_SIZE = 28 / 3 * 1.5   # ...then back up 1.5x = 14
 
 _SHIP_ICON = None
 _SHIP_ICON_RAW = None
@@ -668,7 +669,7 @@ _TOPO_CMAP = LinearSegmentedColormap.from_list(
 # Coastline drawn from the same soft_mask used to cut elev_final, so isolines
 # can never render past it (NaN-excluded cells stop marching squares).
 _TOPO_COASTLINE_COLOR = "#63584a"
-_TOPO_COASTLINE_WIDTH = 1.8
+_TOPO_COASTLINE_WIDTH = 1.2   # was 1.8
 
 
 def _get_island_topography(isl: dict):
@@ -735,10 +736,12 @@ def _get_island_topography(isl: dict):
 
 
 def _draw_topography(ax, islands):
-    """Draw the elevation contour for each island, above the ocean texture
-    (zorder 0) and below the white hex-grid pattern (zorder >= 1). The
-    coastline is drawn here directly from each island's soft_mask (not the
-    hex-edge border_segs) — ported straight from the prototype recipe."""
+    """Draw the elevation contour for each island, above the sea hex grid
+    (zorder 1) instead of under it — island terrain should sit on top of
+    the hex grid pattern, same as the flat land_patches fill does (zorder
+    2) in non-topography mode. The coastline is drawn here directly from
+    each island's soft_mask (not the hex-edge border_segs) — ported
+    straight from the prototype recipe."""
     for isl in islands:
         X, Y, elev_final, soft_mask = _get_island_topography(isl)
 
@@ -750,7 +753,7 @@ def _draw_topography(ax, islands):
             levels=_TOPO_N_FILL_LEVELS,
             cmap=_TOPO_CMAP,
             vmin=_TOPO_ELEV_MIN, vmax=_TOPO_ELEV_MAX,
-            zorder=0.4,
+            zorder=2.4,
         )
 
         line_levels = np.linspace(_TOPO_LINE_LEVEL_MIN, _TOPO_ELEV_MAX, _TOPO_N_LINE_LEVELS)
@@ -758,7 +761,7 @@ def _draw_topography(ax, islands):
             X, Y, elev_final,
             levels=line_levels,
             colors="black", linewidths=0.8, alpha=0.20,
-            zorder=0.5,
+            zorder=2.5,
         )
 
         # Coastline — same soft_mask used to cut elev_final, so isolines
@@ -768,7 +771,7 @@ def _draw_topography(ax, islands):
             X, Y, soft_mask,
             levels=[0.5],
             colors=_TOPO_COASTLINE_COLOR, linewidths=_TOPO_COASTLINE_WIDTH,
-            zorder=0.6,
+            zorder=2.6,
         )
 
 

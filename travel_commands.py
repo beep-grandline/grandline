@@ -101,11 +101,11 @@ class DialogueView(discord.ui.View):
         await interaction.response.edit_message(embed=self.embed(), view=self)
 
 
-# /travel map render distances. MAP_VIEW_RADIUS is the zoom level (same hex
-# count shown before, cropped vertically not sideways); MAP_COLLECT_RADIUS
+# /travel map render distances. MAP_VIEW_RADIUS is the zoom level — a
+# little under 6 tiles radius outside the center, not 7. MAP_COLLECT_RADIUS
 # is wider so hexes just past the visible edge still get their near corners
 # collected, instead of the corners of the viewport clipping mid-hex.
-MAP_VIEW_RADIUS    = 7
+MAP_VIEW_RADIUS    = 5.5
 MAP_COLLECT_RADIUS = 10
 
 
