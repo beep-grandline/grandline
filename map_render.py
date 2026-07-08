@@ -12,6 +12,7 @@ from matplotlib.collections import PatchCollection, LineCollection
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.image import imread
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from matplotlib.path import Path
 from PIL import Image as PILImage
 from scipy.interpolate import griddata
 from scipy.ndimage import gaussian_filter
@@ -64,7 +65,7 @@ TERRAIN_COLORS = {
 # BORDER_COLOR     = "#f0f8ff"
 BORDER_COLOR     = "#63584a"
 BORDER_WIDTH     = 1.0   # land-sea edge thickness (was 1.5)
-SEA_GRID_WIDTH   = 1.5   # sea-sea grid line thickness
+SEA_GRID_WIDTH   = 0.75  # sea-sea grid line thickness (was 1.5)
 PLAYER_COLOR     = "#F0D060"
 LABEL_COLOR      = "#171717"
 SEA_COLOR        = TERRAIN_COLORS["sea"]
@@ -739,16 +740,35 @@ def _draw_topography(ax, islands):
     """Draw the elevation contour for each island, above the sea hex grid
     (zorder 1) instead of under it — island terrain should sit on top of
     the hex grid pattern, same as the flat land_patches fill does (zorder
-    2) in non-topography mode. The coastline is drawn here directly from
-    each island's soft_mask (not the hex-edge border_segs) — ported
-    straight from the prototype recipe."""
+    2) in non-topography mode.
+
+    The fill's edge and the coastline used to look mismatched — choppy fill
+    vs. a rounder coastline — because they were two different boundaries:
+    elev_final's edge comes from masking to NaN wherever soft_mask <= 0.5,
+    which contourf can only respect at the grid's own resolution (a hard
+    per-cell cutoff, i.e. blocky), while the coastline is a true
+    marching-squares interpolation through the continuous soft_mask field
+    (smooth by construction). Fixed by clipping the fill to the exact same
+    smooth coastline path instead of relying on the NaN mask for its edge —
+    now both boundaries are literally the same curve.
+    """
     for isl in islands:
         X, Y, elev_final, soft_mask = _get_island_topography(isl)
+
+        # Coastline contour computed first so its path can double as the
+        # fill's clip boundary. zorder still controls draw order below, not
+        # the order these are created in.
+        coast_cs = ax.contour(
+            X, Y, soft_mask,
+            levels=[0.5],
+            colors=_TOPO_COASTLINE_COLOR, linewidths=_TOPO_COASTLINE_WIDTH,
+            zorder=2.6,
+        )
 
         # Flat ground fill (cmap is a single-color ramp — no elevation
         # color scale) — same contourf shape/levels as the original scaled
         # version, just with a flat-colored cmap swapped in.
-        ax.contourf(
+        fill_cs = ax.contourf(
             X, Y, elev_final,
             levels=_TOPO_N_FILL_LEVELS,
             cmap=_TOPO_CMAP,
@@ -756,22 +776,26 @@ def _draw_topography(ax, islands):
             zorder=2.4,
         )
 
+        try:
+            coast_paths = coast_cs.get_paths()
+        except AttributeError:
+            coast_paths = [Path(seg) for seg in coast_cs.allsegs[0]]
+
+        if coast_paths:
+            clip_path = mpatches.PathPatch(
+                Path.make_compound_path(*coast_paths), transform=ax.transData,
+            )
+            if hasattr(fill_cs, "set_clip_path"):
+                fill_cs.set_clip_path(clip_path)
+            for coll in getattr(fill_cs, "collections", ()):
+                coll.set_clip_path(clip_path)
+
         line_levels = np.linspace(_TOPO_LINE_LEVEL_MIN, _TOPO_ELEV_MAX, _TOPO_N_LINE_LEVELS)
         ax.contour(
             X, Y, elev_final,
             levels=line_levels,
             colors="black", linewidths=0.8, alpha=0.20,
             zorder=2.5,
-        )
-
-        # Coastline — same soft_mask used to cut elev_final, so isolines
-        # above can never render past it (NaN-excluded cells stop the
-        # marching-squares algorithm).
-        ax.contour(
-            X, Y, soft_mask,
-            levels=[0.5],
-            colors=_TOPO_COASTLINE_COLOR, linewidths=_TOPO_COASTLINE_WIDTH,
-            zorder=2.6,
         )
 
 
