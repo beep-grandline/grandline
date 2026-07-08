@@ -1039,9 +1039,10 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
         _draw_topography(ax, nearby_islands)
 
     if sea_segs:
+        # colors=(1.0, 1.0, 1.0, 0.18),  # white — invisible against the white bg
         ax.add_collection(LineCollection(
             sea_segs,
-            colors=(1.0, 1.0, 1.0, 0.18),
+            colors="#dedbd5",
             linewidths=SEA_GRID_WIDTH,
             zorder=1,
         ))
