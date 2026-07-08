@@ -455,18 +455,19 @@ def _draw_whirlpools(ax, whirlpools, pq, pr, radius):
         ax.add_patch(pit)
 
         # Direction + number of tiles it teleports to (predetermined).
-        if dest:
-            dq, dr = dest
-            dist   = _hex_distance(wq, wr, dq, dr)
-            tx, ty = _hex_to_pixel(dq, dr)
-            arrow  = _compass_arrow(tx - cx, ty - cy)
-            ax.text(
-                cx, cy + SIZE * 0.62, f"{arrow}{dist}",
-                ha="center", va="bottom",
-                fontsize=6, color="#eaf4ff", fontweight="bold",
-                zorder=6, clip_on=True,
-                path_effects=[pe.withStroke(linewidth=1.6, foreground=(0.03, 0.10, 0.30))],
-            )
+        # Text rendering removed from the compact map component.
+        # if dest:
+        #     dq, dr = dest
+        #     dist   = _hex_distance(wq, wr, dq, dr)
+        #     tx, ty = _hex_to_pixel(dq, dr)
+        #     arrow  = _compass_arrow(tx - cx, ty - cy)
+        #     ax.text(
+        #         cx, cy + SIZE * 0.62, f"{arrow}{dist}",
+        #         ha="center", va="bottom",
+        #         fontsize=6, color="#eaf4ff", fontweight="bold",
+        #         zorder=6, clip_on=True,
+        #         path_effects=[pe.withStroke(linewidth=1.6, foreground=(0.03, 0.10, 0.30))],
+        #     )
 
 
 # ── Log pose arrow helper ─────────────────────────────────────────────────────
@@ -979,12 +980,14 @@ def render_map(uid: str, radius: int = 10, show_topography: bool = False,
     # ── Build figure ──────────────────────────────────────────────────────────
     px, py  = _hex_to_pixel(pq, pr)
     margin  = SIZE * radius * 1.1
-    # Output is landscape (320x200) now, not square — widen the x-margin to
-    # match that aspect so ax.set_aspect("equal") doesn't letterbox the view
-    # (equal aspect keeps hexes circular; the axes span has to match the
-    # figure's aspect ratio itself or matplotlib pads it with blank space).
-    margin_x = margin * (MAP_IMG_W / MAP_IMG_H)
-    margin_y = margin
+    # Output is landscape (320x200), not square. Keep the full `radius` hex
+    # count visible horizontally (margin_x = margin, unchanged) and crop
+    # vertically to fit the aspect ratio instead of widening sideways —
+    # ax.set_aspect("equal") keeps hexes circular either way, so shrinking
+    # margin_y just shows fewer rows top/bottom rather than stretching the
+    # visible width past `radius` hexes.
+    margin_x = margin
+    margin_y = margin * (MAP_IMG_H / MAP_IMG_W)
 
     # fig, ax = plt.subplots(figsize=(10, 10), facecolor=SEA_COLOR)
     fig, ax = plt.subplots(figsize=MAP_FIGSIZE, dpi=MAP_DPI, facecolor=BACKGROUND_COLOR)
@@ -1095,17 +1098,19 @@ def render_map(uid: str, radius: int = 10, show_topography: bool = False,
             edgecolor="none",
             zorder=3,
         ))
-        ax.text(icx, icy + TOP_RADIUS * 0.65, "Impel Down",
-                ha="center", va="bottom",
-                fontsize=5.5, color="#d0d0e8",
-                fontweight="bold", clip_on=True, zorder=6)
+        # ax.text(icx, icy + TOP_RADIUS * 0.65, "Impel Down",
+        #         ha="center", va="bottom",
+        #         fontsize=5.5, color="#d0d0e8",
+        #         fontweight="bold", clip_on=True, zorder=6)
 
-    # Per-hex labels (hex_label field — e.g. "Royal Palace")
-    for (lx, ly, text) in hex_label_data:
-        ax.text(lx, ly, text,
-                ha="center", va="center",
-                fontsize=6, color=LABEL_COLOR,
-                fontweight="bold", clip_on=True, zorder=6)
+    # Per-hex labels (hex_label field — e.g. "Royal Palace") — text rendering
+    # removed from the compact map component; hex_label_data is still
+    # collected above in case a non-text presentation is added later.
+    # for (lx, ly, text) in hex_label_data:
+    #     ax.text(lx, ly, text,
+    #             ha="center", va="center",
+    #             fontsize=6, color=LABEL_COLOR,
+    #             fontweight="bold", clip_on=True, zorder=6)
 
     player_on_land = hex_lookup.get((pq, pr)) == "island"
 
@@ -1126,10 +1131,10 @@ def render_map(uid: str, radius: int = 10, show_topography: bool = False,
                     color=PLAYER_COLOR, markersize=14,
                     markeredgecolor="#000", markeredgewidth=0.8,
                     zorder=5)
-            ax.text(px, py, "S",
-                    ha="center", va="center",
-                    fontsize=7, color="black", fontweight="bold",
-                    zorder=6)
+            # ax.text(px, py, "S",
+            #         ha="center", va="center",
+            #         fontsize=7, color="black", fontweight="bold",
+            #         zorder=6)
 
     # Other crews' ships in viewport — same icon, random rotation
     own_crew_id = player["crew_id"]
