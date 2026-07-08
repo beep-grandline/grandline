@@ -606,16 +606,21 @@ def _get_ocean_texture(pq, pr, radius, hex_lookup):
 
 _topography_cache: dict = {}
 
-_TOPO_GRID_PER_HEX = 14    # grid cells per hex of island radius
-_TOPO_GRID_MIN     = 90    # small islands still get a smooth-looking grid
-_TOPO_GRID_MAX     = 260   # cap so a huge island (e.g. Redline) stays cheap
+# _TOPO_GRID_PER_HEX = 14    # grid cells per hex of island radius
+# _TOPO_GRID_MIN     = 90    # small islands still get a smooth-looking grid
+# _TOPO_GRID_MAX     = 260   # cap so a huge island (e.g. Redline) stays cheap
+#
+# # Blur radius in hex-widths (SIZE units), not grid pixels — converted to a
+# # pixel sigma per-island based on that island's actual grid spacing.
+# _TOPO_BLUR_HEXES   = 1.0
 
-# Blur radius in hex-widths (SIZE units), not grid pixels — converted to a
-# pixel sigma per-island based on that island's actual grid spacing. A fixed
-# pixel sigma would smooth by a shrinking real-world distance as grid_res
-# goes up, which is exactly what turned the coastline into a visible pixel
-# staircase after the resolution bump above.
-_TOPO_BLUR_HEXES   = 1.0
+# Fixed grid resolution + blur sigma, matching the prototype script exactly
+# (both are in raw grid-pixel units, not scaled per island). The dynamic
+# per-island sizing above was the source of the mismatch between the filled
+# contour's NaN cutoff (blocky at low res) and the smooth soft_mask coastline
+# contour drawn over it — at low grid_res the two visibly diverge.
+_TOPO_GRID_RES     = 200
+_TOPO_BLUR_SIGMA   = 1.8
 _TOPO_MASK_RADIUS  = 1.06  # x SIZE — tile-center distance counted as "land"
 
 _TOPO_N_FILL_LEVELS  = 18
@@ -674,21 +679,14 @@ def _get_island_topography(isl: dict):
     minx, maxx = centers[:, 0].min() - margin, centers[:, 0].max() + margin
     miny, maxy = centers[:, 1].min() - margin, centers[:, 1].max() + margin
 
-    # Grid resolution scales with island size (via the same radius used by
-    # the broad-phase island tree) instead of a fixed 200×200 for every
-    # island, so small islands stay cheap and huge ones stay capped.
-    grid_res = int(np.clip(isl["radius"] * _TOPO_GRID_PER_HEX,
-                            _TOPO_GRID_MIN, _TOPO_GRID_MAX))
-    gx = np.linspace(minx, maxx, grid_res)
-    gy = np.linspace(miny, maxy, grid_res)
+    # gx = np.linspace(minx, maxx, grid_res)   # (old dynamic grid_res)
+    # Fixed grid resolution — matches the prototype script for every island.
+    gx = np.linspace(minx, maxx, _TOPO_GRID_RES)
+    gy = np.linspace(miny, maxy, _TOPO_GRID_RES)
     X, Y = np.meshgrid(gx, gy)
 
-    # Convert the hex-width blur radius to a pixel sigma using this island's
-    # own grid spacing, so the smoothing covers the same real distance
-    # regardless of grid_res — otherwise a finer grid shrinks the effective
-    # blur and the coastline shows the grid's own cells as a staircase.
-    grid_spacing = (maxx - minx) / grid_res
-    blur_sigma   = (_TOPO_BLUR_HEXES * SIZE) / grid_spacing
+    # Fixed blur sigma (raw grid-pixel units) — matches the prototype script.
+    blur_sigma = _TOPO_BLUR_SIGMA
 
     # Land mask — geometric, distance-to-tile-center based via KDTree.
     tree = cKDTree(centers)
