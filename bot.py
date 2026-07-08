@@ -1793,6 +1793,21 @@ def _build_maptest_component():
     container.add_item(ui.MediaGallery(discord.MediaGalleryItem(media="attachment://maptest.png")))
     container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
 
+    # ── Side-by-side test ──
+    # Components V2's ui.Section is the only container that puts something
+    # beside text: up to 3 TextDisplay children + one "accessory" (either a
+    # single Thumbnail or a single Button — never a whole ActionRow/grid).
+    # So a full button grid can't sit directly next to an image; this shows
+    # the closest thing — a small thumbnail of maptest.png beside a text
+    # blurb, sitting right above the real D-pad grid.
+    section = ui.Section(
+        ui.TextDisplay("**Helm** — steer with the D-pad below."),
+        ui.TextDisplay("The thumbnail on the right is the same `maptest.png`, just rendered small."),
+        accessory=ui.Thumbnail(media="attachment://maptest.png"),
+    )
+    container.add_item(section)
+    container.add_item(ui.Separator(spacing=discord.SeparatorSpacing.small))
+
     row1 = ui.ActionRow()
     row1.add_item(_DummyButton(emoji="↖️", style=discord.ButtonStyle.secondary))
     row1.add_item(_DummyButton(emoji="↗️", style=discord.ButtonStyle.secondary))
