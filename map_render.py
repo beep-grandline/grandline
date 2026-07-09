@@ -1281,16 +1281,23 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
             #         fontsize=7, color="black", fontweight="bold",
             #         zorder=6)
 
-    # Other crews' ships in viewport — same icon, random rotation
+    # Other crews' ships in viewport, plus the player's own crew's ship if
+    # they've stepped off it — skip it only while actually aboard (px, py
+    # already draws that ship as the player's own marker above).
     own_crew_id = player["crew_id"]
+    on_own_ship = player["following_id"] == "ship"
     for other in db.get_all_crews():
-        if own_crew_id and other["id"] == own_crew_id:
+        is_own_crew = own_crew_id and other["id"] == own_crew_id
+        if is_own_crew and on_own_ship:
             continue
         oq, orr = other["q"] or 0, other["r"] or 0
         if _hex_distance(oq, orr, pq, pr) > view_radius:
             continue
         ox, oy = _hex_to_pixel(oq, orr)
-        oicon  = _get_other_ship_icon()
+        # Own crew's ship (seen from land) uses the heading-aware icon like
+        # the player's own marker does; other crews get the random-rotation
+        # variant since their heading isn't tracked.
+        oicon = _get_ship_icon(heading) if is_own_crew else _get_other_ship_icon()
         if oicon is not None:
             ooi = OffsetImage(oicon, zoom=SHIP_ICON_SIZE / max(oicon.shape[:2]))
             ooi.image.axes = ax
