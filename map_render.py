@@ -221,14 +221,13 @@ def _get_other_ship_icon():
 BUILDING_FONT_PATH = "data/BellamysMapbats-0jGv.ttf"
 _BUILDING_GLYPHS   = "bemquw"
 
-# Building count on a tile -> how many glyphs to draw. Only 6 distinct
-# glyphs exist, so higher counts reuse some (doubles are fine/expected).
-_BUILDING_GLYPH_COUNTS    = {1: 2, 2: 4}
-_BUILDING_GLYPH_COUNT_MAX = 6   # 3 or more buildings
+# Building count on a tile -> how many glyphs to draw, capped at 3 (1 -> 1,
+# 2 -> 2, 3+ -> 3).
+_BUILDING_GLYPH_COUNT_MAX = 3
 
-_BUILDING_GLYPH_SIZE = 1.725  # data units — target height/width of each icon (1.15 x 1.5)
-_BUILDING_COL_GAP    = 1.1    # horizontal center-to-center spacing (2 columns)
-_BUILDING_ROW_GAP    = 1.1    # vertical center-to-center spacing between rows
+_BUILDING_GLYPH_SIZE = 2.0     # data units — target height/width of each icon
+_BUILDING_COL_GAP    = 1.15    # horizontal center-to-center spacing (2 columns)
+_BUILDING_ROW_GAP    = 1.15    # vertical center-to-center spacing between rows
 
 _BUILDING_GLYPH_PATHS = None   # letter -> matplotlib Path, cached after first load
 
@@ -294,17 +293,19 @@ def _get_building_glyph_paths() -> dict:
     return paths
 
 
-def _building_letters_for_tile(meta: dict):
+def _building_letters_for_tile(q: int, r: int, meta: dict):
     """
-    Returns a list of random Mapbats letters for a tile's buildings (e.g.
-    ["e", "u"], or 6 letters — doubles allowed — for 3+), or None if the
-    tile has no buildings.
+    Returns a list of Mapbats letters for a tile's buildings (one glyph per
+    building, capped at _BUILDING_GLYPH_COUNT_MAX), or None if the tile has
+    none. Seeded from (q, r) so the same tile always picks the same
+    letters instead of reshuffling on every render.
     """
     buildings = meta.get("buildings") if meta else None
     if not buildings:
         return None
-    count = _BUILDING_GLYPH_COUNTS.get(len(buildings), _BUILDING_GLYPH_COUNT_MAX)
-    return random.choices(_BUILDING_GLYPHS, k=count)
+    count = min(len(buildings), _BUILDING_GLYPH_COUNT_MAX)
+    seed  = q * 341873 + r * 132897   # simple, deterministic per-coordinate seed
+    return random.Random(seed).choices(_BUILDING_GLYPHS, k=count)
 
 
 def _draw_building_glyphs(ax, building_glyph_data):
@@ -1166,7 +1167,7 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
                 if (q, r) in labels:
                     hex_label_data.append((cx, cy, labels[(q, r)]))
                 # Building glyphs (Bellamy's Mapbats font)
-                letters = _building_letters_for_tile(tile_meta.get((q, r)))
+                letters = _building_letters_for_tile(q, r, tile_meta.get((q, r)))
                 if letters:
                     building_glyph_data.append((cx, cy, letters))
                 # Accumulate pixel positions for island name centroid
