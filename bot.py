@@ -1833,28 +1833,6 @@ async def admin_maptest(interaction: discord.Interaction):
     await interaction.response.send_message(view=view, file=file, ephemeral=True)
 
 
-@admin_group.command(name="fonttest", description="Test: render island names using the BlackSamsGold font")
-async def admin_fonttest(interaction: discord.Interaction):
-    if not is_admin(interaction):
-        await interaction.response.send_message("No permission.", ephemeral=True)
-        return
-    uid = str(interaction.user.id)
-    await interaction.response.defer(ephemeral=True)
-    loop = asyncio.get_event_loop()
-    buf  = await loop.run_in_executor(
-        None, lambda: map_render.render_map(
-            uid, 10, 10, show_island_names=True,
-        )
-    )
-    if not buf:
-        await interaction.followup.send("You are not registered yet. Use `/register` first.", ephemeral=True)
-        return
-    file = discord.File(buf, filename="fonttest.png")
-    await interaction.followup.send(
-        f"Font: `{map_render.ISLAND_NAME_FONT_PATH}`", file=file, ephemeral=True
-    )
-
-
 bot.tree.add_command(admin_group)
 
 

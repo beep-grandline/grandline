@@ -72,10 +72,10 @@ SEA_COLOR        = TERRAIN_COLORS["sea"]
 # Plain white page background — replaces the ocean texture fill.
 BACKGROUND_COLOR = "#ffffff"
 
-# ── Island-name test render ───────────────────────────────────────────────────
-# TEST ONLY — island names are otherwise intentionally hidden (players
-# discover islands via /spyglass). See show_island_names on render_map and
-# /admin fonttest in bot.py.
+# ── Island-name render ────────────────────────────────────────────────────────
+# Shown only when the player is standing on land — still hidden while at
+# sea, so finding an island in the first place is still a /spyglass job;
+# once you've landed, the name of the ground under your feet isn't a secret.
 ISLAND_NAME_FONT_PATH = "data/BlackSamsGold-ej5e.ttf"
 _island_name_font = None
 
@@ -861,15 +861,13 @@ def _draw_topography(ax, islands):
 def render_map(uid: str, radius: int = 10, view_radius: int = None,
                show_topography: bool = False,
                show_roll: bool = False, show_whirlpools: bool = False,
-               heading: str = "f", show_island_names: bool = False):
+               heading: str = "f"):
     """
     Render a viewport map centred on the player's position.
 
-    show_island_names: TEST ONLY — draws each visible island's name at its
-                        centroid using ISLAND_NAME_FONT_PATH. Island names
-                        are otherwise intentionally hidden (players
-                        discover islands via /spyglass); this is just for
-                        eyeballing the font, not meant for production use.
+    Island names are drawn automatically (using ISLAND_NAME_FONT_PATH)
+    whenever the player is standing on land — hidden at sea, where finding
+    an island is still a /spyglass job.
 
     These used to be three mutually-exclusive "view" strings; now every
     layer is its own flag so they can be combined per viewer's roles in one
@@ -1079,12 +1077,11 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
                     seen.add((wq, wr))
                     wind_centers.append(_hex_to_pixel(wq, wr))
 
-    # Island names are intentionally not shown in production — players
-    # discover islands via /spyglass. show_island_names is a test-only
-    # override (see ISLAND_NAME_FONT_PATH) that computes each visible
-    # island's centroid from the tiles already accumulated above.
+    # Island names — hidden at sea (still a /spyglass job to find one), but
+    # shown once the player is actually standing on land, at each visible
+    # island's centroid (computed from the tiles already accumulated above).
     island_label_data = []
-    if show_island_names:
+    if player_on_land:
         for name, pts in island_accum.items():
             cx = sum(p[0] for p in pts) / len(pts)
             cy = sum(p[1] for p in pts) / len(pts)
@@ -1252,7 +1249,8 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
     #             fontsize=6, color=LABEL_COLOR,
     #             fontweight="bold", clip_on=True, zorder=6)
 
-    # Island names — TEST ONLY (show_island_names), using the custom font.
+    # Island names — drawn with the custom font, only populated above when
+    # the player is on land.
     if island_label_data:
         font = _get_island_name_font()
         for (lx, ly, name) in island_label_data:
