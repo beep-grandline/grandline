@@ -225,9 +225,9 @@ _BUILDING_GLYPHS   = "bemquw"
 # 2 -> 2, 3+ -> 3).
 _BUILDING_GLYPH_COUNT_MAX = 3
 
-_BUILDING_GLYPH_SIZE = 2.0     # data units — target height/width of each icon
-_BUILDING_COL_GAP    = 1.15    # horizontal center-to-center spacing (2 columns)
-_BUILDING_ROW_GAP    = 1.15    # vertical center-to-center spacing between rows
+_BUILDING_GLYPH_SIZE = 3.0     # data units — target height/width of each icon
+_BUILDING_COL_GAP    = 1.3     # horizontal center-to-center spacing (2 columns)
+_BUILDING_ROW_GAP    = 1.3     # vertical center-to-center spacing between rows
 
 _BUILDING_GLYPH_PATHS = None   # letter -> matplotlib Path, cached after first load
 
