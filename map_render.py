@@ -14,7 +14,7 @@ from matplotlib.image import imread
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from PIL import Image as PILImage
 from scipy.interpolate import griddata
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import binary_fill_holes, gaussian_filter
 from scipy.spatial import cKDTree
 import gc
 
@@ -757,7 +757,18 @@ def _get_island_topography(isl: dict):
     # Land mask — geometric, distance-to-tile-center based via KDTree.
     tree = cKDTree(centers)
     dist, _ = tree.query(np.column_stack([X.ravel(), Y.ravel()]))
-    raw_mask  = (dist <= SIZE * _TOPO_MASK_RADIUS).astype(float).reshape(X.shape)
+    raw_mask  = (dist <= SIZE * _TOPO_MASK_RADIUS).reshape(X.shape)
+
+    # Close any fully-enclosed background pockets before blurring — this
+    # hex grid is regular (every direction's neighbor distance is exactly
+    # SIZE*SQRT3), and MASK_RADIUS comfortably covers the midpoint between
+    # any two truly-adjacent tile centers, so a real gap can't open up
+    # between tiles that are actually next to each other. A stray isolated
+    # "pinhole" inside a landmass is either a missing tile in the source
+    # data or a blur artifact, not real coastline — binary_fill_holes only
+    # fills pockets with no path out to the background, so genuine open
+    # bays/inlets (connected to the surrounding sea) are left untouched.
+    raw_mask  = binary_fill_holes(raw_mask).astype(float)
     soft_mask = gaussian_filter(raw_mask, sigma=blur_sigma)
 
     # Elevation field — one cubic interpolation (land + ocean=0 points),
