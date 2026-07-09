@@ -1384,7 +1384,7 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
         for (lx, ly, name) in hex_label_data:
             ax.text(lx, ly, name,
                     ha="center", va="center",
-                    fontsize=5.5, color=LABEL_COLOR,
+                    fontsize=11, color=LABEL_COLOR,
                     fontproperties=font, clip_on=True, zorder=6)
 
     # Island names — drawn with the custom font, only populated above when
