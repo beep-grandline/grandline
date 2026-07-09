@@ -1238,6 +1238,21 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
                     markeredgecolor="#000", markeredgewidth=0.8,
                     zorder=4)
 
+    # Invisible anchor spanning the exact visible square — bbox_inches="tight"
+    # crops to the bounding box of whatever's actually drawn, and content
+    # doesn't always reach every corner (topography's own grid only spans
+    # the island's tile extent, not the viewport; the hex-collection buffer
+    # doesn't cover the square's Euclidean corners with perfectly even
+    # margin in every direction/rotation). Without this, the tight crop's
+    # size varies render to render — showing up as intermittent extra white
+    # space once the PIL resize stretches a smaller-than-intended crop back
+    # up to MAP_IMG_W x MAP_IMG_H. This patch guarantees the crop is always
+    # exactly the full square, regardless of what content reaches it.
+    ax.add_patch(mpatches.Rectangle(
+        (px - margin, py - margin), 2 * margin, 2 * margin,
+        facecolor="none", edgecolor="none", zorder=0,
+    ))
+
     ax.set_xlim(px - margin, px + margin)
     ax.set_ylim(py - margin, py + margin)
 
