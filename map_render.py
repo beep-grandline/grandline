@@ -1164,12 +1164,15 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
 
             if terrain not in ("redline",):
                 # Per-hex label (e.g. "Royal Palace")
-                if (q, r) in labels:
+                has_hex_label = (q, r) in labels
+                if has_hex_label:
                     hex_label_data.append((cx, cy, labels[(q, r)]))
-                # Building glyphs (Bellamy's Mapbats font)
-                letters = _building_letters_for_tile(q, r, tile_meta.get((q, r)))
-                if letters:
-                    building_glyph_data.append((cx, cy, letters))
+                # Building glyphs (Bellamy's Mapbats font) — skipped when the
+                # tile also has a hex_label; the name takes priority for now.
+                if not has_hex_label:
+                    letters = _building_letters_for_tile(q, r, tile_meta.get((q, r)))
+                    if letters:
+                        building_glyph_data.append((cx, cy, letters))
                 # Accumulate pixel positions for island name centroid
                 name = nearby_name.get((q, r), "")
                 if name:
@@ -1374,14 +1377,15 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
         #         fontsize=5.5, color="#d0d0e8",
         #         fontweight="bold", clip_on=True, zorder=6)
 
-    # Per-hex labels (hex_label field — e.g. "Royal Palace") — text rendering
-    # removed from the compact map component; hex_label_data is still
-    # collected above in case a non-text presentation is added later.
-    # for (lx, ly, text) in hex_label_data:
-    #     ax.text(lx, ly, text,
-    #             ha="center", va="center",
-    #             fontsize=6, color=LABEL_COLOR,
-    #             fontweight="bold", clip_on=True, zorder=6)
+    # Per-hex labels (hex_label field — e.g. "Royal Palace") — drawn with the
+    # same custom font as island names, one hex at a time.
+    if hex_label_data:
+        font = _get_island_name_font()
+        for (lx, ly, name) in hex_label_data:
+            ax.text(lx, ly, name,
+                    ha="center", va="center",
+                    fontsize=5.5, color=LABEL_COLOR,
+                    fontproperties=font, clip_on=True, zorder=6)
 
     # Island names — drawn with the custom font, only populated above when
     # the player is on land.
