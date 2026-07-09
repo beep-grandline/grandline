@@ -2,17 +2,22 @@ import io
 import json
 import math
 import os
+import random
 from functools import lru_cache
 
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
+from fontTools.pens.basePen import BasePen
+from fontTools.ttLib import TTFont
 from matplotlib.collections import PatchCollection, LineCollection
 from matplotlib.colors import LinearSegmentedColormap
-from matplotlib.image import imread
 from matplotlib.font_manager import FontProperties
+from matplotlib.image import imread
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from matplotlib.path import Path as MplPath
+from matplotlib.transforms import Affine2D
 from PIL import Image as PILImage
 from scipy.interpolate import griddata
 from scipy.ndimage import binary_fill_holes, gaussian_filter
@@ -202,6 +207,128 @@ def _get_other_ship_icon():
     if raw is None:
         return None
     return np.rot90(raw, k=random.randint(0, 3))
+
+
+# ── Building glyphs (Bellamy's Mapbats dingbat font) ─────────────────────────
+# Each keystroke below is a little building icon in this font:
+#   b house · e tower · m house+tree · q house front · u double house · w silo
+#
+# This font's cmap can't be resolved via normal character-based text lookup
+# — confirmed broken in both PIL's and matplotlib's FreeType-backed text
+# renderers, every character comes back as a missing-glyph box. So glyphs
+# are pulled directly out of the font's glyf table by name (bypassing the
+# cmap and text rendering entirely) and drawn as vector paths instead.
+BUILDING_FONT_PATH = "data/BellamysMapbats-0jGv.ttf"
+_BUILDING_GLYPHS   = "bemquw"
+
+# Building count on a tile -> how many glyphs to draw. Only 6 distinct
+# glyphs exist, so higher counts reuse some (doubles are fine/expected).
+_BUILDING_GLYPH_COUNTS    = {1: 2, 2: 4}
+_BUILDING_GLYPH_COUNT_MAX = 6   # 3 or more buildings
+
+_BUILDING_GLYPH_SIZE = 1.15   # data units — target height/width of each icon
+_BUILDING_COL_GAP    = 1.3    # horizontal center-to-center spacing (2 columns)
+_BUILDING_ROW_GAP    = 1.3    # vertical center-to-center spacing between rows
+
+_BUILDING_GLYPH_PATHS = None   # letter -> matplotlib Path, cached after first load
+
+
+class _GlyphOutlinePen(BasePen):
+    """Collects a glyph's outline as matplotlib Path vertices/codes."""
+    def __init__(self, glyphSet):
+        super().__init__(glyphSet)
+        self.vertices = []
+        self.codes = []
+
+    def _moveTo(self, pt):
+        self.vertices.append(pt)
+        self.codes.append(MplPath.MOVETO)
+
+    def _lineTo(self, pt):
+        self.vertices.append(pt)
+        self.codes.append(MplPath.LINETO)
+
+    def _curveToOne(self, p1, p2, p3):
+        self.vertices.extend([p1, p2, p3])
+        self.codes.extend([MplPath.CURVE4] * 3)
+
+    def _qCurveToOne(self, p1, p2):
+        self.vertices.extend([p1, p2])
+        self.codes.extend([MplPath.CURVE3] * 2)
+
+    def _closePath(self):
+        self.vertices.append((0, 0))
+        self.codes.append(MplPath.CLOSEPOLY)
+
+
+def _get_building_glyph_paths() -> dict:
+    """
+    Extracts each of the 6 Mapbats glyphs by name from the font's glyf
+    table, as matplotlib Paths centered on the origin and normalized to
+    _BUILDING_GLYPH_SIZE. Cached after the first call. Returns {} (and
+    building glyphs render as nothing) if the font file isn't present.
+    """
+    global _BUILDING_GLYPH_PATHS
+    if _BUILDING_GLYPH_PATHS is not None:
+        return _BUILDING_GLYPH_PATHS
+
+    paths = {}
+    if os.path.exists(BUILDING_FONT_PATH):
+        font      = TTFont(BUILDING_FONT_PATH)
+        glyph_set = font.getGlyphSet()
+        for ch in _BUILDING_GLYPHS:
+            if ch not in glyph_set:
+                continue
+            pen = _GlyphOutlinePen(glyph_set)
+            glyph_set[ch].draw(pen)
+            if not pen.vertices:
+                continue
+            verts       = np.array(pen.vertices, dtype=float)
+            minx, miny  = verts.min(axis=0)
+            maxx, maxy  = verts.max(axis=0)
+            centre      = np.array([(minx + maxx) / 2, (miny + maxy) / 2])
+            scale       = _BUILDING_GLYPH_SIZE / max(maxx - minx, maxy - miny, 1)
+            paths[ch]   = MplPath((verts - centre) * scale, pen.codes)
+
+    _BUILDING_GLYPH_PATHS = paths
+    return paths
+
+
+def _building_letters_for_tile(meta: dict):
+    """
+    Returns a list of random Mapbats letters for a tile's buildings (e.g.
+    ["e", "u"], or 6 letters — doubles allowed — for 3+), or None if the
+    tile has no buildings.
+    """
+    buildings = meta.get("buildings") if meta else None
+    if not buildings:
+        return None
+    count = _BUILDING_GLYPH_COUNTS.get(len(buildings), _BUILDING_GLYPH_COUNT_MAX)
+    return random.choices(_BUILDING_GLYPHS, k=count)
+
+
+def _draw_building_glyphs(ax, building_glyph_data):
+    """
+    Draws each tile's building glyphs as a compact grouped block (rows of
+    2, centered) at the hex center, instead of one wide line of text.
+    """
+    glyph_paths = _get_building_glyph_paths()
+    if not glyph_paths:
+        return
+    for (cx, cy, letters) in building_glyph_data:
+        n_rows = (len(letters) + 1) // 2
+        for i, ch in enumerate(letters):
+            path = glyph_paths.get(ch)
+            if path is None:
+                continue
+            col, row  = i % 2, i // 2
+            x = cx + (col - 0.5) * _BUILDING_COL_GAP
+            y = cy + ((n_rows - 1) / 2 - row) * _BUILDING_ROW_GAP
+            transform = Affine2D().translate(x, y) + ax.transData
+            ax.add_patch(mpatches.PathPatch(
+                path, facecolor=LABEL_COLOR, edgecolor="none",
+                transform=transform, clip_on=True, zorder=6,
+            ))
 
 # Edge index pairs for each axial neighbour direction (flat-top orientation)
 HEX_DIRS = [(1,0),(-1,0),(0,1),(0,-1),(1,-1),(-1,1)]
@@ -919,6 +1046,7 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
     reachable_set  = _reachable_sea(pq, pr, MOVE_RANGE, hex_lookup) if show_roll else set()
     labels         = _cache["labels"]
     origins        = _cache["origins"]
+    tile_meta      = _cache["tile_meta"]
 
     # ── Broad-phase: only islands whose centre is near enough to reach the ──────
     # viewport contribute land tiles. Build a local land set + name map.
@@ -937,6 +1065,7 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
     border_segs       = []
     sea_segs          = []
     hex_label_data    = []
+    building_glyph_data = []
     reachable_centers = []
     wind_centers      = []   # roll view — wind-boosted hexes (reddish dots)
     island_accum      = {}
@@ -1036,6 +1165,10 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
                 # Per-hex label (e.g. "Royal Palace")
                 if (q, r) in labels:
                     hex_label_data.append((cx, cy, labels[(q, r)]))
+                # Building glyphs (Bellamy's Mapbats font)
+                letters = _building_letters_for_tile(tile_meta.get((q, r)))
+                if letters:
+                    building_glyph_data.append((cx, cy, letters))
                 # Accumulate pixel positions for island name centroid
                 name = nearby_name.get((q, r), "")
                 if name:
@@ -1258,6 +1391,11 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
                     ha="center", va="center",
                     fontsize=9, color=LABEL_COLOR,
                     fontproperties=font, clip_on=True, zorder=6)
+
+    # Per-hex building glyphs (Mapbats font) — vector paths, not text (see
+    # _get_building_glyph_paths). Skipped entirely if the font file isn't
+    # present rather than crashing the render.
+    _draw_building_glyphs(ax, building_glyph_data)
 
     if player_on_land:
         ax.plot(px, py, "o",
