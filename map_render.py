@@ -1071,7 +1071,7 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
             target_visible = any(
                 n == target_name
                 for (q2, r2), n in nearby_name.items()
-                if _hex_distance(q2, r2, pq, pr) <= radius
+                if _hex_distance(q2, r2, pq, pr) <= view_radius
             )
             if not target_visible:
                 log_pose_targets = [(tq, tr)]
@@ -1089,6 +1089,20 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
 
     # fig, ax = plt.subplots(figsize=(10, 10), facecolor=SEA_COLOR)
     fig, ax = plt.subplots(figsize=MAP_FIGSIZE, dpi=RENDER_DPI, facecolor=BACKGROUND_COLOR)
+    # Axes fill the entire figure, exactly. bbox_inches="tight" (tried
+    # instead, twice) crops to the bounding box of whatever's actually
+    # drawn — but artists placed outside the visible xlim/ylim (a far-off
+    # other-crew's ship or whirlpool, filtered by the wide hex-collection
+    # radius rather than the actual view_radius) don't reliably report a
+    # clipped extent to that bbox calculation, especially AnnotationBbox/
+    # OffsetImage (used for ship icons). One such far-off artist blows the
+    # tight-crop out to include it, and the later PIL resize then squishes
+    # the real content down to make room — the "huge bar of white space"
+    # bug. A fixed axes position sidesteps the whole class of bug: the raw
+    # render is always exactly MAP_IMG_W*SUPERSAMPLE x MAP_IMG_H*SUPERSAMPLE,
+    # full stop, regardless of what's drawn or where — actual pixel
+    # rendering is still correctly clipped to xlim/ylim either way.
+    ax.set_position([0, 0, 1, 1])
     ax.set_aspect("equal")
     ax.axis("off")
 
@@ -1172,7 +1186,7 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
     # Whirlpool effects — drawn above sea, below labels and player.
     # Only navigators can see them, so the caller gates this.
     if show_whirlpools:
-        _draw_whirlpools(ax, game.get_whirlpools(), pq, pr, radius)
+        _draw_whirlpools(ax, game.get_whirlpools(), pq, pr, view_radius)
 
     # Impel Down — concentric circles, outer rings behind the hex grid
     if impel_down_center is not None:
@@ -1234,7 +1248,7 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
         if own_crew_id and other["id"] == own_crew_id:
             continue
         oq, orr = other["q"] or 0, other["r"] or 0
-        if _hex_distance(oq, orr, pq, pr) > radius:
+        if _hex_distance(oq, orr, pq, pr) > view_radius:
             continue
         ox, oy = _hex_to_pixel(oq, orr)
         oicon  = _get_other_ship_icon()
@@ -1249,21 +1263,6 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
                     markeredgecolor="#000", markeredgewidth=0.8,
                     zorder=4)
 
-    # Invisible anchor spanning the exact visible square — bbox_inches="tight"
-    # crops to the bounding box of whatever's actually drawn, and content
-    # doesn't always reach every corner (topography's own grid only spans
-    # the island's tile extent, not the viewport; the hex-collection buffer
-    # doesn't cover the square's Euclidean corners with perfectly even
-    # margin in every direction/rotation). Without this, the tight crop's
-    # size varies render to render — showing up as intermittent extra white
-    # space once the PIL resize stretches a smaller-than-intended crop back
-    # up to MAP_IMG_W x MAP_IMG_H. This patch guarantees the crop is always
-    # exactly the full square, regardless of what content reaches it.
-    ax.add_patch(mpatches.Rectangle(
-        (px - margin, py - margin), 2 * margin, 2 * margin,
-        facecolor="none", edgecolor="none", zorder=0,
-    ))
-
     ax.set_xlim(px - margin, px + margin)
     ax.set_ylim(py - margin, py + margin)
 
@@ -1273,13 +1272,7 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
     raw = io.BytesIO()
     fig.savefig(
         raw, format="png", dpi=RENDER_DPI,
-        # bbox_inches="tight" restored (matches the pre-component render) —
-        # trims matplotlib's own figure padding for a cleaner crop. Safe to
-        # combine with a variable pre-resize size because the PIL resize
-        # below always forces the final buffer to exactly
-        # MAP_IMG_W x MAP_IMG_H regardless of this step's output size.
-        bbox_inches="tight",
-        pad_inches=0,
+        # No bbox_inches="tight" — see the ax.set_position comment above.
         # facecolor=SEA_COLOR,
         facecolor=BACKGROUND_COLOR,
     )
