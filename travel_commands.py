@@ -216,82 +216,9 @@ async def travel_auto(interaction: discord.Interaction):
     await interaction.response.send_message(msg)
 
 
-@travel_group.command(name="disembark", description="Leave the ship onto an adjacent island tile")
-async def travel_disembark(interaction: discord.Interaction):
-    uid    = str(interaction.user.id)
-    player = db.get_player(uid)
-    if not player:
-        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
-        return
-
-    if player["following_id"] != "ship":
-        await interaction.response.send_message("You're not on the ship.", ephemeral=True)
-        return
-
-    crew = db.get_crew(player["crew_id"]) if player["crew_id"] else None
-    if not crew:
-        await interaction.response.send_message("Couldn't disembark — are you in a crew?", ephemeral=True)
-        return
-
-    sq, sr = crew["q"] or 0, crew["r"] or 0
-    land_tile = game.adjacent_island_tile(sq, sr)
-    if not land_tile:
-        await interaction.response.send_message(
-            "The ship isn't next to any island. Sail closer to shore first.", ephemeral=True
-        )
-        return
-
-    lq, lr = land_tile
-    db.update_player_position(uid, lq, lr)
-
-    is_captain = str(crew["captain_id"]) == uid
-    if is_captain:
-        db.set_following(uid, None)
-        await interaction.response.send_message(
-            f"You stepped ashore at `q={lq}, r={lr}`. Crew members will follow you on land.",
-            ephemeral=True,
-        )
-    else:
-        db.set_following(uid, str(crew["captain_id"]))
-        await interaction.response.send_message(
-            f"You stepped ashore at `q={lq}, r={lr}` and are following the captain.\n"
-            "Use `/travel solo` to move independently.",
-            ephemeral=True,
-        )
-
-
-@travel_group.command(name="reboard", description="Board the ship — must be on an adjacent tile")
-async def travel_reboard(interaction: discord.Interaction):
-    uid    = str(interaction.user.id)
-    player = db.get_player(uid)
-    if not player:
-        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
-        return
-
-    if player["following_id"] == "ship":
-        await interaction.response.send_message("You're already on the ship.", ephemeral=True)
-        return
-
-    crew = db.get_crew(player["crew_id"]) if player["crew_id"] else None
-    if not crew:
-        await interaction.response.send_message("Couldn't reboard — are you in a crew?", ephemeral=True)
-        return
-
-    sq, sr = crew["q"] or 0, crew["r"] or 0
-    pq, pr = game.get_position(uid)
-
-    if not game.is_adjacent(pq, pr, sq, sr):
-        await interaction.response.send_message(
-            f"You're too far from the ship (`q={sq}, r={sr}`). Move to an adjacent tile first.",
-            ephemeral=True,
-        )
-        return
-
-    db.update_player_position(uid, sq, sr)
-    db.set_following(uid, "ship")
-    await interaction.response.send_message(
-        f"You're back on the ship at `q={sq}, r={sr}`.", ephemeral=True
-    )
+# /travel disembark and /travel reboard (previously here) are gone — the
+# /travel map D-pad now surfaces a 🚶/⛵ shortcut directly on whichever
+# direction leads to that action. See MapView._compute_board_actions/_board.
 
 
 @travel_group.command(name="rejoin", description="Teleport back to the captain's position")
@@ -339,7 +266,7 @@ async def travel_solo(interaction: discord.Interaction):
     q, r = game.get_position(uid)
     await interaction.response.send_message(
         f"You're now moving independently at `q={q}, r={r}`.\n"
-        f"Use `/travel reboard` to return to the ship.", ephemeral=True
+        f"Use `/travel map` to walk back next to the ship and reboard.", ephemeral=True
     )
 
 
@@ -460,11 +387,20 @@ def _map_status_text(player, crew) -> str:
 class MapView(discord.ui.LayoutView):
     """
     Unified /travel map component — replaces the old separate /travel walk
-    and /travel helm button panels. Movement mode (steer the ship vs. walk
-    on foot) is resolved fresh from the player's current following_id on
-    every button press rather than fixed at open time, since it can change
-    out from under a long-lived ephemeral message (disembark, reboard,
-    solo, etc. are all separate commands the player can run in between).
+    and /travel helm button panels, and now also /travel disembark and
+    /travel reboard. Movement mode (steer the ship vs. walk on foot) is
+    resolved fresh from the player's current following_id on every button
+    press rather than fixed at open time, since it can change out from
+    under a long-lived ephemeral message (solo, rejoin, etc. are still
+    separate commands the player can run in between).
+
+    Disembark/reboard are no longer separate commands — any D-pad
+    direction that would otherwise be a dead-end move (steering the ship
+    onto an island tile, or walking onto the sea tile the ship sits on)
+    doubles as a boarding shortcut instead. _refresh_buttons() labels those
+    directions with an extra 🚶/⛵ emoji next to the arrow so it's visible
+    before pressing, and _compute_board_actions() is re-checked fresh on
+    every press (not cached), same reasoning as the movement-mode check.
 
     Overlay layers (topography / roll) are fixed per-viewer at open time —
     they're role perks, not movement state, so they don't need re-checking
@@ -476,7 +412,8 @@ class MapView(discord.ui.LayoutView):
         self.uid             = uid
         self.show_topography = show_topography
         self.show_roll       = show_roll
-        self.heading         = "f"   # updated on each successful move
+        self.heading         = "f"   # updated on each successful ship move
+        self._nav_buttons    = {}    # direction -> Button, for label refresh
 
         self.gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(media="attachment://map.png"))
         self.status  = discord.ui.TextDisplay("​")   # placeholder, set via set_status()
@@ -504,6 +441,7 @@ class MapView(discord.ui.LayoutView):
         container.add_item(row1)
         container.add_item(row2)
         self.add_item(container)
+        self._refresh_buttons()
 
     def _nav_button(self, emoji: str, direction: str) -> discord.ui.Button:
         button = discord.ui.Button(emoji=emoji, style=discord.ButtonStyle.secondary)
@@ -512,10 +450,91 @@ class MapView(discord.ui.LayoutView):
             await self._move(interaction, direction)
 
         button.callback = _callback
+        self._nav_buttons[direction] = button
         return button
 
     def set_status(self, text: str):
         self.status.content = text
+
+    def _compute_board_actions(self, player) -> dict:
+        """Which D-pad directions (if any) are boarding shortcuts right
+        now: "disembark" — aboard the ship, this direction points at an
+        island tile; "reboard" — on foot, this direction points at the
+        crew's ship tile. Recomputed fresh each time, never cached, since
+        the ship and player can both move between presses."""
+        actions = {}
+        if not player or not player["crew_id"]:
+            return actions
+
+        map_render._load_map()
+        hex_lookup = map_render._cache["hex_lookup"]
+        crew = db.get_crew(player["crew_id"])
+        if not crew:
+            return actions
+        sq, sr = crew["q"] or 0, crew["r"] or 0
+
+        if player["following_id"] == "ship":
+            for direction, (dq, dr) in game.HEX_DIRECTIONS.items():
+                if hex_lookup.get((sq + dq, sr + dr)) == "island":
+                    actions[direction] = "disembark"
+        else:
+            pq, pr = game.get_position(self.uid)
+            for direction, (dq, dr) in game.HEX_DIRECTIONS.items():
+                if (pq + dq, pr + dr) == (sq, sr):
+                    actions[direction] = "reboard"
+
+        return actions
+
+    def _refresh_buttons(self):
+        player  = db.get_player(self.uid)
+        actions = self._compute_board_actions(player) if player else {}
+        icons   = {"disembark": "🚶", "reboard": "⛵"}
+        for direction, button in self._nav_buttons.items():
+            button.label = icons.get(actions.get(direction))
+
+    async def _board(self, interaction: discord.Interaction, player, direction: str, action: str):
+        """Execute a disembark/reboard shortcut in place of normal
+        movement — free (no roll cost), matching the old dedicated
+        commands this replaces."""
+        uid  = self.uid
+        crew = db.get_crew(player["crew_id"]) if player["crew_id"] else None
+        if not crew:
+            await interaction.response.send_message("Crew not found.", ephemeral=True)
+            return
+        sq, sr = crew["q"] or 0, crew["r"] or 0
+
+        if action == "disembark":
+            dq, dr = game.HEX_DIRECTIONS[direction]
+            lq, lr = sq + dq, sr + dr
+            db.update_player_position(uid, lq, lr)
+            is_captain = str(crew["captain_id"]) == uid
+            db.set_following(uid, None if is_captain else str(crew["captain_id"]))
+            p     = db.get_player(uid)
+            rolls = p["walk_roll"] if p and p["walk_roll"] is not None else 0
+            self.set_status(f"🚶 `{_roll_bar(rolls, max_rolls=game.WALK_ROLL_MAX)}` {rolls}/{game.WALK_ROLL_MAX} walk moves")
+            moved_q, moved_r = lq, lr
+            confirm = "You stepped ashore." if is_captain else "You stepped ashore, following the captain."
+        else:
+            db.update_player_position(uid, sq, sr)
+            db.set_following(uid, "ship")
+            rolls = crew["roll"] or 0
+            self.set_status(f"⛵ `{_roll_bar(rolls)}` {rolls}/{game.ROLL_MAX} rolls")
+            moved_q, moved_r = sq, sr
+            confirm = "You're back on the ship."
+
+        self._refresh_buttons()
+        await self._rerender(interaction)
+        await interaction.followup.send(confirm, ephemeral=True)
+
+        alert = _tile_alert(moved_q, moved_r, uid)
+        if alert:
+            await interaction.followup.send(alert, ephemeral=True)
+
+        if action == "disembark":
+            boxes = map_render.get_dialogue(moved_q, moved_r)
+            if boxes:
+                dview = DialogueView(uid, boxes)
+                await interaction.followup.send(embed=dview.embed(), view=dview, ephemeral=True)
 
     async def _rerender(self, interaction: discord.Interaction):
         """Re-render the map image at the player's new position and edit
@@ -537,6 +556,11 @@ class MapView(discord.ui.LayoutView):
         player = db.get_player(uid)
         if not player:
             await interaction.response.send_message("Register first.", ephemeral=True)
+            return
+
+        board_actions = self._compute_board_actions(player)
+        if direction in board_actions:
+            await self._board(interaction, player, direction, board_actions[direction])
             return
 
         swept       = False
@@ -578,6 +602,7 @@ class MapView(discord.ui.LayoutView):
             self.set_status(f"🚶 `{_roll_bar(rolls, max_rolls=game.WALK_ROLL_MAX)}` {rolls}/{game.WALK_ROLL_MAX} walk moves")
             moved_q, moved_r = new_q, new_r
 
+        self._refresh_buttons()
         await self._rerender(interaction)
 
         # Extra alerts — ephemeral only, never edited onto the component.
