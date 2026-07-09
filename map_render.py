@@ -11,6 +11,7 @@ import numpy as np
 from matplotlib.collections import PatchCollection, LineCollection
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.image import imread
+from matplotlib.font_manager import FontProperties
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from PIL import Image as PILImage
 from scipy.interpolate import griddata
@@ -70,6 +71,23 @@ LABEL_COLOR      = "#171717"
 SEA_COLOR        = TERRAIN_COLORS["sea"]
 # Plain white page background — replaces the ocean texture fill.
 BACKGROUND_COLOR = "#ffffff"
+
+# ── Island-name test render ───────────────────────────────────────────────────
+# TEST ONLY — island names are otherwise intentionally hidden (players
+# discover islands via /spyglass). See show_island_names on render_map and
+# /admin fonttest in bot.py.
+ISLAND_NAME_FONT_PATH = "data/BlackSamsGold-ej5e.ttf"
+_island_name_font = None
+
+
+def _get_island_name_font():
+    global _island_name_font
+    if _island_name_font is None:
+        try:
+            _island_name_font = FontProperties(fname=ISLAND_NAME_FONT_PATH)
+        except Exception:
+            _island_name_font = False   # tried and failed — don't retry every call
+    return _island_name_font or None
 
 # Calm belt — any hex where abs(r) > game.CALM_BELT_R is treated as impassable
 # calm belt regardless of what the JSON says. The JSON calm_belt terrain type
@@ -843,9 +861,15 @@ def _draw_topography(ax, islands):
 def render_map(uid: str, radius: int = 10, view_radius: int = None,
                show_topography: bool = False,
                show_roll: bool = False, show_whirlpools: bool = False,
-               heading: str = "f"):
+               heading: str = "f", show_island_names: bool = False):
     """
     Render a viewport map centred on the player's position.
+
+    show_island_names: TEST ONLY — draws each visible island's name at its
+                        centroid using ISLAND_NAME_FONT_PATH. Island names
+                        are otherwise intentionally hidden (players
+                        discover islands via /spyglass); this is just for
+                        eyeballing the font, not meant for production use.
 
     These used to be three mutually-exclusive "view" strings; now every
     layer is its own flag so they can be combined per viewer's roles in one
@@ -1055,8 +1079,16 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
                     seen.add((wq, wr))
                     wind_centers.append(_hex_to_pixel(wq, wr))
 
-    # Island names are intentionally not shown — players discover islands via /spyglass
+    # Island names are intentionally not shown in production — players
+    # discover islands via /spyglass. show_island_names is a test-only
+    # override (see ISLAND_NAME_FONT_PATH) that computes each visible
+    # island's centroid from the tiles already accumulated above.
     island_label_data = []
+    if show_island_names:
+        for name, pts in island_accum.items():
+            cx = sum(p[0] for p in pts) / len(pts)
+            cy = sum(p[1] for p in pts) / len(pts)
+            island_label_data.append((cx, cy, name))
 
     # Determine log pose arrow target from crew db
     log_pose_targets = []
@@ -1219,6 +1251,15 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
     #             ha="center", va="center",
     #             fontsize=6, color=LABEL_COLOR,
     #             fontweight="bold", clip_on=True, zorder=6)
+
+    # Island names — TEST ONLY (show_island_names), using the custom font.
+    if island_label_data:
+        font = _get_island_name_font()
+        for (lx, ly, name) in island_label_data:
+            ax.text(lx, ly, name,
+                    ha="center", va="center",
+                    fontsize=9, color=LABEL_COLOR,
+                    fontproperties=font, clip_on=True, zorder=6)
 
     if player_on_land:
         ax.plot(px, py, "o",
