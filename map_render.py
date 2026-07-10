@@ -70,7 +70,7 @@ TERRAIN_COLORS = {
 # BORDER_COLOR     = "#f0f8ff"
 BORDER_COLOR     = "#63584a"
 BORDER_WIDTH     = 1.0   # land-sea edge thickness (was 1.5)
-SEA_GRID_WIDTH   = 0.6   # sea-sea grid line thickness (was 1.5, then 0.75)
+SEA_GRID_WIDTH   = 0.8   # sea-sea grid line thickness (was 1.5, then 0.75, then 0.6)
 PLAYER_COLOR     = "#F0D060"
 LABEL_COLOR      = "#171717"
 SEA_COLOR        = TERRAIN_COLORS["sea"]
@@ -1297,7 +1297,7 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
         xs, ys, dists = zip(*reachable_centers)
         # alpha rolloff: ~0.62 nearest → ~0.28 (half) at 9 tiles out
         ROLL_ALPHA_NEAR, ROLL_ALPHA_FAR, ROLL_ALPHA_DIST = 0.62, 0.18, 9.0
-        ROLL_COLOR_RGB = (0.5, 0.5, 0.5)
+        ROLL_COLOR_RGB = (1.0, 1.0, 1.0)
         colors = [
             (*ROLL_COLOR_RGB,
              max(ROLL_ALPHA_FAR,
