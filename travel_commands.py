@@ -400,6 +400,8 @@ class MapView(discord.ui.LayoutView):
 
         container.add_item(row1)
         container.add_item(row2)
+        self.board_note = discord.ui.TextDisplay("​")
+        container.add_item(self.board_note)
         self.add_item(container)
         self._refresh_buttons()
 
@@ -467,9 +469,11 @@ class MapView(discord.ui.LayoutView):
     def _refresh_buttons(self):
         player  = db.get_player(self.uid)
         actions = self._compute_board_actions(player) if player else {}
-        icons   = {"disembark": "🚶", "reboard": "⛵"}
+        notes   = {"disembark": "\\* Disembark and walk on land", "reboard": "\\* Board the ship"}
         for direction, button in self._nav_buttons.items():
-            button.label = icons.get(actions.get(direction))
+            button.label = "*" if direction in actions else None
+        note = next((notes[a] for a in actions.values()), None)
+        self.board_note.content = note if note else "​"
 
     async def _board(self, interaction: discord.Interaction, player, direction: str, action: str):
         """Execute a disembark/reboard shortcut in place of normal
