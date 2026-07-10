@@ -75,7 +75,7 @@ PLAYER_COLOR     = "#F0D060"
 LABEL_COLOR      = "#171717"
 SEA_COLOR        = TERRAIN_COLORS["sea"]
 # Plain white page background — replaces the ocean texture fill.
-BACKGROUND_COLOR = "#ffffff"
+BACKGROUND_COLOR = "#F8F3ED"
 
 # ── Island-name render ────────────────────────────────────────────────────────
 # Shown only when the player is standing on land — still hidden while at
