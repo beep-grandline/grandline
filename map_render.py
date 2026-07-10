@@ -1286,10 +1286,9 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
         _draw_topography(ax, nearby_islands)
 
     if sea_segs:
-        # colors=(1.0, 1.0, 1.0, 0.18),  # white — invisible against the white bg
         ax.add_collection(LineCollection(
             sea_segs,
-            colors="#dedbd5",
+            colors=(1.0, 1.0, 1.0, 0.18),
             linewidths=SEA_GRID_WIDTH,
             zorder=1,
         ))
@@ -1298,9 +1297,7 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
         xs, ys, dists = zip(*reachable_centers)
         # alpha rolloff: ~0.62 nearest → ~0.28 (half) at 9 tiles out
         ROLL_ALPHA_NEAR, ROLL_ALPHA_FAR, ROLL_ALPHA_DIST = 0.62, 0.18, 9.0
-        # Roll highlight color — was white (1,1,1), then a mid gray; now a
-        # light brown to sit closer to the ground/border palette.
-        ROLL_COLOR_RGB = (0.78, 0.65, 0.50)
+        ROLL_COLOR_RGB = (0.5, 0.5, 0.5)
         colors = [
             (*ROLL_COLOR_RGB,
              max(ROLL_ALPHA_FAR,
