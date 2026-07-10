@@ -1272,18 +1272,15 @@ def render_map(uid: str, radius: int = 10, view_radius: int = None,
     ax.set_aspect("equal")
     ax.axis("off")
 
-    # Background is always plain white now — the ocean texture contourf is
-    # fully retired (dead code below is commented out, not deleted, so the
-    # old wavy sea look can be restored later if wanted).
     ax.set_facecolor(BACKGROUND_COLOR)
 
-    # _X, _Y, _Z = _get_ocean_texture(pq, pr, radius, hex_lookup)
-    # ax.contourf(
-    #     _X, _Y, _Z,
-    #     levels=4,
-    #     colors=["#75e1ff", "#6dd4f5", "#65c9eb", "#5cbde0", "#54b2d6"],
-    #     zorder=0,
-    # )
+    _X, _Y, _Z = _get_ocean_texture(pq, pr, radius, hex_lookup)
+    ax.contourf(
+        _X, _Y, _Z,
+        levels=4,
+        colors=["#75e1ff", "#6dd4f5", "#65c9eb", "#5cbde0", "#54b2d6"],
+        zorder=0,
+    )
 
     if show_topography:
         _draw_topography(ax, nearby_islands)
