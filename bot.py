@@ -1007,6 +1007,53 @@ async def gm_addrolls(
             f"Added **{amount}** rolls to all **{updated}** crews{cap_note}."
         )
 
+
+# ── /gm addwalk — give extra walk rolls to a player (or everyone) ─────────────
+
+
+@gm_group.command(name="addwalk", description="Add walk rolls to a player (or all players)")
+@discord.app_commands.describe(
+    amount="Number of walk rolls to add",
+    target="Specific player (leave empty to add to all players)",
+    cap="Cap at max (4) — default True, set False to allow over max",
+)
+async def gm_addwalk(
+    interaction: discord.Interaction,
+    amount: int,
+    target: discord.Member = None,
+    cap: bool = True,
+):
+    if not is_gm(interaction):
+        await interaction.response.send_message("No permission.", ephemeral=True)
+        return
+
+    walk_cap = game.WALK_ROLL_MAX if cap else amount + 10 ** 9
+
+    if target:
+        uid = str(target.id)
+        player = db.get_player(uid)
+        if not player:
+            await interaction.response.send_message(
+                f"**{target.display_name}** is not registered.", ephemeral=True
+            )
+            return
+        db.add_walk_rolls(uid, amount, walk_cap)
+        new_roll = db.get_player(uid)["walk_roll"]
+        cap_note = f" (capped at {game.WALK_ROLL_MAX})" if cap and new_roll == game.WALK_ROLL_MAX else ""
+        await interaction.response.send_message(
+            f"Added **{amount}** walk rolls to **{target.display_name}** — "
+            f"now at **{new_roll}**{cap_note}."
+        )
+    else:
+        players = db.get_all_players()
+        for p in players:
+            db.add_walk_rolls(p["id"], amount, walk_cap)
+        cap_note = f" (capped at {game.WALK_ROLL_MAX})" if cap else ""
+        await interaction.response.send_message(
+            f"Added **{amount}** walk rolls to all **{len(players)}** players{cap_note}."
+        )
+
+
 @gm_group.command(name="crew", description="Create a new crew")
 @discord.app_commands.describe(name="Name of the crew", captain="The crew's captain", color="Hex color (e.g. ff0000)")
 async def gm_crew(interaction: discord.Interaction, name: str, captain: discord.Member, color: str):
@@ -1399,6 +1446,7 @@ async def gm_help(interaction: discord.Interaction):
         ("/gm teleport",  "Teleport a player to a hex — they go solo at the destination (target, q, r)"),
         ("/gm moveship",  "Teleport a crew's entire ship to a hex (crew, q, r)"),
         ("/gm addrolls",  "Add rolls to a crew for events (crew, amount, optional cap)"),
+        ("/gm addwalk",   "Add walk rolls to a player for events (target, amount, optional cap)"),
         ("/gm crew",      "Create a new crew (name, captain, color)"),
         ("/gm disband",   "Disband a crew by name"),
         ("/gm register",  "Manually register a player — backup if the role picker fails (target)"),
