@@ -250,24 +250,7 @@ async def travel_rejoin(interaction: discord.Interaction):
     )
 
 
-@travel_group.command(name="solo", description="Break away and move independently")
-async def travel_solo(interaction: discord.Interaction):
-    uid    = str(interaction.user.id)
-    player = db.get_player(uid)
-    if not player:
-        await interaction.response.send_message("Register first — pick your allegiance from the role picker.", ephemeral=True)
-        return
-
-    if player["following_id"] is None:
-        await interaction.response.send_message("You're already moving independently.", ephemeral=True)
-        return
-
-    game.go_solo(uid)
-    q, r = game.get_position(uid)
-    await interaction.response.send_message(
-        f"You're now moving independently at `q={q}, r={r}`.\n"
-        f"Use `/travel map` to walk back next to the ship and reboard.", ephemeral=True
-    )
+# /travel solo (previously here) is gone.
 
 
 MARINE_ALLEGIANCE    = "Marine"
@@ -279,87 +262,64 @@ def _is_marine(member) -> bool:
     return MARINE_ALLEGIANCE in names or bool(names & MARINE_OFFICER_ROLES)
 
 
-async def _pose_autocomplete(interaction: discord.Interaction, current: str):
-    try:
-        choices = []
-        cur     = current.lower()
+def _pose_options(uid: str, crew) -> list:
+    """Dropdown options for the compass button: the next island along the
+    current log pose chain, plus any Eternal Poses in the player's
+    inventory."""
+    current_island = crew["log_pose"] or game.DEFAULT_LOG_POSE
+    island_data    = islands_mod.get_island(current_island)
+    next_island    = (island_data or {}).get("next") or current_island
 
-        # Always offer Log Pose first
-        if "log pose".startswith(cur) or not current:
-            choices.append(discord.app_commands.Choice(name="Log Pose", value="log"))
+    options = [discord.SelectOption(label=f"Log Pose → {next_island}", value="log")]
 
-        # Eternal Poses from inventory
-        uid   = str(interaction.user.id)
-        items = db.get_inventory(uid)
-        for item in items:
-            kws = item.get("keywords", [])
-            if "Eternal Pose" not in item.get("name", "") and not any(k.lower() == "eternal" for k in kws):
-                continue
-            # destination island: first keyword that isn't "eternal"
-            dest = next((k for k in kws if k.lower() != "eternal"), None)
-            if not dest:
-                continue
-            label = f"Eternal Pose → {dest}"
-            value = f"eternal:{dest}"
-            if cur in label.lower():
-                choices.append(discord.app_commands.Choice(name=label, value=value))
+    items = db.get_inventory(uid)
+    for item in items:
+        kws = item.get("keywords", [])
+        if "Eternal Pose" not in item.get("name", "") and not any(k.lower() == "eternal" for k in kws):
+            continue
+        dest = next((k for k in kws if k.lower() != "eternal"), None)
+        if not dest:
+            continue
+        options.append(discord.SelectOption(label=f"Eternal Pose → {dest}", value=f"eternal:{dest}"))
 
-        # Marines may navigate directly to any island or facility on the map
-        if _is_marine(interaction.user):
-            seen = {c.value for c in choices}
-            for name in sorted(islands_mod.get_all().keys()):
-                value = f"eternal:{name}"
-                if value in seen:
-                    continue
-                if not cur or cur in name.lower():
-                    choices.append(discord.app_commands.Choice(name=name, value=value))
-
-        return choices[:25]
-    except (discord.NotFound, Exception):
-        return []
+    return options[:25]
 
 
-@travel_group.command(name="pose", description="Set your navigation destination (captain only)")
-@discord.app_commands.describe(destination="Log Pose or an Eternal Pose from your inventory")
-@discord.app_commands.autocomplete(destination=_pose_autocomplete)
-async def travel_pose(interaction: discord.Interaction, destination: str):
-    uid    = str(interaction.user.id)
-    player = db.get_player(uid)
-    if not player or not player["crew_id"]:
-        await interaction.response.send_message("You need to be in a crew.", ephemeral=True)
-        return
-
-    crew = db.get_crew(player["crew_id"])
-    if not _is_captain(interaction, crew):
-        await interaction.response.send_message("Only the captain can set the pose.", ephemeral=True)
-        return
-
+def _set_pose(crew, destination: str) -> str:
+    """Applies a pose-dropdown selection and returns the confirmation text."""
     if destination == "log":
         current_island = crew["log_pose"] or game.DEFAULT_LOG_POSE
         island_data    = islands_mod.get_island(current_island)
         next_island    = (island_data or {}).get("next") or current_island
         db.set_log_pose(crew["id"], next_island, pose_type="log")
-        await interaction.response.send_message(
-            "🧭 You are now following the log pose.", ephemeral=True
-        )
+        return "🧭 You are now following the log pose."
 
-    elif destination.startswith("eternal:"):
-        island = destination[8:]
-        if not islands_mod.get_island(island):
-            await interaction.response.send_message(
-                f"**{island}** isn't a known island. Select a destination from the list.",
-                ephemeral=True,
-            )
+    island = destination[8:]  # strip "eternal:"
+    if not islands_mod.get_island(island):
+        return f"**{island}** isn't a known island."
+    db.set_log_pose(crew["id"], island, pose_type="eternal")
+    return f"🧭 Eternal Pose activated — destination locked to **{island}**."
+
+
+class PoseSelect(discord.ui.Select):
+    def __init__(self, uid: str, crew):
+        super().__init__(placeholder="Set the log...", options=_pose_options(uid, crew))
+        self.uid = uid
+
+    async def callback(self, interaction: discord.Interaction):
+        player = db.get_player(self.uid)
+        crew   = db.get_crew(player["crew_id"]) if player and player["crew_id"] else None
+        if not crew:
+            await interaction.response.edit_message(content="Crew not found.", view=None)
             return
-        db.set_log_pose(crew["id"], island, pose_type="eternal")
-        await interaction.response.send_message(
-            f"🧭 Eternal Pose activated — destination locked to **{island}**.", ephemeral=True
-        )
+        msg = _set_pose(crew, self.values[0])
+        await interaction.response.edit_message(content=msg, view=None)
 
-    else:
-        await interaction.response.send_message(
-            "Select an option from the list.", ephemeral=True
-        )
+
+class PoseSelectView(discord.ui.View):
+    def __init__(self, uid: str, crew):
+        super().__init__(timeout=120)
+        self.add_item(PoseSelect(uid, crew))
 
 
 def _map_roles(interaction: discord.Interaction, crew):
@@ -433,7 +393,7 @@ class MapView(discord.ui.LayoutView):
         row1.add_item(self._nav_button("↗️", "fl"))
         row1.add_item(self._nav_button("➡️", "f"))
         row2 = discord.ui.ActionRow()
-        row2.add_item(discord.ui.Button(label="​", style=discord.ButtonStyle.secondary, disabled=True))
+        row2.add_item(self._compass_button())
         row2.add_item(self._nav_button("↙️", "br"))
         row2.add_item(self._nav_button("↘️", "fr"))
         row2.add_item(discord.ui.Button(label="​", style=discord.ButtonStyle.secondary, disabled=True))
@@ -442,6 +402,25 @@ class MapView(discord.ui.LayoutView):
         container.add_item(row2)
         self.add_item(container)
         self._refresh_buttons()
+
+    def _compass_button(self) -> discord.ui.Button:
+        button = discord.ui.Button(emoji="🧭", style=discord.ButtonStyle.secondary)
+
+        async def _callback(interaction: discord.Interaction):
+            await self._open_pose(interaction)
+
+        button.callback = _callback
+        return button
+
+    async def _open_pose(self, interaction: discord.Interaction):
+        player = db.get_player(self.uid)
+        crew   = db.get_crew(player["crew_id"]) if player and player["crew_id"] else None
+        if not crew or str(crew["captain_id"]) != self.uid:
+            await interaction.response.send_message("Only the captain can set the log.", ephemeral=True)
+            return
+        await interaction.response.send_message(
+            "🧭 Choose a destination:", view=PoseSelectView(self.uid, crew), ephemeral=True
+        )
 
     def _nav_button(self, emoji: str, direction: str) -> discord.ui.Button:
         button = discord.ui.Button(emoji=emoji, style=discord.ButtonStyle.secondary)
@@ -588,7 +567,7 @@ class MapView(discord.ui.LayoutView):
 
         elif player["following_id"] and player["following_id"] != uid:
             await interaction.response.send_message(
-                "You're following the captain. Use `/travel solo` to move independently.", ephemeral=True
+                "You're following the captain and can't move independently.", ephemeral=True
             )
             return
 
